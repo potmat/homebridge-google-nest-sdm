@@ -1,0 +1,32 @@
+{
+  "name": "homebridge-google-nest-sdm",
+  "version": "1.0.0",
+  "description": "A homebridge plugin that uses the Google Smart Device Management API.",
+  "main": "dist/index.js",
+  "scripts": {
+    "clean": "rimraf ./dist",
+    "build": "rimraf ./dist && tsc",
+    "prepublishOnly": "npm run build",
+    "postpublish": "npm run clean",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "engines": {
+    "homebridge": ">=1.0.0"
+  },
+  "keywords": [
+    "homebridge-plugin"
+  ],
+  "dependencies": {
+    "googleapis": "^61.0.0",
+    "ip": "^1.1.5",
+    "lodash": "^4.17.20"
+  },
+  "devDependencies": {
+    "@types/ip": "^1.1.0",
+    "@types/lodash": "^4.14.162",
+    "@types/node": "10.17.19",
+    "homebridge": "^1.0.4",
+    "rimraf": "^3.0.2",
+    "typescript": "^3.8.3"
+  }
+}
