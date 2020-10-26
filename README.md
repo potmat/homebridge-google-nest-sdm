@@ -11,7 +11,7 @@ A homebridge plugin that uses the Google Smart Device Management API.
         "clientSecret": "...",
         "projectId": "...",
         "refreshToken": "...",
-        "vcoded" "libx264/h264_videotoolbox/..."
+        "vcodec" "libx264/h264_videotoolbox/..."
       }
     }
     
