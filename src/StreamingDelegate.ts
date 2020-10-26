@@ -17,6 +17,7 @@ import {
   VideoInfo
 } from "homebridge";
 import {Camera, StreamInfo} from "./SdmApi";
+import {Config} from "./Config";
 
 type SessionInfo = {
   address: string, // address of the HAP controller
@@ -53,19 +54,16 @@ const FFMPEGH264LevelNames = [
 export class StreamingDelegate implements CameraStreamingDelegate {
 
   private ffmpegDebugOutput: boolean = true;
-
-  private readonly hap: HAP;
   controller?: CameraController;
 
   // keep track of sessions
   pendingSessions: Record<string, SessionInfo> = {};
   ongoingSessions: Record<string, ActiveStream> = {};
-  private device: Camera;
 
-  constructor(hap: HAP, device: Camera) {
-    this.hap = hap;
-    this.device = device;
-  }
+
+  constructor(private readonly hap: HAP,
+              private readonly config: Config,
+              private readonly device: Camera) {}
 
   handleSnapshotRequest(request: SnapshotRequest, callback: SnapshotRequestCallback): void {
     const ffmpegCommand = `-f lavfi -i testsrc=s=${request.width}x${request.height} -vframes 1 -f mjpeg -`;
@@ -110,7 +108,6 @@ export class StreamingDelegate implements CameraStreamingDelegate {
 
     const sessionInfo: SessionInfo = {
       address: targetAddress,
-
       videoPort: videoPort,
       videoCryptoSuite: videoCryptoSuite,
       videoSRTP: Buffer.concat([videoSrtpKey, videoSrtpSalt]),
@@ -134,6 +131,44 @@ export class StreamingDelegate implements CameraStreamingDelegate {
     callback(undefined, response);
   }
 
+  private getVideoCodecCommand(codec: string) : string {
+    switch (codec) {
+      case 'libx264':
+        return '-c:v libx264 -pix_fmt yuv420p -preset ultrafast -tune zerolatency ';
+      case 'h264_videotoolbox':
+        return '-c:v h264_videotoolbox -pix_fmt yuv420p ';
+      default:
+        throw 'Video codec not specified';
+    }
+  }
+
+  private getVideoCommand(video: VideoInfo, sessionInfo: SessionInfo, streamInfo: StreamInfo) : string {
+    const profile = FFMPEGH264ProfileNames[video.profile];
+    const level = FFMPEGH264LevelNames[video.level];
+    const width = video.width;
+    const height = video.height;
+    const fps = video.fps;
+
+    const payloadType = video.pt;
+    const maxBitrate = video.max_bit_rate;
+    const rtcpInterval = video.rtcp_interval; // usually 0.5
+    const mtu = video.mtu; // maximum transmission unit
+
+    const address = sessionInfo.address;
+    const videoPort = sessionInfo.videoPort;
+    const ssrc = sessionInfo.videoSSRC;
+    const cryptoSuite = sessionInfo.videoCryptoSuite;
+    const videoSRTP = sessionInfo.videoSRTP.toString("base64");
+
+    return `-i ${streamInfo.rtspUrl} ` +
+        this.getVideoCodecCommand(this.config.vcodec) +
+        `-r ${fps} -an -sn -dn -b:v ${maxBitrate}k -bufsize ${2*maxBitrate}k -maxrate ${maxBitrate}k ` +
+        `-vf scale=w=${width}:h=${height}:force_original_aspect_ratio=decrease ` +
+        `-payload_type ${payloadType} -ssrc ${ssrc} -f rtp ` + // -profile:v ${profile} -level:v ${level}
+        `-srtp_out_suite AES_CM_128_HMAC_SHA1_80 -srtp_out_params ${videoSRTP} ` +
+        `srtp://${address}:${videoPort}?rtcpport=${videoPort}&localrtcpport=${videoPort}&pkt_size=${mtu}`;
+  }
+
   // called when iOS device asks stream to start/stop/reconfigure
   handleStreamRequest(request: StreamingRequest, callback: StreamRequestCallback): void {
     const sessionId = request.sessionID;
@@ -141,41 +176,12 @@ export class StreamingDelegate implements CameraStreamingDelegate {
     switch (request.type) {
       case StreamRequestTypes.START:
         const sessionInfo = this.pendingSessions[sessionId];
-
         const video: VideoInfo = request.video;
 
-        const profile = FFMPEGH264ProfileNames[video.profile];
-        const level = FFMPEGH264LevelNames[video.level];
-        const width = video.width;
-        const height = video.height;
-        const fps = video.fps;
-
-        const payloadType = video.pt;
-        const maxBitrate = video.max_bit_rate;
-        const rtcpInterval = video.rtcp_interval; // usually 0.5
-        const mtu = video.mtu; // maximum transmission unit
-
-        const address = sessionInfo.address;
-        const videoPort = sessionInfo.videoPort;
-        const ssrc = sessionInfo.videoSSRC;
-        const cryptoSuite = sessionInfo.videoCryptoSuite;
-        const videoSRTP = sessionInfo.videoSRTP.toString("base64");
-
-        console.log(`Starting video stream (${width}x${height}, ${fps} fps, ${maxBitrate} kbps, ${mtu} mtu)...`);
-
-        this.device.getStreamUrl()
+        this.device.getStreamInfo()
             .then(streamInfo => {
-              console.log(streamInfo);
-              let videoffmpegCommand = `-i ${streamInfo.rtspUrl} ` +
-                  `-c:v libx264 -pix_fmt yuv420p -r ${fps} -an -sn -dn -b:v ${maxBitrate}k -bufsize ${2*maxBitrate}k -maxrate ${maxBitrate}k ` +
-                  `-vf scale=w=${width}:h=${height}:force_original_aspect_ratio=decrease ` +
-                  `-payload_type ${payloadType} -ssrc ${ssrc} -f rtp `; // -profile:v ${profile} -level:v ${level}
 
-              if (cryptoSuite === SRTPCryptoSuites.AES_CM_128_HMAC_SHA1_80) { // actually ffmpeg just supports AES_CM_128_HMAC_SHA1_80
-                videoffmpegCommand += `-srtp_out_suite AES_CM_128_HMAC_SHA1_80 -srtp_out_params ${videoSRTP} s`;
-              }
-
-              videoffmpegCommand += `rtp://${address}:${videoPort}?rtcpport=${videoPort}&localrtcpport=${videoPort}&pkt_size=${mtu}`;
+              const videoffmpegCommand = this.getVideoCommand(video, sessionInfo, streamInfo);
 
               if (this.ffmpegDebugOutput) {
                 console.log("FFMPEG command: ffmpeg " + videoffmpegCommand);

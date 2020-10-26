@@ -49,7 +49,7 @@ export class Camera extends Device {
         return null;
     }
 
-    async getStreamUrl(): Promise<StreamInfo> {
+    async getStreamInfo(): Promise<StreamInfo> {
         return this.smartdevicemanagement.enterprises.devices.executeCommand({
             name: this.getName(),
             requestBody: {

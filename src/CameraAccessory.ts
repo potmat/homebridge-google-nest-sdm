@@ -12,6 +12,7 @@ import {
 import { Platform } from './Platform';
 import {StreamingDelegate} from "./StreamingDelegate";
 import {Camera} from "./SdmApi";
+import {Config} from "./Config";
 
 /**
  * Platform Accessory
@@ -33,7 +34,7 @@ export class CameraAccessory {
               log.info("%s identified!", accessory.displayName);
             });
 
-            const streamingDelegate = new StreamingDelegate(hap, <Camera>accessory.context.device);
+            const streamingDelegate = new StreamingDelegate(hap, this.platform.config.options as unknown as Config, <Camera>accessory.context.device);
             const options: CameraControllerOptions = {
               cameraStreamCount: 2, // HomeKit requires at least 2 streams, but 1 is also just fine
               delegate: streamingDelegate,

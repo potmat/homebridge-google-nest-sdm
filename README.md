@@ -10,7 +10,8 @@ A homebridge plugin that uses the Google Smart Device Management API.
         "clientId": "...",
         "clientSecret": "...",
         "projectId": "...",
-        "refreshToken": "..."
+        "refreshToken": "...",
+        "vcoded" "libx264/h264_videotoolbox/..."
       }
     }
     
