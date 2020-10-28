@@ -83,7 +83,7 @@ export class Platform implements DynamicPlatformPlugin {
 
                     // // create the accessory handler for the restored accessory
                     // // this is imported from `platformAccessory.ts`
-                    new CameraAccessory(this.api.hap, this.log, this, existingAccessory);
+                    new CameraAccessory(this.api, this.log, this, existingAccessory);
 
                     // update accessory cache with any changes to the accessory details and information
                     this.api.updatePlatformAccessories([existingAccessory]);
@@ -106,7 +106,7 @@ export class Platform implements DynamicPlatformPlugin {
 
                 // create the accessory handler for the newly create accessory
                 // this is imported from `platformAccessory.ts`
-                new CameraAccessory(this.api.hap, this.log, this, accessory);
+                new CameraAccessory(this.api, this.log, this, accessory);
 
                 // link the accessory to your platform
                 this.api.registerPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory]);

@@ -17,9 +17,12 @@
     "homebridge-plugin"
   ],
   "dependencies": {
+    "ffmpeg-for-homebridge": "0.0.9",
+    "get-port": "^5.1.1",
     "googleapis": "^61.0.0",
     "ip": "^1.1.5",
-    "lodash": "^4.17.20"
+    "lodash": "^4.17.20",
+    "systeminformation": "^4.27.11"
   },
   "devDependencies": {
     "@types/ip": "^1.1.0",

@@ -21,6 +21,10 @@ export abstract class Device {
         return <string>this.device.name;
     }
 
+    getDisplayName() : string {
+        return this.displayName ? this.displayName : 'Unknown Camera';
+    }
+
     async refresh() {
         this.smartdevicemanagement.enterprises.devices.get({name : this.getName()})
             .then(response => {
