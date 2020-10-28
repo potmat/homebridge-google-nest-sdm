@@ -20,7 +20,6 @@ import {
   VideoInfo,
   Logger
 } from 'homebridge';
-import { spawn } from 'child_process';
 import { createSocket, Socket } from 'dgram';
 import ffmpegPath from 'ffmpeg-for-homebridge';
 import getPort from 'get-port';
