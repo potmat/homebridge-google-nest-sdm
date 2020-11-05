@@ -221,22 +221,24 @@ export class StreamingDelegate implements CameraStreamingDelegate {
 
   private async startStream(request: StartStreamRequest, callback: StreamRequestCallback): Promise<void> {
     const sessionInfo = this.pendingSessions[request.sessionID];
-    const vencoder = this.config.vencoder;
-    const vdecoder = this.config.vdecoder;
-    const aencoder = this.config.aencoder;
-    const adecoder = this.config.adecoder;
+    const vEncoder = this.config.vEncoder;
+    const vDecoder = this.config.vDecoder;
+    const aEncoder = this.config.aEncoder;
+    const aDecoder = this.config.aDecoder;
     const mtu = 1316; // request.video.mtu is not used
-    const encoderOptions = vencoder === 'libx264' ? '-preset ultrafast -tune zerolatency' : '';
+    const encoderOptions = vEncoder === 'libx264' ? '-preset ultrafast -tune zerolatency' : '';
     const resolution = this.determineResolution(request.video);
     let fps = request.video.fps;
     let videoBitrate = request.video.max_bit_rate;
 
-    if (vencoder === 'copy') {
+    if (vEncoder === 'copy') {
       resolution.width = 0;
       resolution.height = 0;
       resolution.videoFilter = '';
       fps = 0;
       videoBitrate = 0;
+    } else if (fps > this.config.maxFps) {
+      fps = this.config.maxFps;
     }
 
     this.log.debug('Video stream requested: ' + request.video.width + ' x ' + request.video.height + ', ' +
@@ -246,11 +248,11 @@ export class StreamingDelegate implements CameraStreamingDelegate {
         ' fps, ' + (videoBitrate > 0 ? videoBitrate : '???') + ' kbps', this.camera.getDisplayName());
 
     const streamInfo = await this.camera.getStreamInfo();
-    let ffmpegArgs = '-c:v ' + vdecoder + ' -c:a '+ adecoder + ' -i ' + streamInfo.rtspUrl;
+    let ffmpegArgs = '-c:v ' + vDecoder + ' -c:a '+ aDecoder + ' -i ' + streamInfo.rtspUrl;
 
     ffmpegArgs += // Video
         ' -an -sn -dn' +
-        ' -codec:v ' + vencoder +
+        ' -codec:v ' + vEncoder +
         (fps > 0 ? ' -r ' + fps : '') +
         (encoderOptions ? ' ' + encoderOptions : '') +
         (resolution.videoFilter.length > 0 ? ' -filter:v ' + resolution.videoFilter : '') +
@@ -268,7 +270,7 @@ export class StreamingDelegate implements CameraStreamingDelegate {
 
       ffmpegArgs += // Audio
           ' -vn -sn -dn' +
-          ' -codec:a ' + aencoder +
+          ' -codec:a ' + aEncoder +
           ' -profile:a aac_eld' +
           ' -flags +global_header' +
           ' -ar ' + request.audio.sample_rate + 'k' +

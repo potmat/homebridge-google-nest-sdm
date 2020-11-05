@@ -3,8 +3,9 @@ export type Config = {
     clientSecret: string,
     projectId: string,
     refreshToken: string,
-    vencoder: string
-    vdecoder: string
-    aencoder: string
-    adecoder: string
+    vEncoder: string,
+    vDecoder: string,
+    maxFps: number,
+    aEncoder: string,
+    aDecoder: string
 }
