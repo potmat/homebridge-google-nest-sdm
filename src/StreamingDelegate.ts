@@ -228,7 +228,7 @@ export class StreamingDelegate implements CameraStreamingDelegate {
     const mtu = 1316; // request.video.mtu is not used
     const encoderOptions = vEncoder === 'libx264' ? '-preset ultrafast -tune zerolatency' : '';
     const resolution = this.determineResolution(request.video);
-    let fps = request.video.fps;
+    let fps = 15;//request.video.fps;
     let videoBitrate = request.video.max_bit_rate;
 
     if (vEncoder === 'copy') {
@@ -251,10 +251,10 @@ export class StreamingDelegate implements CameraStreamingDelegate {
     ffmpegArgs += // Video
         ' -an -sn -dn' +
         ' -codec:v ' + vEncoder +
-        //(fps > 0 ? ' -r ' + fps : '') +
+        (fps > 0 ? ' -r ' + fps : '') +
         (encoderOptions ? ' ' + encoderOptions : '') +
         (resolution.videoFilter.length > 0 ? ' -filter:v ' + resolution.videoFilter : '') +
-        (videoBitrate > 0 ? ' -b:v ' + videoBitrate + 'k' : '') +
+        //(videoBitrate > 0 ? ' -b:v ' + videoBitrate + 'k' : '') +
         ' -payload_type ' + request.video.pt;
 
     ffmpegArgs += // Video Stream
