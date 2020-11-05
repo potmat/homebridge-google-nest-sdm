@@ -6,6 +6,5 @@ export type Config = {
     vEncoder: string,
     vDecoder: string,
     aEncoder: string,
-    aDecoder: string,
-    maxFps: number,
+    aDecoder: string
 }

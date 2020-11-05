@@ -237,8 +237,6 @@ export class StreamingDelegate implements CameraStreamingDelegate {
       resolution.videoFilter = '';
       fps = 0;
       videoBitrate = 0;
-    } else if (fps > this.config.maxFps) {
-      fps = this.config.maxFps;
     }
 
     this.log.debug('Video stream requested: ' + request.video.width + ' x ' + request.video.height + ', ' +
@@ -253,7 +251,7 @@ export class StreamingDelegate implements CameraStreamingDelegate {
     ffmpegArgs += // Video
         ' -an -sn -dn' +
         ' -codec:v ' + vEncoder +
-        (fps > 0 ? ' -r ' + fps : '') +
+        //(fps > 0 ? ' -r ' + fps : '') +
         (encoderOptions ? ' ' + encoderOptions : '') +
         (resolution.videoFilter.length > 0 ? ' -filter:v ' + resolution.videoFilter : '') +
         (videoBitrate > 0 ? ' -b:v ' + videoBitrate + 'k' : '') +
