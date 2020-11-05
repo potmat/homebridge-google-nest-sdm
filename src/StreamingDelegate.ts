@@ -221,14 +221,17 @@ export class StreamingDelegate implements CameraStreamingDelegate {
 
   private async startStream(request: StartStreamRequest, callback: StreamRequestCallback): Promise<void> {
     const sessionInfo = this.pendingSessions[request.sessionID];
-    const vcodec = this.config.vcodec || 'libx264';
+    const vencoder = this.config.vencoder;
+    const vdecoder = this.config.vdecoder;
+    const aencoder = this.config.aencoder;
+    const adecoder = this.config.adecoder;
     const mtu = 1316; // request.video.mtu is not used
-    const encoderOptions = vcodec === 'libx264' ? '-preset ultrafast -tune zerolatency' : '';
+    const encoderOptions = vencoder === 'libx264' ? '-preset ultrafast -tune zerolatency' : '';
     const resolution = this.determineResolution(request.video);
     let fps = request.video.fps;
     let videoBitrate = request.video.max_bit_rate;
 
-    if (vcodec === 'copy') {
+    if (vencoder === 'copy') {
       resolution.width = 0;
       resolution.height = 0;
       resolution.videoFilter = '';
@@ -243,11 +246,11 @@ export class StreamingDelegate implements CameraStreamingDelegate {
         ' fps, ' + (videoBitrate > 0 ? videoBitrate : '???') + ' kbps', this.camera.getDisplayName());
 
     const streamInfo = await this.camera.getStreamInfo();
-    let ffmpegArgs = '-c:a libfdk_aac -i ' + streamInfo.rtspUrl;
+    let ffmpegArgs = '-c:v ' + vdecoder + ' -c:a '+ adecoder + ' -i ' + streamInfo.rtspUrl;
 
     ffmpegArgs += // Video
         ' -an -sn -dn' +
-        ' -codec:v ' + vcodec +
+        ' -codec:v ' + vencoder +
         (fps > 0 ? ' -r ' + fps : '') +
         (encoderOptions ? ' ' + encoderOptions : '') +
         (resolution.videoFilter.length > 0 ? ' -filter:v ' + resolution.videoFilter : '') +
@@ -265,7 +268,7 @@ export class StreamingDelegate implements CameraStreamingDelegate {
 
       ffmpegArgs += // Audio
           ' -vn -sn -dn' +
-          ' -codec:a libfdk_aac' +
+          ' -codec:a ' + aencoder +
           ' -profile:a aac_eld' +
           ' -flags +global_header' +
           ' -ar ' + request.audio.sample_rate + 'k' +
