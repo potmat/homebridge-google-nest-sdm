@@ -5,7 +5,7 @@ export type Config = {
     refreshToken: string,
     vEncoder: string,
     vDecoder: string,
-    maxFps: number,
     aEncoder: string,
-    aDecoder: string
+    aDecoder: string,
+    maxFps: number,
 }
