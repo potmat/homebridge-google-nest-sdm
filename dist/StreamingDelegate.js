@@ -38,11 +38,7 @@ class StreamingDelegate {
                         [480, 270, 30],
                         [480, 360, 30],
                         [640, 360, 30],
-                        [640, 480, 30],
-                        [1280, 720, 30],
-                        [1280, 960, 30],
-                        [1920, 1080, 30],
-                        [1600, 1200, 30]
+                        [640, 480, 30]
                     ],
                     codec: {
                         profiles: [0 /* BASELINE */, 1 /* MAIN */, 2 /* HIGH */],
@@ -150,7 +146,7 @@ class StreamingDelegate {
         const mtu = 1316; // request.video.mtu is not used
         const encoderOptions = vEncoder === 'libx264' ? '-preset ultrafast -tune zerolatency' : '';
         const resolution = this.determineResolution(request.video);
-        let fps = request.video.fps;
+        let fps = 15; //request.video.fps;
         let videoBitrate = request.video.max_bit_rate;
         if (vEncoder === 'copy') {
             resolution.width = 0;
@@ -169,10 +165,10 @@ class StreamingDelegate {
         ffmpegArgs += // Video
             ' -an -sn -dn' +
                 ' -codec:v ' + vEncoder +
-                //(fps > 0 ? ' -r ' + fps : '') +
+                (fps > 0 ? ' -r ' + fps : '') +
                 (encoderOptions ? ' ' + encoderOptions : '') +
                 (resolution.videoFilter.length > 0 ? ' -filter:v ' + resolution.videoFilter : '') +
-                (videoBitrate > 0 ? ' -b:v ' + videoBitrate + 'k' : '') +
+                //(videoBitrate > 0 ? ' -b:v ' + videoBitrate + 'k' : '') +
                 ' -payload_type ' + request.video.pt;
         ffmpegArgs += // Video Stream
             ' -ssrc ' + sessionInfo.videoSSRC +

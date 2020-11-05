@@ -100,11 +100,7 @@ export class StreamingDelegate implements CameraStreamingDelegate {
             [480, 270, 30],
             [480, 360, 30],
             [640, 360, 30],
-            [640, 480, 30],
-            [1280, 720, 30],
-            [1280, 960, 30],
-            [1920, 1080, 30],
-            [1600, 1200, 30]
+            [640, 480, 30]
           ],
           codec: {
             profiles: [this.hap.H264Profile.BASELINE, this.hap.H264Profile.MAIN, this.hap.H264Profile.HIGH],
