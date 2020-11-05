@@ -4,7 +4,6 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const dgram_1 = require("dgram");
-const ffmpeg_for_homebridge_1 = __importDefault(require("ffmpeg-for-homebridge"));
 const get_port_1 = __importDefault(require("get-port"));
 const os_1 = __importDefault(require("os"));
 const systeminformation_1 = require("systeminformation");
@@ -20,7 +19,7 @@ class StreamingDelegate {
         this.hap = api.hap;
         this.config = config;
         this.camera = camera;
-        this.videoProcessor = ffmpeg_for_homebridge_1.default || 'ffmpeg';
+        this.videoProcessor = 'ffmpeg';
         api.on("shutdown" /* SHUTDOWN */, () => {
             for (const session in this.ongoingSessions) {
                 this.stopStream(session);

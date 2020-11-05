@@ -21,7 +21,6 @@ import {
   Logger
 } from 'homebridge';
 import { createSocket, Socket } from 'dgram';
-import ffmpegPath from 'ffmpeg-for-homebridge';
 import getPort from 'get-port';
 import os from 'os';
 import { networkInterfaceDefault } from 'systeminformation';
@@ -80,7 +79,7 @@ export class StreamingDelegate implements CameraStreamingDelegate {
     this.hap = api.hap;
     this.config = config;
     this.camera = camera;
-    this.videoProcessor = ffmpegPath || 'ffmpeg';
+    this.videoProcessor = 'ffmpeg';
 
     api.on(APIEvent.SHUTDOWN, () => {
       for (const session in this.ongoingSessions) {
