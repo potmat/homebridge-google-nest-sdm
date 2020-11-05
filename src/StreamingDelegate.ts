@@ -244,15 +244,12 @@ export class StreamingDelegate implements CameraStreamingDelegate {
         ' fps, ' + (videoBitrate > 0 ? videoBitrate : '???') + ' kbps', this.camera.getDisplayName());
 
     const streamInfo = await this.camera.getStreamInfo();
-    let ffmpegArgs = '-i ' + streamInfo.rtspUrl;
+    let ffmpegArgs = '-c:a libfdk_aac -i ' + streamInfo.rtspUrl;
 
     ffmpegArgs += // Video
         ' -an -sn -dn' +
         ' -codec:v ' + vcodec +
-        ' -pix_fmt yuv420p' +
-        ' -color_range mpeg' +
         (fps > 0 ? ' -r ' + fps : '') +
-        ' -f rawvideo' +
         (encoderOptions ? ' ' + encoderOptions : '') +
         (resolution.videoFilter.length > 0 ? ' -filter:v ' + resolution.videoFilter : '') +
         (videoBitrate > 0 ? ' -b:v ' + videoBitrate + 'k' : '') +
@@ -272,7 +269,6 @@ export class StreamingDelegate implements CameraStreamingDelegate {
           ' -codec:a libfdk_aac' +
           ' -profile:a aac_eld' +
           ' -flags +global_header' +
-          ' -f null' +
           ' -ar ' + request.audio.sample_rate + 'k' +
           ' -b:a ' + request.audio.max_bit_rate + 'k' +
           ' -ac ' + request.audio.channel +
