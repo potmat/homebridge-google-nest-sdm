@@ -46,6 +46,9 @@ class Camera extends Device {
     getSnapshot() {
         return null;
     }
+    getResolutions() {
+        return [[1920, 1080, 15]];
+    }
     async getStreamInfo() {
         return this.smartdevicemanagement.enterprises.devices.executeCommand({
             name: this.getName(),
@@ -79,6 +82,9 @@ class Camera extends Device {
 }
 exports.Camera = Camera;
 class Doorbell extends Camera {
+    getResolutions() {
+        return [[1600, 1200, 15]];
+    }
 }
 exports.Doorbell = Doorbell;
 class Thermostat extends Device {
