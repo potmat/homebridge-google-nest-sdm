@@ -104,7 +104,7 @@ export class StreamingDelegate implements CameraStreamingDelegate {
           codecs: [
             {
               type: AudioStreamingCodecType.AAC_ELD,
-              samplerate: 48
+              samplerate: AudioStreamingSamplerate.KHZ_24
             }
           ]
         }
@@ -234,7 +234,7 @@ export class StreamingDelegate implements CameraStreamingDelegate {
     //     ' fps, ' + (videoBitrate > 0 ? videoBitrate : '???') + ' kbps', this.camera.getDisplayName());
 
     const streamInfo = await this.camera.getStreamInfo();
-    let ffmpegArgs = '-i ' + streamInfo.rtspUrl;
+    let ffmpegArgs = '-c:a '+ aDecoder + ' -i ' + streamInfo.rtspUrl;
 
     ffmpegArgs += // Video
         ' -an -sn -dn' +
@@ -256,12 +256,12 @@ export class StreamingDelegate implements CameraStreamingDelegate {
 
       ffmpegArgs += // Audio
           ' -vn -sn -dn' +
-          // ' -codec:a ' + aEncoder +
-          // ' -profile:a aac_eld' +
-          // ' -flags +global_header' +
-          // ' -ar ' + request.audio.sample_rate + 'k' +
-          // ' -b:a ' + request.audio.max_bit_rate + 'k' +
-          // ' -ac ' + request.audio.channel +
+          ' -codec:a ' + aEncoder +
+          ' -profile:a aac_eld' +
+          ' -flags +global_header' +
+          ' -ar ' + request.audio.sample_rate + 'k' +
+          ' -b:a ' + request.audio.max_bit_rate + 'k' +
+          ' -ac ' + request.audio.channel +
           ' -payload_type ' + request.audio.pt;
 
       ffmpegArgs += // Audio Stream
