@@ -104,7 +104,7 @@ export class StreamingDelegate implements CameraStreamingDelegate {
           codecs: [
             {
               type: AudioStreamingCodecType.AAC_ELD,
-              samplerate: AudioStreamingSamplerate.KHZ_24
+              samplerate: AudioStreamingSamplerate.KHZ_16
             }
           ]
         }
