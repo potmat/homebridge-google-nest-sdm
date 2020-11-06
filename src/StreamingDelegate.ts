@@ -93,7 +93,19 @@ export class StreamingDelegate implements CameraStreamingDelegate {
       streamingOptions: {
         supportedCryptoSuites: [this.hap.SRTPCryptoSuites.AES_CM_128_HMAC_SHA1_80],
         video: {
-          resolutions: camera.getResolutions(),
+          resolutions: [
+            [320, 180, 30],
+            [320, 240, 15], // Apple Watch requires this configuration
+            [320, 240, 30],
+            [480, 270, 30],
+            [480, 360, 30],
+            [640, 360, 30],
+            [640, 480, 30],
+            [1280, 720, 30],
+            [1280, 960, 30],
+            [1920, 1080, 30],
+            [1600, 1200, 30]
+          ],
           codec: {
             profiles: [this.hap.H264Profile.BASELINE, this.hap.H264Profile.MAIN, this.hap.H264Profile.HIGH],
             levels: [this.hap.H264Level.LEVEL3_1, this.hap.H264Level.LEVEL3_2, this.hap.H264Level.LEVEL4_0]

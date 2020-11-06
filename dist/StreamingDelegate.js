@@ -31,7 +31,19 @@ class StreamingDelegate {
             streamingOptions: {
                 supportedCryptoSuites: [0 /* AES_CM_128_HMAC_SHA1_80 */],
                 video: {
-                    resolutions: camera.getResolutions(),
+                    resolutions: [
+                        [320, 180, 30],
+                        [320, 240, 15],
+                        [320, 240, 30],
+                        [480, 270, 30],
+                        [480, 360, 30],
+                        [640, 360, 30],
+                        [640, 480, 30],
+                        [1280, 720, 30],
+                        [1280, 960, 30],
+                        [1920, 1080, 30],
+                        [1600, 1200, 30]
+                    ],
                     codec: {
                         profiles: [0 /* BASELINE */, 1 /* MAIN */, 2 /* HIGH */],
                         levels: [0 /* LEVEL3_1 */, 1 /* LEVEL3_2 */, 2 /* LEVEL4_0 */]
@@ -42,7 +54,7 @@ class StreamingDelegate {
                     codecs: [
                         {
                             type: "AAC-eld" /* AAC_ELD */,
-                            samplerate: 48
+                            samplerate: 16 /* KHZ_16 */
                         }
                     ]
                 }
@@ -136,31 +148,31 @@ class StreamingDelegate {
         const aEncoder = this.config.aEncoder;
         const aDecoder = this.config.aDecoder;
         const mtu = 1316; // request.video.mtu is not used
-        // const encoderOptions = vEncoder === 'libx264' ? '-preset ultrafast -tune zerolatency' : '';
-        // const resolution = this.determineResolution(request.video);
-        // let fps = 15;//request.video.fps;
-        // let videoBitrate = request.video.max_bit_rate;
-        // if (vEncoder === 'copy') {
-        //   resolution.width = 0;
-        //   resolution.height = 0;
-        //   resolution.videoFilter = '';
-        //   fps = 0;
-        //   videoBitrate = 0;
-        // }
-        // this.log.debug('Video stream requested: ' + request.video.width + ' x ' + request.video.height + ', ' +
-        //     request.video.fps + ' fps, ' + request.video.max_bit_rate + ' kbps', this.camera.getDisplayName(), this.debug);
-        // this.log.info('Starting video stream: ' + (resolution.width > 0 ? resolution.width : 'native') + ' x ' +
-        //     (resolution.height > 0 ? resolution.height : 'native') + ', ' + (fps > 0 ? fps : 'native') +
-        //     ' fps, ' + (videoBitrate > 0 ? videoBitrate : '???') + ' kbps', this.camera.getDisplayName());
+        const encoderOptions = vEncoder === 'libx264' ? '-preset ultrafast -tune zerolatency' : '';
+        const resolution = this.determineResolution(request.video);
+        let fps = 15; //request.video.fps;
+        let videoBitrate = request.video.max_bit_rate;
+        if (vEncoder === 'copy') {
+            resolution.width = 0;
+            resolution.height = 0;
+            resolution.videoFilter = '';
+            fps = 0;
+            videoBitrate = 0;
+        }
+        this.log.debug('Video stream requested: ' + request.video.width + ' x ' + request.video.height + ', ' +
+            request.video.fps + ' fps, ' + request.video.max_bit_rate + ' kbps', this.camera.getDisplayName(), this.debug);
+        this.log.info('Starting video stream: ' + (resolution.width > 0 ? resolution.width : 'native') + ' x ' +
+            (resolution.height > 0 ? resolution.height : 'native') + ', ' + (fps > 0 ? fps : 'native') +
+            ' fps, ' + (videoBitrate > 0 ? videoBitrate : '???') + ' kbps', this.camera.getDisplayName());
         const streamInfo = await this.camera.getStreamInfo();
-        let ffmpegArgs = '-i ' + streamInfo.rtspUrl;
+        let ffmpegArgs = '-c:v ' + vDecoder + ' -c:a ' + aDecoder + ' -i ' + streamInfo.rtspUrl;
         ffmpegArgs += // Video
             ' -an -sn -dn' +
                 ' -codec:v ' + vEncoder +
-                // (fps > 0 ? ' -r ' + fps : '') +
-                // (encoderOptions ? ' ' + encoderOptions : '') +
-                // (resolution.videoFilter.length > 0 ? ' -filter:v ' + resolution.videoFilter : '') +
-                // (videoBitrate > 0 ? ' -b:v ' + videoBitrate + 'k' : '') +
+                (fps > 0 ? ' -r ' + fps : '') +
+                (encoderOptions ? ' ' + encoderOptions : '') +
+                (resolution.videoFilter.length > 0 ? ' -filter:v ' + resolution.videoFilter : '') +
+                //(videoBitrate > 0 ? ' -b:v ' + videoBitrate + 'k' : '') +
                 ' -payload_type ' + request.video.pt;
         ffmpegArgs += // Video Stream
             ' -ssrc ' + sessionInfo.videoSSRC +
@@ -171,12 +183,12 @@ class StreamingDelegate {
                 '?rtcpport=' + sessionInfo.videoPort + '&pkt_size=' + mtu;
         ffmpegArgs += // Audio
             ' -vn -sn -dn' +
-                // ' -codec:a ' + aEncoder +
-                // ' -profile:a aac_eld' +
-                // ' -flags +global_header' +
-                // ' -ar ' + request.audio.sample_rate + 'k' +
-                // ' -b:a ' + request.audio.max_bit_rate + 'k' +
-                // ' -ac ' + request.audio.channel +
+                ' -codec:a ' + aEncoder +
+                ' -profile:a aac_eld' +
+                ' -flags +global_header' +
+                ' -ar ' + request.audio.sample_rate + 'k' +
+                ' -b:a ' + request.audio.max_bit_rate + 'k' +
+                ' -ac ' + request.audio.channel +
                 ' -payload_type ' + request.audio.pt;
         ffmpegArgs += // Audio Stream
             ' -ssrc ' + sessionInfo.audioSSRC +
