@@ -53,6 +53,10 @@ export class Camera extends Device {
         return null;
     }
 
+    getResolutions(): [number, number, number][] {
+        return [[1920, 1080, 15]];
+    }
+
     async getStreamInfo(): Promise<StreamInfo> {
         return this.smartdevicemanagement.enterprises.devices.executeCommand({
             name: this.getName(),
@@ -84,7 +88,11 @@ export class Camera extends Device {
     }
 }
 
-export class Doorbell extends Camera {}
+export class Doorbell extends Camera {
+    getResolutions(): [number, number, number][] {
+        return [[1600, 1200, 15]];
+    }
+}
 
 export class Thermostat extends Device {
     async getTemparature(): Promise<number> {

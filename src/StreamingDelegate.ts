@@ -93,15 +93,7 @@ export class StreamingDelegate implements CameraStreamingDelegate {
       streamingOptions: {
         supportedCryptoSuites: [this.hap.SRTPCryptoSuites.AES_CM_128_HMAC_SHA1_80],
         video: {
-          resolutions: [
-            [320, 180, 30],
-            [320, 240, 15], // Apple Watch requires this configuration
-            [320, 240, 30],
-            [480, 270, 30],
-            [480, 360, 30],
-            [640, 360, 30],
-            [640, 480, 30]
-          ],
+          resolutions: camera.getResolutions(),
           codec: {
             profiles: [this.hap.H264Profile.BASELINE, this.hap.H264Profile.MAIN, this.hap.H264Profile.HIGH],
             levels: [this.hap.H264Level.LEVEL3_1, this.hap.H264Level.LEVEL3_2, this.hap.H264Level.LEVEL4_0]
@@ -112,7 +104,7 @@ export class StreamingDelegate implements CameraStreamingDelegate {
           codecs: [
             {
               type: AudioStreamingCodecType.AAC_ELD,
-              samplerate: AudioStreamingSamplerate.KHZ_16
+              samplerate: 48
             }
           ]
         }
@@ -222,35 +214,35 @@ export class StreamingDelegate implements CameraStreamingDelegate {
     const aEncoder = this.config.aEncoder;
     const aDecoder = this.config.aDecoder;
     const mtu = 1316; // request.video.mtu is not used
-    const encoderOptions = vEncoder === 'libx264' ? '-preset ultrafast -tune zerolatency' : '';
-    const resolution = this.determineResolution(request.video);
-    let fps = 15;//request.video.fps;
-    let videoBitrate = request.video.max_bit_rate;
+    // const encoderOptions = vEncoder === 'libx264' ? '-preset ultrafast -tune zerolatency' : '';
+    // const resolution = this.determineResolution(request.video);
+    // let fps = 15;//request.video.fps;
+    // let videoBitrate = request.video.max_bit_rate;
 
-    if (vEncoder === 'copy') {
-      resolution.width = 0;
-      resolution.height = 0;
-      resolution.videoFilter = '';
-      fps = 0;
-      videoBitrate = 0;
-    }
+    // if (vEncoder === 'copy') {
+    //   resolution.width = 0;
+    //   resolution.height = 0;
+    //   resolution.videoFilter = '';
+    //   fps = 0;
+    //   videoBitrate = 0;
+    // }
 
-    this.log.debug('Video stream requested: ' + request.video.width + ' x ' + request.video.height + ', ' +
-        request.video.fps + ' fps, ' + request.video.max_bit_rate + ' kbps', this.camera.getDisplayName(), this.debug);
-    this.log.info('Starting video stream: ' + (resolution.width > 0 ? resolution.width : 'native') + ' x ' +
-        (resolution.height > 0 ? resolution.height : 'native') + ', ' + (fps > 0 ? fps : 'native') +
-        ' fps, ' + (videoBitrate > 0 ? videoBitrate : '???') + ' kbps', this.camera.getDisplayName());
+    // this.log.debug('Video stream requested: ' + request.video.width + ' x ' + request.video.height + ', ' +
+    //     request.video.fps + ' fps, ' + request.video.max_bit_rate + ' kbps', this.camera.getDisplayName(), this.debug);
+    // this.log.info('Starting video stream: ' + (resolution.width > 0 ? resolution.width : 'native') + ' x ' +
+    //     (resolution.height > 0 ? resolution.height : 'native') + ', ' + (fps > 0 ? fps : 'native') +
+    //     ' fps, ' + (videoBitrate > 0 ? videoBitrate : '???') + ' kbps', this.camera.getDisplayName());
 
     const streamInfo = await this.camera.getStreamInfo();
-    let ffmpegArgs = '-c:v ' + vDecoder + ' -c:a '+ aDecoder + ' -i ' + streamInfo.rtspUrl;
+    let ffmpegArgs = '-i ' + streamInfo.rtspUrl;
 
     ffmpegArgs += // Video
         ' -an -sn -dn' +
         ' -codec:v ' + vEncoder +
-        (fps > 0 ? ' -r ' + fps : '') +
-        (encoderOptions ? ' ' + encoderOptions : '') +
-        (resolution.videoFilter.length > 0 ? ' -filter:v ' + resolution.videoFilter : '') +
-        //(videoBitrate > 0 ? ' -b:v ' + videoBitrate + 'k' : '') +
+        // (fps > 0 ? ' -r ' + fps : '') +
+        // (encoderOptions ? ' ' + encoderOptions : '') +
+        // (resolution.videoFilter.length > 0 ? ' -filter:v ' + resolution.videoFilter : '') +
+        // (videoBitrate > 0 ? ' -b:v ' + videoBitrate + 'k' : '') +
         ' -payload_type ' + request.video.pt;
 
     ffmpegArgs += // Video Stream
@@ -264,12 +256,12 @@ export class StreamingDelegate implements CameraStreamingDelegate {
 
       ffmpegArgs += // Audio
           ' -vn -sn -dn' +
-          ' -codec:a ' + aEncoder +
-          ' -profile:a aac_eld' +
-          ' -flags +global_header' +
-          ' -ar ' + request.audio.sample_rate + 'k' +
-          ' -b:a ' + request.audio.max_bit_rate + 'k' +
-          ' -ac ' + request.audio.channel +
+          // ' -codec:a ' + aEncoder +
+          // ' -profile:a aac_eld' +
+          // ' -flags +global_header' +
+          // ' -ar ' + request.audio.sample_rate + 'k' +
+          // ' -b:a ' + request.audio.max_bit_rate + 'k' +
+          // ' -ac ' + request.audio.channel +
           ' -payload_type ' + request.audio.pt;
 
       ffmpegArgs += // Audio Stream
