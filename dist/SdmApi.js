@@ -1,15 +1,28 @@
 "use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
 var __importStar = (this && this.__importStar) || function (mod) {
     if (mod && mod.__esModule) return mod;
     var result = {};
-    if (mod != null) for (var k in mod) if (Object.hasOwnProperty.call(mod, k)) result[k] = mod[k];
-    result["default"] = mod;
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
     return result;
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.SmartDeviceManagement = exports.UnknownDevice = exports.Thermostat = exports.Doorbell = exports.Camera = exports.Device = void 0;
 const lodash_1 = __importDefault(require("lodash"));
 const google = __importStar(require("googleapis"));
 class Device {
@@ -47,7 +60,7 @@ class Camera extends Device {
         return null;
     }
     getResolutions() {
-        return [[1920, 1080, 15]];
+        return [[1280, 720, 15], [1920, 1080, 15]];
     }
     async getStreamInfo() {
         return this.smartdevicemanagement.enterprises.devices.executeCommand({
@@ -83,7 +96,7 @@ class Camera extends Device {
 exports.Camera = Camera;
 class Doorbell extends Camera {
     getResolutions() {
-        return [[1600, 1200, 15]];
+        return [[1280, 720, 15], [1920, 1080, 15], [1600, 1200, 15]];
     }
 }
 exports.Doorbell = Doorbell;
@@ -111,7 +124,7 @@ class SmartDeviceManagement {
     async list_devices() {
         return this.smartdevicemanagement.enterprises.devices.list({ parent: `enterprises/${this.projectId}` })
             .then(response => {
-            return lodash_1.default(response.data.devices)
+            return (0, lodash_1.default)(response.data.devices)
                 .filter(device => device.name !== null)
                 .map(device => {
                 switch (device.type) {

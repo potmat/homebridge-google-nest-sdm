@@ -6,7 +6,9 @@ import {
   CameraController,
   CameraControllerOptions,
   CameraStreamingDelegate,
+  H264Level,
   HAP,
+  Logger,
   PrepareStreamCallback,
   PrepareStreamRequest,
   PrepareStreamResponse,
@@ -16,16 +18,14 @@ import {
   StartStreamRequest,
   StreamingRequest,
   StreamRequestCallback,
-  StreamRequestTypes,
-  VideoInfo,
-  Logger
+  StreamRequestTypes
 } from 'homebridge';
-import { createSocket, Socket } from 'dgram';
+import {createSocket, Socket} from 'dgram';
 import getPort from 'get-port';
 import os from 'os';
-import { networkInterfaceDefault } from 'systeminformation';
-import { Config } from './Config'
-import { FfmpegProcess } from './FfMpeg';
+import {networkInterfaceDefault} from 'systeminformation';
+import {Config} from './Config'
+import {FfmpegProcess} from './FfMpeg';
 import {Camera, StreamInfo} from "./SdmApi";
 
 type SessionInfo = {
@@ -88,27 +88,15 @@ export class StreamingDelegate implements CameraStreamingDelegate {
     });
 
     const options: CameraControllerOptions = {
-      cameraStreamCount: 2, // HomeKit requires at least 2 streams, but 1 is also just fine
+      cameraStreamCount: camera.getResolutions().length, // HomeKit requires at least 2 streams, but 1 is also just fine
       delegate: this,
       streamingOptions: {
         supportedCryptoSuites: [this.hap.SRTPCryptoSuites.AES_CM_128_HMAC_SHA1_80],
         video: {
-          resolutions: [
-            [320, 180, 30],
-            [320, 240, 15], // Apple Watch requires this configuration
-            [320, 240, 30],
-            [480, 270, 30],
-            [480, 360, 30],
-            [640, 360, 30],
-            [640, 480, 30],
-            [1280, 720, 30],
-            [1280, 960, 30],
-            [1920, 1080, 30],
-            [1600, 1200, 30]
-          ],
+          resolutions: camera.getResolutions(),
           codec: {
-            profiles: [this.hap.H264Profile.BASELINE, this.hap.H264Profile.MAIN, this.hap.H264Profile.HIGH],
-            levels: [this.hap.H264Level.LEVEL3_1, this.hap.H264Level.LEVEL3_2, this.hap.H264Level.LEVEL4_0]
+            profiles: [this.hap.H264Profile.MAIN],
+            levels: [this.hap.H264Level.LEVEL3_1]
           }
         },
         audio: {
@@ -116,7 +104,8 @@ export class StreamingDelegate implements CameraStreamingDelegate {
           codecs: [
             {
               type: AudioStreamingCodecType.AAC_ELD,
-              samplerate: AudioStreamingSamplerate.KHZ_16
+              samplerate: AudioStreamingSamplerate.KHZ_16,
+              audioChannels: 1
             }
           ]
         }
@@ -124,25 +113,6 @@ export class StreamingDelegate implements CameraStreamingDelegate {
     };
 
     this.controller = new this.hap.CameraController(options);
-  }
-
-  private determineResolution(request: VideoInfo): ResolutionInfo {
-    let width = request.width;
-    let height = request.height;
-
-    const filters: Array<string> = [];
-    if (width > 0 || height > 0) {
-      filters.push('scale=' + (width > 0 ? '\'min(' + width + ',iw)\'' : 'iw') + ':' +
-          (height > 0 ? '\'min(' + height + ',ih)\'' : 'ih') +
-          ':force_original_aspect_ratio=decrease');
-      filters.push('scale=trunc(iw/2)*2:trunc(ih/2)*2'); // Force to fit encoder restrictions
-    }
-
-    return {
-      width: width,
-      height: height,
-      videoFilter: filters.join(',')
-    };
   }
 
   handleSnapshotRequest(request: SnapshotRequest, callback: SnapshotRequestCallback): void {
@@ -221,40 +191,18 @@ export class StreamingDelegate implements CameraStreamingDelegate {
 
   private async startStream(request: StartStreamRequest, callback: StreamRequestCallback): Promise<void> {
     const sessionInfo = this.pendingSessions[request.sessionID];
-    const vEncoder = this.config.vEncoder;
-    const vDecoder = this.config.vDecoder;
-    const aEncoder = this.config.aEncoder;
-    const aDecoder = this.config.aDecoder;
     const mtu = 1316; // request.video.mtu is not used
-    const encoderOptions = vEncoder === 'libx264' ? '-preset ultrafast -tune zerolatency' : '';
-    const resolution = this.determineResolution(request.video);
-    let fps = 15;//request.video.fps;
-    let videoBitrate = request.video.max_bit_rate;
 
-    if (vEncoder === 'copy') {
-      resolution.width = 0;
-      resolution.height = 0;
-      resolution.videoFilter = '';
-      fps = 0;
-      videoBitrate = 0;
-    }
-
-    this.log.debug('Video stream requested: ' + request.video.width + ' x ' + request.video.height + ', ' +
+    this.log.info('Video stream requested: ' + request.video.width + ' x ' + request.video.height + ', ' +
         request.video.fps + ' fps, ' + request.video.max_bit_rate + ' kbps', this.camera.getDisplayName(), this.debug);
-    this.log.info('Starting video stream: ' + (resolution.width > 0 ? resolution.width : 'native') + ' x ' +
-        (resolution.height > 0 ? resolution.height : 'native') + ', ' + (fps > 0 ? fps : 'native') +
-        ' fps, ' + (videoBitrate > 0 ? videoBitrate : '???') + ' kbps', this.camera.getDisplayName());
 
     const streamInfo = await this.camera.getStreamInfo();
-    let ffmpegArgs = '-c:v ' + vDecoder + ' -c:a '+ aDecoder + ' -i ' + streamInfo.rtspUrl;
+    let ffmpegArgs = '-fflags +genpts+discardcorrupt+nobuffer -c:a libfdk_aac -i ' + streamInfo.rtspUrl;
 
     ffmpegArgs += // Video
         ' -an -sn -dn' +
-        ' -codec:v ' + vEncoder +
-        (fps > 0 ? ' -r ' + fps : '') +
-        (encoderOptions ? ' ' + encoderOptions : '') +
-        (resolution.videoFilter.length > 0 ? ' -filter:v ' + resolution.videoFilter : '') +
-        //(videoBitrate > 0 ? ' -b:v ' + videoBitrate + 'k' : '') +
+        ' -codec:v copy' +
+        ' -copyts -muxdelay 0 -muxpreload 0 ' +
         ' -payload_type ' + request.video.pt;
 
     ffmpegArgs += // Video Stream
@@ -268,7 +216,7 @@ export class StreamingDelegate implements CameraStreamingDelegate {
 
       ffmpegArgs += // Audio
           ' -vn -sn -dn' +
-          ' -codec:a ' + aEncoder +
+          ' -codec:a libfdk_aac' +
           ' -profile:a aac_eld' +
           ' -flags +global_header' +
           ' -ar ' + request.audio.sample_rate + 'k' +
@@ -323,8 +271,6 @@ export class StreamingDelegate implements CameraStreamingDelegate {
       case StreamRequestTypes.RECONFIGURE:
         this.log.debug('Received request to reconfigure: ' + request.video.width + ' x ' + request.video.height + ', ' +
             request.video.fps + ' fps, ' + request.video.max_bit_rate + ' kbps (Ignored)', this.camera.getDisplayName(), this.debug);
-        // await this.stopStream(request.sessionID);
-        // this.startStream(request, callback);
         callback();
         break;
       case StreamRequestTypes.STOP:
@@ -356,6 +302,7 @@ export class StreamingDelegate implements CameraStreamingDelegate {
         this.log.error('Error occurred terminating two-way FFmpeg process: ' + err, this.camera.getDisplayName());
       }
     }
+
     try {
       await this.camera.stopStream(session.streamInfo.extensionToken);
     } catch (err) {

@@ -18,17 +18,17 @@
   ],
   "dependencies": {
     "get-port": "^5.1.1",
-    "googleapis": "^61.0.0",
+    "googleapis": "^87.0.0",
     "ip": "^1.1.5",
-    "lodash": "^4.17.20",
-    "systeminformation": "^4.27.11"
+    "lodash": "^4.17.21",
+    "systeminformation": "^5.9.3"
   },
   "devDependencies": {
     "@types/ip": "^1.1.0",
-    "@types/lodash": "^4.14.162",
-    "@types/node": "10.17.19",
-    "homebridge": "^1.0.4",
+    "@types/lodash": "^4.14.173",
+    "@types/node": "^14.14.45",
+    "homebridge": "^1.3.4",
     "rimraf": "^3.0.2",
-    "typescript": "^3.8.3"
+    "typescript": "^4.4.3"
   }
 }

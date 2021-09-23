@@ -1,5 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.Platform = void 0;
 const Settings_1 = require("./Settings");
 const CameraAccessory_1 = require("./CameraAccessory");
 const SdmApi_1 = require("./SdmApi");

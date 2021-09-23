@@ -3,6 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.reservePorts = exports.RtpSplitter = void 0;
 const dgram_1 = require("dgram");
 const get_port_1 = __importDefault(require("get-port"));
 function getPayloadType(message) {
@@ -14,7 +15,7 @@ function isRtpMessage(message) {
 }
 class RtpSplitter {
     constructor(serverPort, audioRTCPPort, returnAudioPort) {
-        this.socket = dgram_1.createSocket('udp4');
+        this.socket = (0, dgram_1.createSocket)('udp4');
         // emits when any error occurs
         const socket = this.socket;
         socket.on('error', (error) => {
@@ -46,7 +47,7 @@ class RtpSplitter {
 exports.RtpSplitter = RtpSplitter;
 // Need to reserve ports in sequence because video uses the next port up by default.  If it's taken, video will error
 async function reservePorts(count = 1) {
-    const port = await get_port_1.default();
+    const port = await (0, get_port_1.default)();
     const ports = [port];
     const tryAgain = () => {
         return reservePorts(count);
@@ -54,7 +55,7 @@ async function reservePorts(count = 1) {
     for (let i = 1; i < count; i++) {
         const targetConsecutivePort = port + i;
         // eslint-disable-next-line no-await-in-loop
-        const openPort = await get_port_1.default({ port: targetConsecutivePort });
+        const openPort = await (0, get_port_1.default)({ port: targetConsecutivePort });
         if (openPort !== targetConsecutivePort) {
             // can't reserve next port, bail and get another set
             return tryAgain();

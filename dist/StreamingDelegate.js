@@ -3,6 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.StreamingDelegate = void 0;
 const dgram_1 = require("dgram");
 const get_port_1 = __importDefault(require("get-port"));
 const os_1 = __importDefault(require("os"));
@@ -26,27 +27,15 @@ class StreamingDelegate {
             }
         });
         const options = {
-            cameraStreamCount: 2,
+            cameraStreamCount: camera.getResolutions().length,
             delegate: this,
             streamingOptions: {
                 supportedCryptoSuites: [0 /* AES_CM_128_HMAC_SHA1_80 */],
                 video: {
-                    resolutions: [
-                        [320, 180, 30],
-                        [320, 240, 15],
-                        [320, 240, 30],
-                        [480, 270, 30],
-                        [480, 360, 30],
-                        [640, 360, 30],
-                        [640, 480, 30],
-                        [1280, 720, 30],
-                        [1280, 960, 30],
-                        [1920, 1080, 30],
-                        [1600, 1200, 30]
-                    ],
+                    resolutions: camera.getResolutions(),
                     codec: {
-                        profiles: [0 /* BASELINE */, 1 /* MAIN */, 2 /* HIGH */],
-                        levels: [0 /* LEVEL3_1 */, 1 /* LEVEL3_2 */, 2 /* LEVEL4_0 */]
+                        profiles: [1 /* MAIN */],
+                        levels: [0 /* LEVEL3_1 */]
                     }
                 },
                 audio: {
@@ -54,29 +43,14 @@ class StreamingDelegate {
                     codecs: [
                         {
                             type: "AAC-eld" /* AAC_ELD */,
-                            samplerate: 16 /* KHZ_16 */
+                            samplerate: 16 /* KHZ_16 */,
+                            audioChannels: 1
                         }
                     ]
                 }
             }
         };
         this.controller = new this.hap.CameraController(options);
-    }
-    determineResolution(request) {
-        let width = request.width;
-        let height = request.height;
-        const filters = [];
-        if (width > 0 || height > 0) {
-            filters.push('scale=' + (width > 0 ? '\'min(' + width + ',iw)\'' : 'iw') + ':' +
-                (height > 0 ? '\'min(' + height + ',ih)\'' : 'ih') +
-                ':force_original_aspect_ratio=decrease');
-            filters.push('scale=trunc(iw/2)*2:trunc(ih/2)*2'); // Force to fit encoder restrictions
-        }
-        return {
-            width: width,
-            height: height,
-            videoFilter: filters.join(',')
-        };
     }
     handleSnapshotRequest(request, callback) {
         //Nest cams do not have any method to get a current snapshot,
@@ -86,7 +60,7 @@ class StreamingDelegate {
     }
     async getIpAddress(ipv6) {
         var _a;
-        const interfaceName = await systeminformation_1.networkInterfaceDefault();
+        const interfaceName = await (0, systeminformation_1.networkInterfaceDefault)();
         const interfaces = os_1.default.networkInterfaces();
         // @ts-ignore
         const externalInfo = (_a = interfaces[interfaceName]) === null || _a === void 0 ? void 0 : _a.filter((info) => {
@@ -102,9 +76,9 @@ class StreamingDelegate {
         return addressInfo.address;
     }
     async prepareStream(request, callback) {
-        const videoReturnPort = await get_port_1.default();
+        const videoReturnPort = await (0, get_port_1.default)();
         const videoSSRC = this.hap.CameraController.generateSynchronisationSource();
-        const audioReturnPort = await get_port_1.default();
+        const audioReturnPort = await (0, get_port_1.default)();
         const audioSSRC = this.hap.CameraController.generateSynchronisationSource();
         const ipv6 = request.addressVersion === 'ipv6';
         const currentAddress = await this.getIpAddress(ipv6);
@@ -143,36 +117,15 @@ class StreamingDelegate {
     }
     async startStream(request, callback) {
         const sessionInfo = this.pendingSessions[request.sessionID];
-        const vEncoder = this.config.vEncoder;
-        const vDecoder = this.config.vDecoder;
-        const aEncoder = this.config.aEncoder;
-        const aDecoder = this.config.aDecoder;
         const mtu = 1316; // request.video.mtu is not used
-        const encoderOptions = vEncoder === 'libx264' ? '-preset ultrafast -tune zerolatency' : '';
-        const resolution = this.determineResolution(request.video);
-        let fps = 15; //request.video.fps;
-        let videoBitrate = request.video.max_bit_rate;
-        if (vEncoder === 'copy') {
-            resolution.width = 0;
-            resolution.height = 0;
-            resolution.videoFilter = '';
-            fps = 0;
-            videoBitrate = 0;
-        }
-        this.log.debug('Video stream requested: ' + request.video.width + ' x ' + request.video.height + ', ' +
+        this.log.info('Video stream requested: ' + request.video.width + ' x ' + request.video.height + ', ' +
             request.video.fps + ' fps, ' + request.video.max_bit_rate + ' kbps', this.camera.getDisplayName(), this.debug);
-        this.log.info('Starting video stream: ' + (resolution.width > 0 ? resolution.width : 'native') + ' x ' +
-            (resolution.height > 0 ? resolution.height : 'native') + ', ' + (fps > 0 ? fps : 'native') +
-            ' fps, ' + (videoBitrate > 0 ? videoBitrate : '???') + ' kbps', this.camera.getDisplayName());
         const streamInfo = await this.camera.getStreamInfo();
-        let ffmpegArgs = '-c:v ' + vDecoder + ' -c:a ' + aDecoder + ' -i ' + streamInfo.rtspUrl;
+        let ffmpegArgs = '-fflags +genpts+discardcorrupt+nobuffer -c:a libfdk_aac -i ' + streamInfo.rtspUrl;
         ffmpegArgs += // Video
             ' -an -sn -dn' +
-                ' -codec:v ' + vEncoder +
-                (fps > 0 ? ' -r ' + fps : '') +
-                (encoderOptions ? ' ' + encoderOptions : '') +
-                (resolution.videoFilter.length > 0 ? ' -filter:v ' + resolution.videoFilter : '') +
-                //(videoBitrate > 0 ? ' -b:v ' + videoBitrate + 'k' : '') +
+                ' -codec:v copy' +
+                ' -copyts -muxdelay 0 -muxpreload 0 ' +
                 ' -payload_type ' + request.video.pt;
         ffmpegArgs += // Video Stream
             ' -ssrc ' + sessionInfo.videoSSRC +
@@ -183,7 +136,7 @@ class StreamingDelegate {
                 '?rtcpport=' + sessionInfo.videoPort + '&pkt_size=' + mtu;
         ffmpegArgs += // Audio
             ' -vn -sn -dn' +
-                ' -codec:a ' + aEncoder +
+                ' -codec:a libfdk_aac' +
                 ' -profile:a aac_eld' +
                 ' -flags +global_header' +
                 ' -ar ' + request.audio.sample_rate + 'k' +
@@ -201,7 +154,7 @@ class StreamingDelegate {
             ffmpegArgs += ' -loglevel level+verbose';
         }
         const activeSession = { streamInfo: streamInfo };
-        activeSession.socket = dgram_1.createSocket(sessionInfo.ipv6 ? 'udp6' : 'udp4');
+        activeSession.socket = (0, dgram_1.createSocket)(sessionInfo.ipv6 ? 'udp6' : 'udp4');
         activeSession.socket.on('error', (err) => {
             this.log.error('Socket error: ' + err.name, this.camera.getDisplayName());
             this.stopStream(request.sessionID);
@@ -229,8 +182,6 @@ class StreamingDelegate {
             case "reconfigure" /* RECONFIGURE */:
                 this.log.debug('Received request to reconfigure: ' + request.video.width + ' x ' + request.video.height + ', ' +
                     request.video.fps + ' fps, ' + request.video.max_bit_rate + ' kbps (Ignored)', this.camera.getDisplayName(), this.debug);
-                // await this.stopStream(request.sessionID);
-                // this.startStream(request, callback);
                 callback();
                 break;
             case "stop" /* STOP */:

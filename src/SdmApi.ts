@@ -54,7 +54,7 @@ export class Camera extends Device {
     }
 
     getResolutions(): [number, number, number][] {
-        return [[1920, 1080, 15]];
+        return [[1280, 720, 15],[1920, 1080, 15]];
     }
 
     async getStreamInfo(): Promise<StreamInfo> {
@@ -90,7 +90,7 @@ export class Camera extends Device {
 
 export class Doorbell extends Camera {
     getResolutions(): [number, number, number][] {
-        return [[1600, 1200, 15]];
+        return [[1280, 720, 15],[1920, 1080, 15],[1600, 1200, 15]];
     }
 }
 

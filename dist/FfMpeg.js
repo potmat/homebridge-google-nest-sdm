@@ -1,11 +1,12 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.FfmpegProcess = void 0;
 const child_process_1 = require("child_process");
 class FfmpegProcess {
     constructor(cameraName, sessionId, videoProcessor, ffmpegArgs, log, debug, delegate, callback) {
         log.debug('Stream command: ' + videoProcessor + ' ' + ffmpegArgs, cameraName, debug);
         let started = false;
-        this.process = child_process_1.spawn(videoProcessor, ffmpegArgs.split(/\s+/), { env: process.env });
+        this.process = (0, child_process_1.spawn)(videoProcessor, ffmpegArgs.split(/\s+/), { env: process.env });
         if (this.process.stdin) {
             this.process.stdin.on('error', (error) => {
                 if (!error.message.includes('EPIPE')) {

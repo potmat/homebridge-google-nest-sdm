@@ -1,5 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.CameraAccessory = void 0;
 const StreamingDelegate_1 = require("./StreamingDelegate");
 /**
  * Platform Accessory
