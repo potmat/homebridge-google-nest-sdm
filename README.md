@@ -2,6 +2,8 @@
 
 A homebridge plugin that uses the Google Smart Device Management API.
 
+Currently only supports cameras.  Copies the RTSP stream directly from your Nest cam to Home, no transcoding.
+
 # Example Homebridge config:
 
     {
@@ -10,8 +12,7 @@ A homebridge plugin that uses the Google Smart Device Management API.
         "clientId": "...",
         "clientSecret": "...",
         "projectId": "...",
-        "refreshToken": "...",
-        "vcodec" "libx264/h264_videotoolbox/..."
+        "refreshToken": "..."
       }
     }
     
