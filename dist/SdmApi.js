@@ -26,12 +26,13 @@ exports.SmartDeviceManagement = exports.UnknownDevice = exports.Thermostat = exp
 const lodash_1 = __importDefault(require("lodash"));
 const google = __importStar(require("googleapis"));
 class Device {
-    constructor(smartdevicemanagement, device) {
+    constructor(smartdevicemanagement, device, log) {
         this.smartdevicemanagement = smartdevicemanagement;
         this.device = device;
         this.lastRefresh = Date.now();
         const parent = lodash_1.default.find(device.parentRelations, relation => relation.displayName);
         this.displayName = parent === null || parent === void 0 ? void 0 : parent.displayName;
+        this.log = log;
     }
     getName() {
         return this.device.name;
@@ -51,7 +52,20 @@ class Device {
         const howLongAgo = Date.now() - this.lastRefresh;
         if (howLongAgo > 10000)
             await this.refresh();
-        return (_b = (_a = this.device) === null || _a === void 0 ? void 0 : _a.traits) === null || _b === void 0 ? void 0 : _b.name;
+        const value = ((_a = this.device) === null || _a === void 0 ? void 0 : _a.traits) ? (_b = this.device) === null || _b === void 0 ? void 0 : _b.traits[name] : undefined;
+        this.log.debug(`Request for trait ${name} had value ${JSON.stringify(value)}`);
+        return value;
+    }
+    async executeCommand(name, params) {
+        var _a;
+        this.log.debug(`Executing command ${name} with parameters ${JSON.stringify(params)}`);
+        this.smartdevicemanagement.enterprises.devices.executeCommand({
+            name: ((_a = this.device) === null || _a === void 0 ? void 0 : _a.name) || undefined,
+            requestBody: {
+                command: name,
+                params: params
+            }
+        });
     }
 }
 exports.Device = Device;
@@ -101,9 +115,63 @@ class Doorbell extends Camera {
 }
 exports.Doorbell = Doorbell;
 class Thermostat extends Device {
+    async getEco() {
+        const trait = await this.getTrait('sdm.devices.traits.ThermostatEco');
+        return trait.mode;
+    }
+    async getMode() {
+        const trait = await this.getTrait('sdm.devices.traits.ThermostatMode');
+        return trait.mode;
+    }
+    async getHvac() {
+        const trait = await this.getTrait('sdm.devices.traits.ThermostatHvac');
+        return trait.status;
+    }
     async getTemparature() {
         const trait = await this.getTrait('sdm.devices.traits.Temperature');
         return trait.ambientTemperatureCelsius;
+    }
+    async getTargetTemparature() {
+        const eco = await this.getEco();
+        if (eco !== 'OFF')
+            return Promise.resolve(undefined);
+        const trait = await this.getTrait('sdm.devices.traits.ThermostatTemperatureSetpoint');
+        const mode = await this.getMode();
+        switch (mode) {
+            case 'OFF':
+                return Promise.resolve(undefined);
+            case 'HEAT':
+                return trait.heatCelsius;
+            case 'COOL':
+                return trait.coolCelsius;
+            case 'HEATCOOL':
+                //todo: what to return here?
+                return Promise.resolve(undefined);
+        }
+    }
+    async setTemparature(temparature) {
+        const eco = await this.getEco();
+        if (eco !== 'OFF')
+            return Promise.resolve(undefined);
+        const mode = await this.getMode();
+        switch (mode) {
+            case 'HEAT':
+                await this.executeCommand("sdm.devices.commands.ThermostatTemperatureSetpoint.SetHeat", {
+                    heatCelsius: temparature
+                });
+            case 'COOL':
+                await this.executeCommand("sdm.devices.commands.ThermostatTemperatureSetpoint.SetCool", {
+                    coolCelsius: temparature
+                });
+            case 'HEATCOOL':
+                //todo: what to do here?
+                return Promise.resolve(undefined);
+        }
+    }
+    async setMode(mode) {
+        await this.executeCommand("sdm.devices.commands.ThermostatMode.SetMode", {
+            mode: mode
+        });
     }
 }
 exports.Thermostat = Thermostat;
@@ -111,7 +179,7 @@ class UnknownDevice extends Device {
 }
 exports.UnknownDevice = UnknownDevice;
 class SmartDeviceManagement {
-    constructor(config) {
+    constructor(config, log) {
         this.oauth2Client = new google.Auth.OAuth2Client(config.clientId, config.clientSecret);
         this.projectId = config.projectId;
         this.oauth2Client.setCredentials({
@@ -120,6 +188,7 @@ class SmartDeviceManagement {
         this.smartdevicemanagement = new google.smartdevicemanagement_v1.Smartdevicemanagement({
             auth: this.oauth2Client
         });
+        this.log = log;
     }
     async list_devices() {
         return this.smartdevicemanagement.enterprises.devices.list({ parent: `enterprises/${this.projectId}` })
@@ -129,13 +198,13 @@ class SmartDeviceManagement {
                 .map(device => {
                 switch (device.type) {
                     case 'sdm.devices.types.DOORBELL':
-                        return new Doorbell(this.smartdevicemanagement, device);
+                        return new Doorbell(this.smartdevicemanagement, device, this.log);
                     case 'sdm.devices.types.CAMERA':
-                        return new Camera(this.smartdevicemanagement, device);
+                        return new Camera(this.smartdevicemanagement, device, this.log);
                     case 'sdm.devices.types.THERMOSTAT':
-                        return new Thermostat(this.smartdevicemanagement, device);
+                        return new Thermostat(this.smartdevicemanagement, device, this.log);
                     default:
-                        return new UnknownDevice(this.smartdevicemanagement, device);
+                        return new UnknownDevice(this.smartdevicemanagement, device, this.log);
                 }
             })
                 .value();

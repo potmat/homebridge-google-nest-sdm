@@ -46,12 +46,6 @@ type SessionInfo = {
   audioSSRC: number;
 };
 
-type ResolutionInfo = {
-  width: number;
-  height: number;
-  videoFilter: string;
-};
-
 type ActiveSession = {
   mainProcess?: FfmpegProcess;
   returnProcess?: FfmpegProcess;
