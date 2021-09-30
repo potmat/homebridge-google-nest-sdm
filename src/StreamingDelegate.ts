@@ -26,7 +26,8 @@ import os from 'os';
 import {networkInterfaceDefault} from 'systeminformation';
 import {Config} from './Config'
 import {FfmpegProcess} from './FfMpeg';
-import {Camera, StreamInfo} from "./SdmApi";
+import {Camera} from "./sdm/Camera";
+import {GenerateRtspStream} from "./sdm/Responses";
 
 type SessionInfo = {
   address: string; // address of the HAP controller
@@ -51,7 +52,7 @@ type ActiveSession = {
   returnProcess?: FfmpegProcess;
   timeout?: NodeJS.Timeout;
   socket?: Socket;
-  streamInfo: StreamInfo;
+  streamInfo: GenerateRtspStream;
 };
 
 export class StreamingDelegate implements CameraStreamingDelegate {
@@ -191,7 +192,7 @@ export class StreamingDelegate implements CameraStreamingDelegate {
         request.video.fps + ' fps, ' + request.video.max_bit_rate + ' kbps', this.camera.getDisplayName(), this.debug);
 
     const streamInfo = await this.camera.getStreamInfo();
-    let ffmpegArgs = '-fflags +genpts+discardcorrupt+nobuffer -c:a libfdk_aac -i ' + streamInfo.rtspUrl;
+    let ffmpegArgs = '-fflags +nobuffer -flags +low_delay -i ' + streamInfo.streamUrls.rtspUrl;
 
     ffmpegArgs += // Video
         ' -an -sn -dn' +
@@ -298,7 +299,7 @@ export class StreamingDelegate implements CameraStreamingDelegate {
     }
 
     try {
-      await this.camera.stopStream(session.streamInfo.extensionToken);
+      await this.camera.stopStream(session.streamInfo.streamExtensionToken);
     } catch (err) {
       this.log.error('Error terminating SDM stream: ' + err, this.camera.getDisplayName());
     }

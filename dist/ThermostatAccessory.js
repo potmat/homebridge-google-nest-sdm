@@ -37,6 +37,8 @@ class ThermostatAccessory {
         service.getCharacteristic(this.platform.Characteristic.TemperatureDisplayUnits)
             .onGet(this.handleTemperatureDisplayUnitsGet.bind(this))
             .onSet(this.handleTemperatureDisplayUnitsSet.bind(this));
+        service.getCharacteristic(this.platform.Characteristic.CurrentRelativeHumidity)
+            .onGet(this.handleCurrentRelativeHumidityGet.bind(this));
     }
     /**
      * Handle requests to get the current value of the "Current Heating Cooling State" characteristic
@@ -99,6 +101,13 @@ class ThermostatAccessory {
         return await this.thermostat.getTemparature();
     }
     /**
+     * Handle requests to get the current value of the "Current Relative Humidity" characteristic
+     */
+    async handleCurrentRelativeHumidityGet() {
+        this.log.debug('Triggered GET CurrentTemperature');
+        return await this.thermostat.getRelativeHumitity();
+    }
+    /**
      * Handle requests to get the current value of the "Target Temperature" characteristic
      */
     async handleTargetTemperatureGet() {
@@ -117,9 +126,13 @@ class ThermostatAccessory {
     /**
      * Handle requests to get the current value of the "Temperature Display Units" characteristic
      */
-    handleTemperatureDisplayUnitsGet() {
+    async handleTemperatureDisplayUnitsGet() {
         this.log.debug('Triggered GET TemperatureDisplayUnits');
-        return this.platform.Characteristic.TemperatureDisplayUnits.CELSIUS;
+        const temparatureUnit = await this.thermostat.getTemparatureUnits();
+        if (temparatureUnit === 'CELSIUS')
+            return this.platform.Characteristic.TemperatureDisplayUnits.CELSIUS;
+        else
+            return this.platform.Characteristic.TemperatureDisplayUnits.FAHRENHEIT;
     }
     /**
      * Handle requests to set the "Temperature Display Units" characteristic

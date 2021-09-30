@@ -2,9 +2,11 @@ import { API, DynamicPlatformPlugin, Logger, PlatformAccessory, PlatformConfig, 
 
 import { PLATFORM_NAME, PLUGIN_NAME } from './Settings';
 import { CameraAccessory } from './CameraAccessory';
-import {Camera, SmartDeviceManagement, Thermostat} from './SdmApi';
+import {SmartDeviceManagement} from './sdm/Api';
 import {Config} from "./Config";
 import {ThermostatAccessory} from "./ThermostatAccessory";
+import {Camera} from "./sdm/Camera";
+import {Thermostat} from "./sdm/Thermostat";
 
 /**
  * HomebridgePlatform

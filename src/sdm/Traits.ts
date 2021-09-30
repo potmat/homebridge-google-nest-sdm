@@ -22,3 +22,11 @@ export interface ThermostatEco {
     heatCelsius: number;
     coolCelsius: number;
 }
+
+export interface Settings {
+    temparatureScale: string;
+}
+
+export interface Humidity {
+    ambientHumidityPercent: number;
+}

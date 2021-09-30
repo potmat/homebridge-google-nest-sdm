@@ -6,8 +6,8 @@ import {
 } from 'homebridge';
 import {Platform} from './Platform';
 import {StreamingDelegate} from "./StreamingDelegate";
-import {Camera} from "./SdmApi";
 import {Config} from "./Config";
+import {Camera} from "./sdm/Camera";
 
 export class CameraAccessory {
     private hap: HAP;

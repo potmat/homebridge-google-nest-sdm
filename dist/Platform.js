@@ -3,8 +3,10 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.Platform = void 0;
 const Settings_1 = require("./Settings");
 const CameraAccessory_1 = require("./CameraAccessory");
-const SdmApi_1 = require("./SdmApi");
+const Api_1 = require("./sdm/Api");
 const ThermostatAccessory_1 = require("./ThermostatAccessory");
+const Camera_1 = require("./sdm/Camera");
+const Thermostat_1 = require("./sdm/Thermostat");
 /**
  * HomebridgePlatform
  * This class is the main constructor for your plugin, this is where you should
@@ -19,7 +21,7 @@ class Platform {
         this.Characteristic = this.api.hap.Characteristic;
         // this is used to track restored cached accessories
         this.accessories = [];
-        this.smartDeviceManagement = new SdmApi_1.SmartDeviceManagement(config.options, log);
+        this.smartDeviceManagement = new Api_1.SmartDeviceManagement(config.options, log);
         // When this event is fired it means Homebridge has restored all cached accessories from disk.
         // Dynamic Platform plugins should only register new accessories after this event was fired,
         // in order to ensure they weren't added to homebridge already. This event can also be used
@@ -62,9 +64,9 @@ class Platform {
                     // if you need to update the accessory.context then you should run `api.updatePlatformAccessories`. eg.:
                     existingAccessory.context.device = device;
                     this.api.updatePlatformAccessories([existingAccessory]);
-                    if (device instanceof SdmApi_1.Camera)
+                    if (device instanceof Camera_1.Camera)
                         new CameraAccessory_1.CameraAccessory(this.api, this.log, this, existingAccessory);
-                    else if (device instanceof SdmApi_1.Thermostat)
+                    else if (device instanceof Thermostat_1.Thermostat)
                         new ThermostatAccessory_1.ThermostatAccessory(this.api, this.log, this, existingAccessory);
                     // update accessory cache with any changes to the accessory details and information
                     this.api.updatePlatformAccessories([existingAccessory]);
@@ -84,9 +86,9 @@ class Platform {
                 // store a copy of the device object in the `accessory.context`
                 // the `context` property can be used to store any data about the accessory you may need
                 accessory.context.device = device;
-                if (device instanceof SdmApi_1.Camera)
+                if (device instanceof Camera_1.Camera)
                     new CameraAccessory_1.CameraAccessory(this.api, this.log, this, accessory);
-                else if (device instanceof SdmApi_1.Thermostat)
+                else if (device instanceof Thermostat_1.Thermostat)
                     new ThermostatAccessory_1.ThermostatAccessory(this.api, this.log, this, accessory);
                 // link the accessory to your platform
                 this.api.registerPlatformAccessories(Settings_1.PLUGIN_NAME, Settings_1.PLATFORM_NAME, [accessory]);
