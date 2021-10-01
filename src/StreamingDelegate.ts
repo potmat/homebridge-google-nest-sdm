@@ -192,7 +192,7 @@ export class StreamingDelegate implements CameraStreamingDelegate {
         request.video.fps + ' fps, ' + request.video.max_bit_rate + ' kbps', this.camera.getDisplayName(), this.debug);
 
     const streamInfo = await this.camera.getStreamInfo();
-    let ffmpegArgs = '-fflags +nobuffer -flags +low_delay -i ' + streamInfo.streamUrls.rtspUrl;
+    let ffmpegArgs = '-fflags +genpts+discardcorrupt+nobuffer -i ' + streamInfo.streamUrls.rtspUrl;
 
     ffmpegArgs += // Video
         ' -an -sn -dn' +
