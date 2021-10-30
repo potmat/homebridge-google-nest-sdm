@@ -15,7 +15,7 @@ class StreamingDelegate {
         this.pendingSessions = {};
         this.ongoingSessions = {};
         this.timeouts = {};
-        this.debug = true;
+        this.debug = false;
         this.log = log;
         this.hap = api.hap;
         this.config = config;
@@ -117,11 +117,10 @@ class StreamingDelegate {
     }
     async startStream(request, callback) {
         const sessionInfo = this.pendingSessions[request.sessionID];
-        const mtu = 1316; // request.video.mtu is not used
         this.log.info('Video stream requested: ' + request.video.width + ' x ' + request.video.height + ', ' +
             request.video.fps + ' fps, ' + request.video.max_bit_rate + ' kbps', this.camera.getDisplayName(), this.debug);
         const streamInfo = await this.camera.getStreamInfo();
-        let ffmpegArgs = '-fflags +genpts+discardcorrupt+nobuffer -i ' + streamInfo.streamUrls.rtspUrl;
+        let ffmpegArgs = '-use_wallclock_as_timestamps 1 -fflags +discardcorrupt+nobuffer -i ' + streamInfo.streamUrls.rtspUrl;
         ffmpegArgs += // Video
             ' -an -sn -dn' +
                 ' -codec:v copy' +
@@ -133,7 +132,7 @@ class StreamingDelegate {
                 ' -srtp_out_suite AES_CM_128_HMAC_SHA1_80' +
                 ' -srtp_out_params ' + sessionInfo.videoSRTP.toString('base64') +
                 ' srtp://' + sessionInfo.address + ':' + sessionInfo.videoPort +
-                '?rtcpport=' + sessionInfo.videoPort + '&pkt_size=' + mtu;
+                '?rtcpport=' + sessionInfo.videoPort + '&pkt_size=' + request.video.mtu;
         ffmpegArgs += // Audio
             ' -vn -sn -dn' +
                 ' -codec:a libfdk_aac' +

@@ -67,7 +67,7 @@ export class StreamingDelegate implements CameraStreamingDelegate {
   timeouts: Record<string, NodeJS.Timeout> = {};
   private config: Config;
   private camera: Camera;
-  private debug: boolean = true;
+  private debug: boolean = false;
 
   constructor(log: Logger, api: API, config: Config, camera: Camera) {
     this.log = log;
@@ -186,13 +186,12 @@ export class StreamingDelegate implements CameraStreamingDelegate {
 
   private async startStream(request: StartStreamRequest, callback: StreamRequestCallback): Promise<void> {
     const sessionInfo = this.pendingSessions[request.sessionID];
-    const mtu = 1316; // request.video.mtu is not used
 
     this.log.info('Video stream requested: ' + request.video.width + ' x ' + request.video.height + ', ' +
         request.video.fps + ' fps, ' + request.video.max_bit_rate + ' kbps', this.camera.getDisplayName(), this.debug);
 
     const streamInfo = await this.camera.getStreamInfo();
-    let ffmpegArgs = '-fflags +genpts+discardcorrupt+nobuffer -i ' + streamInfo.streamUrls.rtspUrl;
+    let ffmpegArgs = '-use_wallclock_as_timestamps 1 -fflags +discardcorrupt+nobuffer -i ' + streamInfo.streamUrls.rtspUrl;
 
     ffmpegArgs += // Video
         ' -an -sn -dn' +
@@ -206,7 +205,7 @@ export class StreamingDelegate implements CameraStreamingDelegate {
         ' -srtp_out_suite AES_CM_128_HMAC_SHA1_80' +
         ' -srtp_out_params ' + sessionInfo.videoSRTP.toString('base64') +
         ' srtp://' + sessionInfo.address + ':' + sessionInfo.videoPort +
-        '?rtcpport=' + sessionInfo.videoPort + '&pkt_size=' + mtu;
+        '?rtcpport=' + sessionInfo.videoPort + '&pkt_size=' + request.video.mtu;
 
 
       ffmpegArgs += // Audio
