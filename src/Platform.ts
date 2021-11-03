@@ -7,6 +7,8 @@ import {Config} from "./Config";
 import {ThermostatAccessory} from "./ThermostatAccessory";
 import {Camera} from "./sdm/Camera";
 import {Thermostat} from "./sdm/Thermostat";
+import {Doorbell} from "./sdm/Doorbell";
+import {DoorbellAccessory} from "./DoorbellAccessory";
 
 /**
  * HomebridgePlatform
@@ -79,10 +81,12 @@ export class Platform implements DynamicPlatformPlugin {
                     existingAccessory.context.device = device;
                     this.api.updatePlatformAccessories([existingAccessory]);
 
+                    if (device instanceof Doorbell)
+                        new DoorbellAccessory(this.api, this.log, this, existingAccessory, device);
                     if (device instanceof Camera)
-                        new CameraAccessory(this.api, this.log, this, existingAccessory);
+                        new CameraAccessory(this.api, this.log, this, existingAccessory, device);
                     else if (device instanceof Thermostat)
-                        new ThermostatAccessory(this.api, this.log, this, existingAccessory);
+                        new ThermostatAccessory(this.api, this.log, this, existingAccessory, device);
 
                     // update accessory cache with any changes to the accessory details and information
                     this.api.updatePlatformAccessories([existingAccessory]);
@@ -96,17 +100,28 @@ export class Platform implements DynamicPlatformPlugin {
                 // the accessory does not yet exist, so we need to create it
                 this.log.info('Adding new accessory:', device.displayName);
 
-                // create a new accessory
-                const accessory = new this.api.platformAccessory(device.displayName || "Unknown Name", uuid);
+                let category;
 
+                if (device instanceof Doorbell)
+                    category = this.api.hap.Categories.VIDEO_DOORBELL;
+                else if (device instanceof Camera)
+                    category = this.api.hap.Categories.CAMERA;
+                else if (device instanceof Thermostat)
+                    category = this.api.hap.Categories.THERMOSTAT;
+
+                // create a new accessory
+                const accessory = new this.api.platformAccessory(device.displayName || "Unknown Name", uuid, category);
                 // store a copy of the device object in the `accessory.context`
                 // the `context` property can be used to store any data about the accessory you may need
                 accessory.context.device = device;
 
-                if (device instanceof Camera)
-                    new CameraAccessory(this.api, this.log, this, accessory);
+                if (device instanceof Doorbell)
+                    new DoorbellAccessory(this.api, this.log, this, accessory, device);
+                else if (device instanceof Camera)
+                    new CameraAccessory(this.api, this.log, this, accessory, device);
                 else if (device instanceof Thermostat)
-                    new ThermostatAccessory(this.api, this.log, this, accessory);
+                    new ThermostatAccessory(this.api, this.log, this, accessory, device);
+
 
                 // link the accessory to your platform
                 this.api.registerPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory]);

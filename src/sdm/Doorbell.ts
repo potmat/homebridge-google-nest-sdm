@@ -1,7 +1,23 @@
 import {Camera} from "./Camera";
+import * as Events from "./Events";
+import _ from "lodash";
 
 export class Doorbell extends Camera {
-    getResolutions(): [number, number, number][] {
-        return [[1280, 720, 15],[1920, 1080, 15],[1600, 1200, 15]];
+
+    onRing: (() => void) | undefined;
+
+    event(event: Events.ResourceEventEvent) {
+        super.event(event);
+
+        _.forEach(event.resourceUpdate.events, (value, key) => {
+            switch (key) {
+                case Events.Constants.DoorbellChime:
+                    if (this.onRing) {
+                        //const eventValue = value as Events.DoorbellChime;
+                        this.onRing();
+                    }
+                    break;
+            }
+        });
     }
 }

@@ -2,10 +2,10 @@ import * as Traits from './Traits';
 import exp from "constants";
 
 export enum Constants {
-    CameraMotion = 'sdm.devices.events.CameraMotion',
-    CameraPerson = 'sdm.devices.events.CameraPerson',
-    CameraSound = 'sdm.devices.events.CameraSound',
-    DoorbellChime = 'sdm.devices.events.DoorbellChime',
+    CameraMotion = 'sdm.devices.events.CameraMotion.Motion',
+    CameraPerson = 'sdm.devices.events.CameraPerson.Person',
+    CameraSound = 'sdm.devices.events.CameraSound.Sound',
+    DoorbellChime = 'sdm.devices.events.DoorbellChime.Chime',
 }
 
 export enum RelationUpdateType {

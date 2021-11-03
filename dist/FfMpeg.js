@@ -53,7 +53,7 @@ class FfmpegProcess {
                     callback(new Error(message));
                 }
                 else {
-                    delegate.controller.forceStopStreamingSession(sessionId);
+                    delegate.getController().forceStopStreamingSession(sessionId);
                 }
             }
         });

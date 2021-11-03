@@ -57,19 +57,20 @@ type ActiveSession = {
   streamInfo: GenerateRtspStream;
 };
 
-export class StreamingDelegate implements CameraStreamingDelegate {
-  private readonly hap: HAP;
-  private readonly log: Logger;
-  private readonly videoProcessor: string;
-  readonly controller: CameraController;
+export abstract class StreamingDelegate<T extends CameraController> implements CameraStreamingDelegate {
+  protected hap: HAP;
+  protected log: Logger;
+  protected videoProcessor: string;
 
   // keep track of sessions
-  pendingSessions: Record<string, SessionInfo> = {};
-  ongoingSessions: Record<string, ActiveSession> = {};
-  timeouts: Record<string, NodeJS.Timeout> = {};
-  private config: Config;
-  private camera: Camera;
-  private debug: boolean = true;
+  protected pendingSessions: Record<string, SessionInfo> = {};
+  protected ongoingSessions: Record<string, ActiveSession> = {};
+  protected timeouts: Record<string, NodeJS.Timeout> = {};
+  protected config: Config;
+  protected camera: Camera;
+  protected debug: boolean = true;
+  protected options: CameraControllerOptions;
+  protected controller!: T;
 
   constructor(log: Logger, api: API, config: Config, camera: Camera) {
     this.log = log;
@@ -84,7 +85,7 @@ export class StreamingDelegate implements CameraStreamingDelegate {
       }
     });
 
-    const options: CameraControllerOptions = {
+    this.options = {
       cameraStreamCount: camera.getResolutions().length, // HomeKit requires at least 2 streams, but 1 is also just fine
       delegate: this,
       streamingOptions: {
@@ -108,9 +109,9 @@ export class StreamingDelegate implements CameraStreamingDelegate {
         }
       }
     };
-
-    this.controller = new this.hap.CameraController(options);
   }
+
+  abstract getController(): T;
 
   handleSnapshotRequest(request: SnapshotRequest, callback: SnapshotRequestCallback): void {
     //Nest cams do not have any method to get a current snapshot,

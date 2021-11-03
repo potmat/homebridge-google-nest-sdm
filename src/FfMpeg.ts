@@ -1,5 +1,5 @@
 import { ChildProcess, spawn } from 'child_process';
-import {Logger, StreamRequestCallback} from 'homebridge';
+import {CameraController, Logger, StreamRequestCallback} from 'homebridge';
 import { Writable } from 'stream';
 import { StreamingDelegate } from './StreamingDelegate';
 
@@ -7,7 +7,7 @@ export class FfmpegProcess {
     private readonly process: ChildProcess;
 
     constructor(cameraName: string, sessionId: string, videoProcessor: string, ffmpegArgs: string, log: Logger,
-                debug: boolean, delegate: StreamingDelegate, callback?: StreamRequestCallback) {
+                debug: boolean, delegate: StreamingDelegate<CameraController>, callback?: StreamRequestCallback) {
         log.debug('Stream command: ' + videoProcessor + ' ' + ffmpegArgs, cameraName, debug);
 
         let started = false;
@@ -58,7 +58,7 @@ export class FfmpegProcess {
                 if (!started && callback) {
                     callback(new Error(message));
                 } else {
-                    delegate.controller.forceStopStreamingSession(sessionId);
+                    delegate.getController().forceStopStreamingSession(sessionId);
                 }
             }
         });

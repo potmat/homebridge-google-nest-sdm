@@ -1,41 +1,28 @@
 import {
     PlatformAccessory,
     PlatformAccessoryEvent,
-    HAP,
     Logger, API
 } from 'homebridge';
 import {Platform} from './Platform';
-import {StreamingDelegate} from "./StreamingDelegate";
 import {Config} from "./Config";
 import {Camera} from "./sdm/Camera";
-import {Doorbell} from "./sdm/Doorbell";
+import {Accessory} from "./Accessory";
+import {CameraStreamingDelegate} from "./CameraStreamingDelegate";
 
-export class CameraAccessory {
-    private hap: HAP;
-    private camera: Camera;
-
+export class CameraAccessory extends Accessory<Camera>{
     constructor(
-        private readonly api: API,
-        private readonly log: Logger,
-        private readonly platform: Platform,
-        private readonly accessory: PlatformAccessory) {
-        this.hap = api.hap;
-        this.camera = <Camera>accessory.context.device;
-        // set accessory information
-        new this.hap.Service.AccessoryInformation()
-            .setCharacteristic(this.platform.Characteristic.Manufacturer, 'Nest')
+        api: API,
+        log: Logger,
+        platform: Platform,
+        accessory: PlatformAccessory,
+        device: Camera) {
+        super(api, log, platform, accessory, device);
 
-        accessory.on(PlatformAccessoryEvent.IDENTIFY, () => {
-            log.info("%s identified!", accessory.displayName);
+        this.accessory.on(PlatformAccessoryEvent.IDENTIFY, () => {
+            log.info("%s identified!", this.accessory.displayName);
         });
 
-        // if (this.camera instanceof Doorbell) {
-        //     const doorbell = new this.hap.Service.Doorbell(this.camera.getDisplayName() + ' Doorbell');
-        //     accessory.addService(doorbell);
-        //     doorbell.
-        // }
-
-        const streamingDelegate = new StreamingDelegate(log, api, this.platform.config.options as unknown as Config, this.camera);
-        accessory.configureController(streamingDelegate.controller);
+        const streamingDelegate = new CameraStreamingDelegate(log, api, this.platform.config.options as unknown as Config, this.device);
+        this.accessory.configureController(streamingDelegate.getController());
     }
 }

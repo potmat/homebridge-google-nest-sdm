@@ -7,6 +7,8 @@ const Api_1 = require("./sdm/Api");
 const ThermostatAccessory_1 = require("./ThermostatAccessory");
 const Camera_1 = require("./sdm/Camera");
 const Thermostat_1 = require("./sdm/Thermostat");
+const Doorbell_1 = require("./sdm/Doorbell");
+const DoorbellAccessory_1 = require("./DoorbellAccessory");
 /**
  * HomebridgePlatform
  * This class is the main constructor for your plugin, this is where you should
@@ -64,10 +66,12 @@ class Platform {
                     // if you need to update the accessory.context then you should run `api.updatePlatformAccessories`. eg.:
                     existingAccessory.context.device = device;
                     this.api.updatePlatformAccessories([existingAccessory]);
+                    if (device instanceof Doorbell_1.Doorbell)
+                        new DoorbellAccessory_1.DoorbellAccessory(this.api, this.log, this, existingAccessory, device);
                     if (device instanceof Camera_1.Camera)
-                        new CameraAccessory_1.CameraAccessory(this.api, this.log, this, existingAccessory);
+                        new CameraAccessory_1.CameraAccessory(this.api, this.log, this, existingAccessory, device);
                     else if (device instanceof Thermostat_1.Thermostat)
-                        new ThermostatAccessory_1.ThermostatAccessory(this.api, this.log, this, existingAccessory);
+                        new ThermostatAccessory_1.ThermostatAccessory(this.api, this.log, this, existingAccessory, device);
                     // update accessory cache with any changes to the accessory details and information
                     this.api.updatePlatformAccessories([existingAccessory]);
                 }
@@ -81,15 +85,24 @@ class Platform {
             else {
                 // the accessory does not yet exist, so we need to create it
                 this.log.info('Adding new accessory:', device.displayName);
+                let category;
+                if (device instanceof Doorbell_1.Doorbell)
+                    category = 18 /* VIDEO_DOORBELL */;
+                else if (device instanceof Camera_1.Camera)
+                    category = 17 /* CAMERA */;
+                else if (device instanceof Thermostat_1.Thermostat)
+                    category = 9 /* THERMOSTAT */;
                 // create a new accessory
-                const accessory = new this.api.platformAccessory(device.displayName || "Unknown Name", uuid);
+                const accessory = new this.api.platformAccessory(device.displayName || "Unknown Name", uuid, category);
                 // store a copy of the device object in the `accessory.context`
                 // the `context` property can be used to store any data about the accessory you may need
                 accessory.context.device = device;
-                if (device instanceof Camera_1.Camera)
-                    new CameraAccessory_1.CameraAccessory(this.api, this.log, this, accessory);
+                if (device instanceof Doorbell_1.Doorbell)
+                    new DoorbellAccessory_1.DoorbellAccessory(this.api, this.log, this, accessory, device);
+                else if (device instanceof Camera_1.Camera)
+                    new CameraAccessory_1.CameraAccessory(this.api, this.log, this, accessory, device);
                 else if (device instanceof Thermostat_1.Thermostat)
-                    new ThermostatAccessory_1.ThermostatAccessory(this.api, this.log, this, accessory);
+                    new ThermostatAccessory_1.ThermostatAccessory(this.api, this.log, this, accessory, device);
                 // link the accessory to your platform
                 this.api.registerPlatformAccessories(Settings_1.PLUGIN_NAME, Settings_1.PLATFORM_NAME, [accessory]);
             }

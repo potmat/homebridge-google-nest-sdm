@@ -28,7 +28,7 @@ class StreamingDelegate {
                 this.stopStream(session);
             }
         });
-        const options = {
+        this.options = {
             cameraStreamCount: camera.getResolutions().length,
             delegate: this,
             streamingOptions: {
@@ -52,7 +52,6 @@ class StreamingDelegate {
                 }
             }
         };
-        this.controller = new this.hap.CameraController(options);
     }
     handleSnapshotRequest(request, callback) {
         //Nest cams do not have any method to get a current snapshot,
@@ -67,7 +66,6 @@ class StreamingDelegate {
                 callback(undefined, data);
             }
         });
-        // callback(undefined, undefined);
     }
     async getIpAddress(ipv6) {
         var _a;
