@@ -12,7 +12,8 @@ Currently only supports cameras (not the new battery powered ones) and thermosta
         "clientId": "...",
         "clientSecret": "...",
         "projectId": "...",
-        "refreshToken": "..."
+        "refreshToken": "...",
+        "subscriptionId": "..."
       }
     }
     
