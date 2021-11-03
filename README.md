@@ -23,11 +23,13 @@ Follow the getting started guide here: https://developers.google.com/nest/device
 
 ONE IMPORTANT DIFFERENCE!
 
-In step two "Authorize an Account" in the "Link your account" DO NOT USE THIS URL:
+In step two "Authorize an Account" in the "Link your account" section, step 1, you are instructed to "open the following link in a web browser":
 
 https://nestservices.google.com/partnerconnections/project-id/auth?redirect_uri=https://www.google.com&access_type=offline&prompt=consent&client_id=oauth2-client-id&response_type=code&scope=https://www.googleapis.com/auth/sdm.service
 
-INSTEAD USE THIS URL:
+DO NOT USE THIS URL!
+
+You should instead use this URL:
 
 https://nestservices.google.com/partnerconnections/project-id/auth?redirect_uri=https://www.google.com&access_type=offline&prompt=consent&client_id=oauth2-client-id&response_type=code&scope=https://www.googleapis.com/auth/sdm.service+https://www.googleapis.com/auth/pubsub
 
