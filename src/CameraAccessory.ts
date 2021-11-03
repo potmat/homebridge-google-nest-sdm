@@ -8,6 +8,7 @@ import {Platform} from './Platform';
 import {StreamingDelegate} from "./StreamingDelegate";
 import {Config} from "./Config";
 import {Camera} from "./sdm/Camera";
+import {Doorbell} from "./sdm/Doorbell";
 
 export class CameraAccessory {
     private hap: HAP;
@@ -27,6 +28,12 @@ export class CameraAccessory {
         accessory.on(PlatformAccessoryEvent.IDENTIFY, () => {
             log.info("%s identified!", accessory.displayName);
         });
+
+        // if (this.camera instanceof Doorbell) {
+        //     const doorbell = new this.hap.Service.Doorbell(this.camera.getDisplayName() + ' Doorbell');
+        //     accessory.addService(doorbell);
+        //     doorbell.
+        // }
 
         const streamingDelegate = new StreamingDelegate(log, api, this.platform.config.options as unknown as Config, this.camera);
         accessory.configureController(streamingDelegate.controller);

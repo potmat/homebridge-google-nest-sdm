@@ -1,4 +1,5 @@
 import * as google from "googleapis";
+import * as Events from './Events';
 import {Logger} from "homebridge";
 import _ from "lodash";
 
@@ -19,12 +20,14 @@ export abstract class Device {
         this.log = log;
     }
 
+    abstract event(event: Events.Event): void;
+
     getName(): string {
         return <string>this.device.name;
     }
 
     getDisplayName() : string {
-        return this.displayName ? this.displayName : 'Unknown Camera';
+        return this.displayName ? this.displayName : 'Unknown';
     }
 
     async refresh() {

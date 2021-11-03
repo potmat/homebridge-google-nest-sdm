@@ -23,6 +23,8 @@ import {
 import {createSocket, Socket} from 'dgram';
 import getPort from 'get-port';
 import os from 'os';
+import fs from 'fs';
+import path from 'path';
 import {networkInterfaceDefault} from 'systeminformation';
 import {Config} from './Config'
 import {FfmpegProcess} from './FfMpeg';
@@ -67,7 +69,7 @@ export class StreamingDelegate implements CameraStreamingDelegate {
   timeouts: Record<string, NodeJS.Timeout> = {};
   private config: Config;
   private camera: Camera;
-  private debug: boolean = false;
+  private debug: boolean = true;
 
   constructor(log: Logger, api: API, config: Config, camera: Camera) {
     this.log = log;
@@ -114,7 +116,14 @@ export class StreamingDelegate implements CameraStreamingDelegate {
     //Nest cams do not have any method to get a current snapshot,
     //starting streams up just to retrieve one is slow and will cause
     //the SDM API to hit a rate limit of creating too many streams
-    callback(undefined, undefined);
+    fs.readFile(path.join(__dirname, "res", "nest-logo.jpg"), (err, data) => {
+      if (err) {
+        this.log.error(err.message);
+        callback(new Error(err.message), undefined);
+      } else {
+        callback(undefined, data);
+      }
+    });
   }
 
   async getIpAddress(ipv6: boolean): Promise<string> {

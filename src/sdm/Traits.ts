@@ -1,32 +1,104 @@
+export enum Constants {
+    Info = 'sdm.devices.traits.Info',
+    Connectivity = 'sdm.devices.traits.Connectivity',
+    Fan = 'sdm.devices.traits.Fan',
+    Humidity = 'sdm.devices.traits.Humidity',
+    ThermostatTemperatureSetpoint = 'sdm.devices.traits.ThermostatTemperatureSetpoint',
+    ThermostatMode = 'sdm.devices.traits.ThermostatMode',
+    ThermostatHvac = 'sdm.devices.traits.ThermostatHvac',
+    Temperature = 'sdm.devices.traits.Temperature',
+    ThermostatEco = 'sdm.devices.traits.ThermostatEco',
+    Settings = 'sdm.devices.traits.Settings',
+    CameraImage = 'sdm.devices.traits.CameraImage',
+    CameraLiveStream = 'sdm.devices.traits.CameraLiveStream',
+}
+
+export interface Info {
+    customName: string;
+}
+
+export enum ConnectivityStatusType {
+    ONLINE = 'ONLINE',
+    OFFLINE = 'OFFLINE'
+}
+
+export interface Connectivity {
+    status: ConnectivityStatusType;
+}
+
+export enum FanTimerModeType {
+    ON = 'ON',
+    OFF = 'OFF'
+}
+
+export interface Fan {
+    timerMode: FanTimerModeType,
+    timerTimeout: string;
+}
+
+export interface Humidity {
+    ambientHumidityPercent: number;
+}
+
 export interface ThermostatTemperatureSetpoint {
     heatCelsius?: number;
     coolCelsius?: number;
 }
 
-export interface ThermostatMode {
-    availableModes: string[];
-    mode: string;
+export enum ThermostatModeType {
+    HEAT = 'HEAT',
+    COOL = 'COOL',
+    HEATCOOL = 'HEATCOOL',
+    OFF = 'OFF'
 }
 
-export interface Hvac {
-    status: string;
+export interface ThermostatMode {
+    availableModes: ThermostatModeType[];
+    mode: ThermostatModeType;
+}
+
+export enum HvacStatusType {
+    OFF = 'OFF',
+    HEATING = 'HEATING',
+    COOLING = 'COOLING'
+}
+
+export interface ThermostatHvac {
+    status: HvacStatusType;
 }
 
 export interface Temperature {
     ambientTemperatureCelsius: number;
 }
 
+export enum EcoModeType {
+    MANUAL_ECO = 'MANUAL_ECO',
+    OFF = 'OFF'
+}
+
 export interface ThermostatEco {
-    availableModes: string[];
-    mode: string;
+    availableModes: EcoModeType[];
+    mode: EcoModeType;
     heatCelsius: number;
     coolCelsius: number;
 }
 
 export interface Settings {
-    temparatureScale: string;
+    temparatureScale?: string;
 }
 
-export interface Humidity {
-    ambientHumidityPercent: number;
+export interface ImageResolution {
+    width: number;
+    height: number;
+}
+
+export interface CameraImage {
+    maxImageResolution: ImageResolution;
+}
+
+export interface CameraLiveStream {
+    maxImageResolution: ImageResolution;
+    videoCodecs: string[];
+    audioCodecs: string[];
+    supportedProtocols: string[];
 }

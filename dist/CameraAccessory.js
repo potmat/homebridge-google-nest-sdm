@@ -16,6 +16,11 @@ class CameraAccessory {
         accessory.on("identify" /* IDENTIFY */, () => {
             log.info("%s identified!", accessory.displayName);
         });
+        // if (this.camera instanceof Doorbell) {
+        //     const doorbell = new this.hap.Service.Doorbell(this.camera.getDisplayName() + ' Doorbell');
+        //     accessory.addService(doorbell);
+        //     doorbell.
+        // }
         const streamingDelegate = new StreamingDelegate_1.StreamingDelegate(log, api, this.platform.config.options, this.camera);
         accessory.configureController(streamingDelegate.controller);
     }

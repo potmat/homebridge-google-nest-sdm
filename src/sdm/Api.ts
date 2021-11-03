@@ -1,8 +1,9 @@
 import _ from 'lodash';
 import * as google from 'googleapis';
+import * as pubsub from '@google-cloud/pubsub';
 import {Logger} from 'homebridge';
 import {Config} from "../Config";
-
+import * as Events from './Events';
 import {Device} from "./Device";
 import {Camera} from "./Camera";
 import {Doorbell} from "./Doorbell";
@@ -12,10 +13,15 @@ import {UnknownDevice} from "./UnknownDevice";
 export class SmartDeviceManagement {
     private oauth2Client: google.Auth.OAuth2Client;
     private smartdevicemanagement: google.smartdevicemanagement_v1.Smartdevicemanagement;
+    private pubSubClient: pubsub.PubSub;
+    private subscription: pubsub.Subscription;
     private projectId: string;
     private log: Logger;
+    private devices: Device[] | undefined;
 
     constructor(config: Config, log: Logger) {
+        this.log = log;
+
         this.oauth2Client = new google.Auth.OAuth2Client(
             config.clientId,
             config.clientSecret
@@ -27,19 +33,59 @@ export class SmartDeviceManagement {
         this.smartdevicemanagement = new google.smartdevicemanagement_v1.Smartdevicemanagement({
             auth: this.oauth2Client
         });
-        this.log = log;
+
+        this.pubSubClient = new pubsub.PubSub({
+            projectId: config.projectId,
+            credentials: {
+                // @ts-ignore
+                type: 'authorized_user',
+                // @ts-ignore
+                client_id: config.clientId,
+                // @ts-ignore
+                client_secret: config.clientSecret,
+                // @ts-ignore
+                refresh_token: config.refreshToken
+            }
+        });
+        this.subscription = this.pubSubClient.subscription(config.subscriptionId);
+        this.subscription.on('message', message => {
+            message.ack();
+
+            if (!this.devices)
+                return;
+
+            this.log.debug('Event received: ' + message.data.toString());
+
+            const event: Events.Event = JSON.parse(message.data);
+
+            if ((event as Events.ResourceRelationEvent).relationUpdate) {
+                const resourceRelationtEvent = event as Events.ResourceRelationEvent;
+            } else if ((event as Events.ResourceEventEvent).resourceUpdate.events) {
+                const resourceEventEvent = event as Events.ResourceEventEvent;
+                const device = _.find(this.devices, device => device.getName() === resourceEventEvent.resourceUpdate.name);
+                if (device)
+                    device.event(resourceEventEvent);
+            } else if ((event as Events.ResourceTraitEvent).resourceUpdate.traits) {
+                const resourceTraitEvent = event as Events.ResourceTraitEvent;
+                const device = _.find(this.devices, device => device.getName() === resourceTraitEvent.resourceUpdate.name);
+                if (device)
+                    device.event(resourceTraitEvent);
+            }
+        });
     }
 
     async list_devices(): Promise<Device[]> {
         return this.smartdevicemanagement.enterprises.devices.list({parent: `enterprises/${this.projectId}`})
             .then(response => {
-                return _(response.data.devices)
+                this.devices = _(response.data.devices)
                     .filter(device => device.name !== null)
                     .map(device => {
                         switch (device.type) {
                             case 'sdm.devices.types.DOORBELL':
                                 return new Doorbell(this.smartdevicemanagement, device, this.log)
                             case 'sdm.devices.types.CAMERA':
+                                return new Camera(this.smartdevicemanagement, device, this.log)
+                            case 'sdm.devices.types.DISPLAY':
                                 return new Camera(this.smartdevicemanagement, device, this.log)
                             case 'sdm.devices.types.THERMOSTAT':
                                 return new Thermostat(this.smartdevicemanagement, device, this.log)
@@ -48,6 +94,7 @@ export class SmartDeviceManagement {
                         }
                     })
                     .value();
+                return this.devices;
             })
     }
 }
