@@ -19,6 +19,7 @@
   ],
   "dependencies": {
     "@google-cloud/pubsub": "^2.18.1",
+    "axios": "^0.24.0",
     "get-port": "^5.1.1",
     "googleapis": "^87.0.0",
     "ip": "^1.1.5",

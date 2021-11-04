@@ -7,8 +7,6 @@ exports.StreamingDelegate = void 0;
 const dgram_1 = require("dgram");
 const get_port_1 = __importDefault(require("get-port"));
 const os_1 = __importDefault(require("os"));
-const fs_1 = __importDefault(require("fs"));
-const path_1 = __importDefault(require("path"));
 const systeminformation_1 = require("systeminformation");
 const FfMpeg_1 = require("./FfMpeg");
 class StreamingDelegate {
@@ -54,17 +52,9 @@ class StreamingDelegate {
         };
     }
     handleSnapshotRequest(request, callback) {
-        //Nest cams do not have any method to get a current snapshot,
-        //starting streams up just to retrieve one is slow and will cause
-        //the SDM API to hit a rate limit of creating too many streams
-        fs_1.default.readFile(path_1.default.join(__dirname, "res", "nest-logo.jpg"), (err, data) => {
-            if (err) {
-                this.log.error(err.message);
-                callback(new Error(err.message), undefined);
-            }
-            else {
-                callback(undefined, data);
-            }
+        this.camera.getSnapshot()
+            .then(result => {
+            callback(undefined, result);
         });
     }
     async getIpAddress(ipv6) {

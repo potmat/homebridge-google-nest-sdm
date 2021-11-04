@@ -83,7 +83,7 @@ export class Platform implements DynamicPlatformPlugin {
 
                     if (device instanceof Doorbell)
                         new DoorbellAccessory(this.api, this.log, this, existingAccessory, device);
-                    if (device instanceof Camera)
+                    else if (device instanceof Camera)
                         new CameraAccessory(this.api, this.log, this, existingAccessory, device);
                     else if (device instanceof Thermostat)
                         new ThermostatAccessory(this.api, this.log, this, existingAccessory, device);
@@ -98,7 +98,7 @@ export class Platform implements DynamicPlatformPlugin {
                 }
             } else {
                 // the accessory does not yet exist, so we need to create it
-                this.log.info('Adding new accessory:', device.displayName);
+                this.log.info('Adding new accessory:', device.getDisplayName());
 
                 let category;
 
@@ -110,7 +110,7 @@ export class Platform implements DynamicPlatformPlugin {
                     category = this.api.hap.Categories.THERMOSTAT;
 
                 // create a new accessory
-                const accessory = new this.api.platformAccessory(device.displayName || "Unknown Name", uuid, category);
+                const accessory = new this.api.platformAccessory(device.getDisplayName() || "Unknown Name", uuid, category);
                 // store a copy of the device object in the `accessory.context`
                 // the `context` property can be used to store any data about the accessory you may need
                 accessory.context.device = device;

@@ -114,17 +114,10 @@ export abstract class StreamingDelegate<T extends CameraController> implements C
   abstract getController(): T;
 
   handleSnapshotRequest(request: SnapshotRequest, callback: SnapshotRequestCallback): void {
-    //Nest cams do not have any method to get a current snapshot,
-    //starting streams up just to retrieve one is slow and will cause
-    //the SDM API to hit a rate limit of creating too many streams
-    fs.readFile(path.join(__dirname, "res", "nest-logo.jpg"), (err, data) => {
-      if (err) {
-        this.log.error(err.message);
-        callback(new Error(err.message), undefined);
-      } else {
-        callback(undefined, data);
-      }
-    });
+    this.camera.getSnapshot()
+        .then(result => {
+          callback(undefined, result);
+        })
   }
 
   async getIpAddress(ipv6: boolean): Promise<string> {

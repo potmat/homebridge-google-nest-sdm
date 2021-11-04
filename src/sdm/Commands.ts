@@ -8,6 +8,7 @@ export enum Constants {
     ThermostatEco_SetMode = 'sdm.devices.commands.ThermostatEco.SetMode',
     CameraLiveStream_GenerateRtspStream = 'sdm.devices.commands.CameraLiveStream.GenerateRtspStream',
     CameraLiveStream_StopRtspStream = 'sdm.devices.commands.CameraLiveStream.StopRtspStream',
+    CameraEventImage_GenerateImage = 'sdm.devices.commands.CameraEventImage.GenerateImage'
 }
 
 export interface ThermostatTemperatureSetpoint_SetHeat {
@@ -29,4 +30,8 @@ export interface ThermostatMode_SetMode {
 
 export interface ThermostatEco_SetMode {
     mode: Traits.EcoModeType;
+}
+
+export interface CameraEventImage_GenerateImage {
+    eventId: string;
 }

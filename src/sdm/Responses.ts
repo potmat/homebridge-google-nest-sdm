@@ -8,3 +8,8 @@ export interface GenerateRtspStream {
     streamToken: string;
     expiresAt: string;
 }
+
+export interface GenerateImage {
+    url: string;
+    token: string;
+}

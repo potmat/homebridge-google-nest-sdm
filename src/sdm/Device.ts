@@ -4,11 +4,11 @@ import {Logger} from "homebridge";
 import _ from "lodash";
 
 export abstract class Device {
-    smartdevicemanagement: google.smartdevicemanagement_v1.Smartdevicemanagement;
-    device: google.smartdevicemanagement_v1.Schema$GoogleHomeEnterpriseSdmV1Device;
-    lastRefresh: number;
-    displayName: string|null|undefined;
-    private log: Logger;
+    protected smartdevicemanagement: google.smartdevicemanagement_v1.Smartdevicemanagement;
+    protected device: google.smartdevicemanagement_v1.Schema$GoogleHomeEnterpriseSdmV1Device;
+    protected lastRefresh: number;
+    protected displayName: string|null|undefined;
+    protected log: Logger;
     constructor(smartdevicemanagement: google.smartdevicemanagement_v1.Smartdevicemanagement,
                 device: google.smartdevicemanagement_v1.Schema$GoogleHomeEnterpriseSdmV1Device,
                 log: Logger) {
@@ -51,7 +51,7 @@ export abstract class Device {
     async executeCommand<T, U>(name: string, params?: T): Promise<U> {
         this.log.debug(`Executing command ${name} with parameters ${JSON.stringify(params)}`);
 
-        return await this.smartdevicemanagement.enterprises.devices.executeCommand({
+        return this.smartdevicemanagement.enterprises.devices.executeCommand({
             name: this.device?.name || undefined,
             requestBody: {
                 command: name,

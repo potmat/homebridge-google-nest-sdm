@@ -68,7 +68,7 @@ class Platform {
                     this.api.updatePlatformAccessories([existingAccessory]);
                     if (device instanceof Doorbell_1.Doorbell)
                         new DoorbellAccessory_1.DoorbellAccessory(this.api, this.log, this, existingAccessory, device);
-                    if (device instanceof Camera_1.Camera)
+                    else if (device instanceof Camera_1.Camera)
                         new CameraAccessory_1.CameraAccessory(this.api, this.log, this, existingAccessory, device);
                     else if (device instanceof Thermostat_1.Thermostat)
                         new ThermostatAccessory_1.ThermostatAccessory(this.api, this.log, this, existingAccessory, device);
@@ -84,7 +84,7 @@ class Platform {
             }
             else {
                 // the accessory does not yet exist, so we need to create it
-                this.log.info('Adding new accessory:', device.displayName);
+                this.log.info('Adding new accessory:', device.getDisplayName());
                 let category;
                 if (device instanceof Doorbell_1.Doorbell)
                     category = 18 /* VIDEO_DOORBELL */;
@@ -93,7 +93,7 @@ class Platform {
                 else if (device instanceof Thermostat_1.Thermostat)
                     category = 9 /* THERMOSTAT */;
                 // create a new accessory
-                const accessory = new this.api.platformAccessory(device.displayName || "Unknown Name", uuid, category);
+                const accessory = new this.api.platformAccessory(device.getDisplayName() || "Unknown Name", uuid, category);
                 // store a copy of the device object in the `accessory.context`
                 // the `context` property can be used to store any data about the accessory you may need
                 accessory.context.device = device;
