@@ -28,6 +28,9 @@ const Device_1 = require("./Device");
 const Traits = __importStar(require("./Traits"));
 const Commands = __importStar(require("./Commands"));
 class Thermostat extends Device_1.Device {
+    getDisplayName() {
+        return this.displayName ? this.displayName + ' Thermostat' : 'Unknown';
+    }
     event(event) {
         lodash_1.default.forEach(event.resourceUpdate.traits, (value, key) => {
             switch (key) {
@@ -99,11 +102,11 @@ class Thermostat extends Device_1.Device {
         const mode = await this.getMode();
         switch (mode) {
             case Traits.ThermostatModeType.HEAT:
-                await this.executeCommand(Commands.Constants.ThermostatTemperatureSetpoint_SetHeat, {
+                return await this.executeCommand(Commands.Constants.ThermostatTemperatureSetpoint_SetHeat, {
                     heatCelsius: temparature
                 });
             case Traits.ThermostatModeType.COOL:
-                await this.executeCommand(Commands.Constants.ThermostatTemperatureSetpoint_SetCool, {
+                return await this.executeCommand(Commands.Constants.ThermostatTemperatureSetpoint_SetCool, {
                     coolCelsius: temparature
                 });
             case Traits.ThermostatModeType.HEATCOOL:

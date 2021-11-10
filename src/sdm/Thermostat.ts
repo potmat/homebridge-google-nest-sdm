@@ -5,6 +5,11 @@ import * as Commands from "./Commands";
 import * as Events from './Events';
 
 export class Thermostat extends Device {
+
+    getDisplayName(): string {
+        return this.displayName ? this.displayName + ' Thermostat' : 'Unknown';
+    }
+
     onTemperatureChanged: ((temparature: number) => void) | undefined;
     onModeChanged: ((mode: Traits.ThermostatModeType) => void) | undefined;
     onTargetTemperatureChanged: ((temparature: number) => void) | undefined;
@@ -95,11 +100,11 @@ export class Thermostat extends Device {
 
         switch (mode) {
             case Traits.ThermostatModeType.HEAT:
-                await this.executeCommand<Commands.ThermostatTemperatureSetpoint_SetHeat, void>(Commands.Constants.ThermostatTemperatureSetpoint_SetHeat, {
+                return await this.executeCommand<Commands.ThermostatTemperatureSetpoint_SetHeat, void>(Commands.Constants.ThermostatTemperatureSetpoint_SetHeat, {
                     heatCelsius: temparature
                 });
             case Traits.ThermostatModeType.COOL:
-                await this.executeCommand<Commands.ThermostatTemperatureSetpoint_SetCool, void>(Commands.Constants.ThermostatTemperatureSetpoint_SetCool, {
+                return await this.executeCommand<Commands.ThermostatTemperatureSetpoint_SetCool, void>(Commands.Constants.ThermostatTemperatureSetpoint_SetCool, {
                     coolCelsius: temparature
                 });
             case Traits.ThermostatModeType.HEATCOOL:

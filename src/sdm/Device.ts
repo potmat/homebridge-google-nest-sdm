@@ -21,21 +21,20 @@ export abstract class Device {
     }
 
     abstract event(event: Events.Event): void;
+    abstract getDisplayName() : string;
 
     getName(): string {
         return <string>this.device.name;
     }
 
-    getDisplayName() : string {
-        return this.displayName ? this.displayName : 'Unknown';
-    }
-
     async refresh() {
-        this.smartdevicemanagement.enterprises.devices.get({name : this.getName()})
-            .then(response => {
-                this.device = response.data;
-                this.lastRefresh = Date.now();
-            })
+        try {
+            const response = await this.smartdevicemanagement.enterprises.devices.get({name: this.getName()});
+            this.device = response.data;
+            this.lastRefresh = Date.now();
+        } catch (e) {
+            this.log.error('Could not execute API request.', e);
+        }
     }
 
     async getTrait<T>(name: string): Promise<T> {
@@ -50,17 +49,14 @@ export abstract class Device {
 
     async executeCommand<T, U>(name: string, params?: T): Promise<U> {
         this.log.debug(`Executing command ${name} with parameters ${JSON.stringify(params)}`);
-
-        return this.smartdevicemanagement.enterprises.devices.executeCommand({
+        const response = await this.smartdevicemanagement.enterprises.devices.executeCommand({
             name: this.device?.name || undefined,
             requestBody: {
                 command: name,
                 params: params
             }
-        }).then(response => {
-            this.log.debug(`Execution of command ${name} returned ${JSON.stringify(response.data.results)}`);
-
-            return <U>response.data.results;
-        })
+        });
+        this.log.debug(`Execution of command ${name} returned ${JSON.stringify(response.data.results)}`);
+        return <U>response.data.results;
     }
 }

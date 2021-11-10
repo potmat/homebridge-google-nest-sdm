@@ -28,14 +28,21 @@ const Commands = __importStar(require("./Commands"));
 const axios_1 = __importDefault(require("axios"));
 const fs_1 = __importDefault(require("fs"));
 const path_1 = __importDefault(require("path"));
+const ImageQueue_1 = require("./ImageQueue");
+const lodash_1 = __importDefault(require("lodash"));
+const Events = __importStar(require("./Events"));
 class Camera extends Device_1.Device {
     constructor() {
         super(...arguments);
-        this.imageQueue = [];
+        this.imageQueue = new ImageQueue_1.ImageQueue(this.getDisplayName(), this.log);
+    }
+    getDisplayName() {
+        return this.displayName ? this.displayName + ' Camera' : 'Unknown';
     }
     async getSnapshot() {
-        if (this.imageQueue.length > 0)
-            return this.imageQueue.shift();
+        const image = this.imageQueue.get();
+        if (image)
+            return image;
         //Nest cams do not have any method to get a current snapshot,
         //starting streams up just to retrieve one is slow and will cause
         //the SDM API to hit a rate limit of creating too many streams
@@ -45,10 +52,10 @@ class Camera extends Device_1.Device {
         return [[1280, 720, 15], [1920, 1080, 15]];
     }
     async getEventImage(eventId) {
-        const generateResponse = await this.executeCommand(Commands.Constants.CameraEventImage_GenerateImage, {
-            eventId: eventId
-        });
         try {
+            const generateResponse = await this.executeCommand(Commands.Constants.CameraEventImage_GenerateImage, {
+                eventId: eventId
+            });
             const imageResponse = await axios_1.default.get(generateResponse.url, {
                 headers: {
                     'Authorization': 'Basic ' + generateResponse.token
@@ -56,9 +63,7 @@ class Camera extends Device_1.Device {
                 responseType: 'arraybuffer'
             });
             const buffer = Buffer.from(imageResponse.data, 'binary');
-            if (this.imageQueue.length > 5)
-                this.imageQueue.shift();
-            this.imageQueue.push(buffer);
+            this.imageQueue.put(buffer);
         }
         catch (error) {
             this.log.error(error);
@@ -68,20 +73,24 @@ class Camera extends Device_1.Device {
         return this.executeCommand(Commands.Constants.CameraLiveStream_GenerateRtspStream);
     }
     async stopStream(extensionToken) {
-        return this.smartdevicemanagement.enterprises.devices.executeCommand({
-            name: this.getName(),
-            requestBody: {
-                command: Commands.Constants.CameraLiveStream_StopRtspStream,
-                params: {
-                    streamExtensionToken: extensionToken
-                }
-            }
-        }).then(response => {
-            var _a, _b, _c;
-            return (_c = (_b = (_a = response.data) === null || _a === void 0 ? void 0 : _a.results) === null || _b === void 0 ? void 0 : _b.streamUrls) === null || _c === void 0 ? void 0 : _c.rtspUrl;
+        return this.executeCommand(Commands.Constants.CameraLiveStream_StopRtspStream, {
+            streamExtensionToken: extensionToken
         });
     }
     event(event) {
+        lodash_1.default.forEach(event.resourceUpdate.events, (value, key) => {
+            switch (key) {
+                case Events.Constants.CameraMotion:
+                    this.getEventImage(value.eventId);
+                    break;
+                case Events.Constants.CameraPerson:
+                    this.getEventImage(value.eventId);
+                    break;
+                case Events.Constants.CameraSound:
+                    this.getEventImage(value.eventId);
+                    break;
+            }
+        });
     }
 }
 exports.Camera = Camera;

@@ -9,6 +9,7 @@ import {Camera} from "./Camera";
 import {Doorbell} from "./Doorbell";
 import {Thermostat} from "./Thermostat";
 import {UnknownDevice} from "./UnknownDevice";
+import {Display} from "./Display";
 
 export class SmartDeviceManagement {
     private oauth2Client: google.Auth.OAuth2Client;
@@ -58,9 +59,10 @@ export class SmartDeviceManagement {
 
             const event: Events.Event = JSON.parse(message.data);
 
-            if ((event as Events.ResourceRelationEvent).relationUpdate) {
-                const resourceRelationtEvent = event as Events.ResourceRelationEvent;
-            } else if ((event as Events.ResourceEventEvent).resourceUpdate.events) {
+            // if ((event as Events.ResourceRelationEvent).relationUpdate) {
+            //     const resourceRelationtEvent = event as Events.ResourceRelationEvent;
+            // } else
+            if ((event as Events.ResourceEventEvent).resourceUpdate.events) {
                 const resourceEventEvent = event as Events.ResourceEventEvent;
                 const device = _.find(this.devices, device => device.getName() === resourceEventEvent.resourceUpdate.name);
                 if (device)
@@ -86,7 +88,7 @@ export class SmartDeviceManagement {
                             case 'sdm.devices.types.CAMERA':
                                 return new Camera(this.smartdevicemanagement, device, this.log)
                             case 'sdm.devices.types.DISPLAY':
-                                return new Camera(this.smartdevicemanagement, device, this.log)
+                                return new Display(this.smartdevicemanagement, device, this.log)
                             case 'sdm.devices.types.THERMOSTAT':
                                 return new Thermostat(this.smartdevicemanagement, device, this.log)
                             default:

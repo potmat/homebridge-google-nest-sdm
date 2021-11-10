@@ -6,7 +6,6 @@ import {
   CameraController,
   CameraControllerOptions,
   CameraStreamingDelegate,
-  H264Level,
   HAP,
   Logger,
   PrepareStreamCallback,
@@ -23,8 +22,6 @@ import {
 import {createSocket, Socket} from 'dgram';
 import getPort from 'get-port';
 import os from 'os';
-import fs from 'fs';
-import path from 'path';
 import {networkInterfaceDefault} from 'systeminformation';
 import {Config} from './Config'
 import {FfmpegProcess} from './FfMpeg';
@@ -194,7 +191,8 @@ export abstract class StreamingDelegate<T extends CameraController> implements C
         request.video.fps + ' fps, ' + request.video.max_bit_rate + ' kbps', this.camera.getDisplayName(), this.debug);
 
     const streamInfo = await this.camera.getStreamInfo();
-    let ffmpegArgs = '-use_wallclock_as_timestamps 1 -fflags +discardcorrupt+nobuffer -i ' + streamInfo.streamUrls.rtspUrl;
+    let ffmpegArgs = '-use_wallclock_as_timestamps 1 -fflags +genpts -i ' + streamInfo.streamUrls.rtspUrl;
+    // let ffmpegArgs = '-fflags +genpts+igndts+ignidx+discardcorrupt+nobuffer -i ' + streamInfo.streamUrls.rtspUrl;
 
     ffmpegArgs += // Video
         ' -an -sn -dn' +

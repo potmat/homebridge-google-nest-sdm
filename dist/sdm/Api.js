@@ -30,6 +30,7 @@ const Camera_1 = require("./Camera");
 const Doorbell_1 = require("./Doorbell");
 const Thermostat_1 = require("./Thermostat");
 const UnknownDevice_1 = require("./UnknownDevice");
+const Display_1 = require("./Display");
 class SmartDeviceManagement {
     constructor(config, log) {
         this.log = log;
@@ -61,10 +62,10 @@ class SmartDeviceManagement {
                 return;
             this.log.debug('Event received: ' + message.data.toString());
             const event = JSON.parse(message.data);
-            if (event.relationUpdate) {
-                const resourceRelationtEvent = event;
-            }
-            else if (event.resourceUpdate.events) {
+            // if ((event as Events.ResourceRelationEvent).relationUpdate) {
+            //     const resourceRelationtEvent = event as Events.ResourceRelationEvent;
+            // } else
+            if (event.resourceUpdate.events) {
                 const resourceEventEvent = event;
                 const device = lodash_1.default.find(this.devices, device => device.getName() === resourceEventEvent.resourceUpdate.name);
                 if (device)
@@ -90,7 +91,7 @@ class SmartDeviceManagement {
                     case 'sdm.devices.types.CAMERA':
                         return new Camera_1.Camera(this.smartdevicemanagement, device, this.log);
                     case 'sdm.devices.types.DISPLAY':
-                        return new Camera_1.Camera(this.smartdevicemanagement, device, this.log);
+                        return new Display_1.Display(this.smartdevicemanagement, device, this.log);
                     case 'sdm.devices.types.THERMOSTAT':
                         return new Thermostat_1.Thermostat(this.smartdevicemanagement, device, this.log);
                     default:

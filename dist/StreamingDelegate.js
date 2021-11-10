@@ -119,7 +119,8 @@ class StreamingDelegate {
         this.log.info('Video stream requested: ' + request.video.width + ' x ' + request.video.height + ', ' +
             request.video.fps + ' fps, ' + request.video.max_bit_rate + ' kbps', this.camera.getDisplayName(), this.debug);
         const streamInfo = await this.camera.getStreamInfo();
-        let ffmpegArgs = '-use_wallclock_as_timestamps 1 -fflags +discardcorrupt+nobuffer -i ' + streamInfo.streamUrls.rtspUrl;
+        let ffmpegArgs = '-use_wallclock_as_timestamps 1 -fflags +genpts -i ' + streamInfo.streamUrls.rtspUrl;
+        // let ffmpegArgs = '-fflags +genpts+igndts+ignidx+discardcorrupt+nobuffer -i ' + streamInfo.streamUrls.rtspUrl;
         ffmpegArgs += // Video
             ' -an -sn -dn' +
                 ' -codec:v copy' +

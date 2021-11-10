@@ -35,3 +35,7 @@ export interface ThermostatEco_SetMode {
 export interface CameraEventImage_GenerateImage {
     eventId: string;
 }
+
+export interface CameraLiveStream_StopRtspStream {
+    streamExtensionToken: string;
+}

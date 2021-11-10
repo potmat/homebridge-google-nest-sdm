@@ -27,6 +27,9 @@ const Camera_1 = require("./Camera");
 const Events = __importStar(require("./Events"));
 const lodash_1 = __importDefault(require("lodash"));
 class Doorbell extends Camera_1.Camera {
+    getDisplayName() {
+        return this.displayName ? this.displayName + ' Doorbell' : 'Unknown';
+    }
     event(event) {
         super.event(event);
         lodash_1.default.forEach(event.resourceUpdate.events, (value, key) => {

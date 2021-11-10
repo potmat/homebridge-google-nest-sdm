@@ -1,10 +1,12 @@
 import {Camera} from "./Camera";
 import * as Events from "./Events";
-import * as Commands from './Commands';
-import * as Responses from './Responses';
 import _ from "lodash";
 
 export class Doorbell extends Camera {
+
+    getDisplayName(): string {
+        return this.displayName ? this.displayName + ' Doorbell' : 'Unknown';
+    }
 
     onRing: (() => void) | undefined;
 
