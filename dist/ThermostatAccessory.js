@@ -53,6 +53,7 @@ class ThermostatAccessory extends Accessory_1.Accessory {
         this.service.getCharacteristic(this.platform.Characteristic.CurrentRelativeHumidity)
             .onGet(this.handleCurrentRelativeHumidityGet.bind(this));
         this.device.onTemperatureChanged = this.handleCurrentTemperatureUpdate.bind(this);
+        this.device.onTemperatureUnitsChanged = this.handleTemparatureScaleUpdate.bind(this);
         this.device.onTargetTemperatureChanged = this.handleTargetTemperatureUpdate.bind(this);
         this.device.onHumidityChanged = this.handleCurrentRelativeHumidityUpdate.bind(this);
         this.device.onHvacChanged = this.handleCurrentHeatingCoolingStateUpdate.bind(this);
@@ -61,6 +62,10 @@ class ThermostatAccessory extends Accessory_1.Accessory {
     handleCurrentTemperatureUpdate(temparature) {
         this.log.debug('Update CurrentTemperature:' + temparature);
         this.service.updateCharacteristic(this.platform.Characteristic.CurrentTemperature, temparature);
+    }
+    handleTemparatureScaleUpdate(unit) {
+        this.log.debug('Update TemperatureUnits:' + unit);
+        this.service.updateCharacteristic(this.platform.Characteristic.TemperatureDisplayUnits, unit);
     }
     handleTargetTemperatureUpdate(temparature) {
         this.log.debug('Update TargetTemperature:' + temparature);
@@ -173,7 +178,7 @@ class ThermostatAccessory extends Accessory_1.Accessory {
     async handleTemperatureDisplayUnitsGet() {
         this.log.debug('Triggered GET TemperatureDisplayUnits');
         const temparatureUnit = await this.device.getTemparatureUnits();
-        if (temparatureUnit === 'CELSIUS')
+        if (temparatureUnit === Traits.TemparatureScale.CELSIUS)
             return this.platform.Characteristic.TemperatureDisplayUnits.CELSIUS;
         else
             return this.platform.Characteristic.TemperatureDisplayUnits.FAHRENHEIT;

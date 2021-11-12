@@ -6,11 +6,28 @@ import * as Events from './Events';
 
 export class Thermostat extends Device {
 
+    private async convertToFahrenheitIfNecessary(input: number): Promise<number> {
+        const unit = await this.getTemparatureUnits();
+        if (unit === Traits.TemparatureScale.FAHRENHEIT)
+            return (input * (9/5)) + 32;
+
+        return input;
+    }
+
+    private async convertToCelsiusIfNecessary(input: number): Promise<number> {
+        const unit = await this.getTemparatureUnits();
+        if (unit === Traits.TemparatureScale.CELSIUS)
+            return (input - 32) * (5/9);
+
+        return input;
+    }
+
     getDisplayName(): string {
         return this.displayName ? this.displayName + ' Thermostat' : 'Unknown';
     }
 
     onTemperatureChanged: ((temparature: number) => void) | undefined;
+    onTemperatureUnitsChanged: ((scale: Traits.TemparatureScale) => void) | undefined;
     onModeChanged: ((mode: Traits.ThermostatModeType) => void) | undefined;
     onTargetTemperatureChanged: ((temparature: number) => void) | undefined;
     onHvacChanged: ((status: Traits.HvacStatusType) => void) | undefined;
@@ -43,6 +60,19 @@ export class Thermostat extends Device {
                         const traitVale = value as Traits.ThermostatMode;
                         this.onModeChanged(traitVale.mode);
                     }
+                    break;
+                case Traits.Constants.Temperature:
+                    if (this.onTemperatureChanged) {
+                        const traitVale = value as Traits.Temperature;
+                        this.onTemperatureChanged(traitVale.ambientTemperatureCelsius);
+                    }
+                    break;
+                case Traits.Constants.Settings:
+                    if (this.onTemperatureUnitsChanged) {
+                        const traitVale = value as Traits.Settings;
+                        this.onTemperatureUnitsChanged(traitVale.temparatureScale!);
+                    }
+                    break;
             }
         })
     }
@@ -64,7 +94,7 @@ export class Thermostat extends Device {
 
     async getTemparature(): Promise<number> {
         const trait =  await this.getTrait<Traits.Temperature>(Traits.Constants.Temperature);
-        return trait.ambientTemperatureCelsius;
+        return this.convertToFahrenheitIfNecessary(trait.ambientTemperatureCelsius);
     }
 
     async getTargetTemparature(): Promise<number|undefined> {
@@ -81,9 +111,9 @@ export class Thermostat extends Device {
             case Traits.ThermostatModeType.OFF:
                 return Promise.resolve(undefined);
             case Traits.ThermostatModeType.HEAT:
-                return trait.heatCelsius;
+                return this.convertToFahrenheitIfNecessary(trait.heatCelsius!);
             case Traits.ThermostatModeType.COOL:
-                return trait.coolCelsius;
+                return this.convertToFahrenheitIfNecessary(trait.coolCelsius!);
             case Traits.ThermostatModeType.HEATCOOL:
                 //todo: what to return here?
                 return Promise.resolve(undefined);
@@ -97,15 +127,16 @@ export class Thermostat extends Device {
             return Promise.resolve(undefined);
 
         const mode = await this.getMode();
+        const temparatureCelsius = await this.convertToCelsiusIfNecessary(temparature);
 
         switch (mode) {
             case Traits.ThermostatModeType.HEAT:
                 return await this.executeCommand<Commands.ThermostatTemperatureSetpoint_SetHeat, void>(Commands.Constants.ThermostatTemperatureSetpoint_SetHeat, {
-                    heatCelsius: temparature
+                    heatCelsius: temparatureCelsius
                 });
             case Traits.ThermostatModeType.COOL:
                 return await this.executeCommand<Commands.ThermostatTemperatureSetpoint_SetCool, void>(Commands.Constants.ThermostatTemperatureSetpoint_SetCool, {
-                    coolCelsius: temparature
+                    coolCelsius: temparatureCelsius
                 });
             case Traits.ThermostatModeType.HEATCOOL:
                 //todo: what to do here?
@@ -119,9 +150,9 @@ export class Thermostat extends Device {
         });
     }
 
-    async getTemparatureUnits(): Promise<string | undefined> {
+    async getTemparatureUnits(): Promise<Traits.TemparatureScale> {
         const settings = await this.getTrait<Traits.Settings>(Traits.Constants.Settings);
-        return settings.temparatureScale;
+        return settings.temparatureScale!;
     }
 
     async getRelativeHumitity(): Promise<number> {

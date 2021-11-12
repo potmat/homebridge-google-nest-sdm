@@ -11,7 +11,6 @@ import {Platform} from './Platform';
 import {Thermostat} from "./sdm/Thermostat";
 import {Accessory} from "./Accessory";
 
-
 export class ThermostatAccessory extends Accessory<Thermostat> {
     private service: Service;
 
@@ -55,6 +54,7 @@ export class ThermostatAccessory extends Accessory<Thermostat> {
             .onGet(this.handleCurrentRelativeHumidityGet.bind(this));
 
         this.device.onTemperatureChanged = this.handleCurrentTemperatureUpdate.bind(this);
+        this.device.onTemperatureUnitsChanged = this.handleTemparatureScaleUpdate.bind(this);
         this.device.onTargetTemperatureChanged = this.handleTargetTemperatureUpdate.bind(this);
         this.device.onHumidityChanged = this.handleCurrentRelativeHumidityUpdate.bind(this);
         this.device.onHvacChanged = this.handleCurrentHeatingCoolingStateUpdate.bind(this);
@@ -64,6 +64,11 @@ export class ThermostatAccessory extends Accessory<Thermostat> {
     handleCurrentTemperatureUpdate(temparature: number) {
         this.log.debug('Update CurrentTemperature:' + temparature);
         this.service.updateCharacteristic(this.platform.Characteristic.CurrentTemperature, temparature);
+    }
+
+    handleTemparatureScaleUpdate(unit: Traits.TemparatureScale) {
+        this.log.debug('Update TemperatureUnits:' + unit);
+        this.service.updateCharacteristic(this.platform.Characteristic.TemperatureDisplayUnits, unit);
     }
 
     handleTargetTemperatureUpdate(temparature: number) {
@@ -202,7 +207,7 @@ export class ThermostatAccessory extends Accessory<Thermostat> {
 
         const temparatureUnit = await this.device.getTemparatureUnits();
 
-        if (temparatureUnit === 'CELSIUS')
+        if (temparatureUnit === Traits.TemparatureScale.CELSIUS)
             return this.platform.Characteristic.TemperatureDisplayUnits.CELSIUS;
         else
             return this.platform.Characteristic.TemperatureDisplayUnits.FAHRENHEIT;
