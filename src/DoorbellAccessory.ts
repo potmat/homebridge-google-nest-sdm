@@ -21,7 +21,7 @@ export class DoorbellAccessory extends Accessory<Doorbell> {
         super(api, log, platform, accessory, device);
 
         this.accessory.on(PlatformAccessoryEvent.IDENTIFY, () => {
-            log.info("%s identified!", this.accessory.displayName);
+            this.log.info("%s identified!", this.accessory.displayName);
         });
 
         this.streamingDelegate = new DoorbellStreamingDelegate(log, api, this.platform.config.options as unknown as Config, this.device);

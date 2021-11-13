@@ -83,13 +83,13 @@ export interface ThermostatEco {
     coolCelsius: number;
 }
 
-export enum TemparatureScale {
+export enum TemperatureScale {
     CELSIUS = 'CELSIUS',
     FAHRENHEIT = 'FAHRENHEIT'
 }
 
 export interface Settings {
-    temparatureScale?: TemparatureScale;
+    temperatureScale?: TemperatureScale;
 }
 
 export interface ImageResolution {

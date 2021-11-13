@@ -30,33 +30,40 @@ export abstract class Device {
     async refresh() {
         try {
             const response = await this.smartdevicemanagement.enterprises.devices.get({name: this.getName()});
+            this.log.debug(`Request for device info for ${this.getDisplayName()} had value ${JSON.stringify(response.data)}`);
             this.device = response.data;
             this.lastRefresh = Date.now();
-        } catch (e) {
-            this.log.error('Could not execute API request.', e);
+        } catch (error: any) {
+            this.log.error('Could not execute device GET request: ', JSON.stringify(error));
         }
     }
 
-    async getTrait<T>(name: string): Promise<T> {
+    async getTrait<T>(name: string): Promise<T | null> {
         const howLongAgo: number = Date.now() - this.lastRefresh;
         if (howLongAgo > 10000)
             await this.refresh();
 
-        const value = this.device?.traits ? this.device?.traits[name] : undefined;
+        const value = this.device?.traits ? this.device?.traits[name] : null;
         this.log.debug(`Request for trait ${name} had value ${JSON.stringify(value)}`);
         return value;
     }
 
-    async executeCommand<T, U>(name: string, params?: T): Promise<U> {
+    async executeCommand<T, U>(name: string, params?: T): Promise<U | undefined> {
         this.log.debug(`Executing command ${name} with parameters ${JSON.stringify(params)}`);
-        const response = await this.smartdevicemanagement.enterprises.devices.executeCommand({
-            name: this.device?.name || undefined,
-            requestBody: {
-                command: name,
-                params: params
-            }
-        });
-        this.log.debug(`Execution of command ${name} returned ${JSON.stringify(response.data.results)}`);
-        return <U>response.data.results;
+        try {
+            const response = await this.smartdevicemanagement.enterprises.devices.executeCommand({
+                name: this.device?.name || undefined,
+                requestBody: {
+                    command: name,
+                    params: params
+                }
+            });
+            this.log.debug(`Execution of command ${name} returned ${JSON.stringify(response.data.results)}`);
+            return <U>response.data.results;
+        } catch (error: any) {
+            this.log.error('Could not execute device command: ', JSON.stringify(error));
+        }
+
+        return undefined;
     }
 }

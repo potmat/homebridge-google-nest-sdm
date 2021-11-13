@@ -4,7 +4,7 @@ exports.FfmpegProcess = void 0;
 const child_process_1 = require("child_process");
 class FfmpegProcess {
     constructor(cameraName, sessionId, videoProcessor, ffmpegArgs, log, debug, delegate, callback) {
-        log.debug('Stream command: ' + videoProcessor + ' ' + ffmpegArgs, cameraName, debug);
+        log.debug('Stream command: ' + videoProcessor + ' ' + ffmpegArgs, cameraName);
         let started = false;
         this.process = (0, child_process_1.spawn)(videoProcessor, ffmpegArgs.split(/\s+/), { env: process.env });
         if (this.process.stdin) {
@@ -24,7 +24,7 @@ class FfmpegProcess {
                 }
                 if (debug) {
                     data.toString().split(/\n/).forEach((line) => {
-                        log.debug(line, cameraName, debug);
+                        log.debug(line, cameraName);
                     });
                 }
             });
@@ -40,7 +40,7 @@ class FfmpegProcess {
             const message = 'FFmpeg exited with code: ' + code + ' and signal: ' + signal;
             if (code == null || code === 255) {
                 if (this.process.killed) {
-                    log.debug(message + ' (Expected)', cameraName, debug);
+                    log.debug(message + ' (Expected)', cameraName);
                 }
                 else {
                     log.error(message + ' (Unexpected)', cameraName);

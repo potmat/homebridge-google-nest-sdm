@@ -187,17 +187,18 @@ export abstract class StreamingDelegate<T extends CameraController> implements C
   private async startStream(request: StartStreamRequest, callback: StreamRequestCallback): Promise<void> {
     const sessionInfo = this.pendingSessions[request.sessionID];
 
-    this.log.info('Video stream requested: ' + request.video.width + ' x ' + request.video.height + ', ' +
-        request.video.fps + ' fps, ' + request.video.max_bit_rate + ' kbps', this.camera.getDisplayName(), this.debug);
+    this.log.debug(`Video stream requested: ${request.video.width} x ${request.video.height}, ${request.video.fps} fps, ${request.video.max_bit_rate} kbps`, this.camera.getDisplayName());
 
     const streamInfo = await this.camera.getStreamInfo();
-    let ffmpegArgs = '-use_wallclock_as_timestamps 1 -fflags +genpts -i ' + streamInfo.streamUrls.rtspUrl;
-    // let ffmpegArgs = '-fflags +genpts+igndts+ignidx+discardcorrupt+nobuffer -i ' + streamInfo.streamUrls.rtspUrl;
+
+    if (!streamInfo)
+      throw new Error('Unable to start stream! Stream info was not received');
+
+    let ffmpegArgs = '-use_wallclock_as_timestamps 1 -fflags +discardcorrupt+nobuffer -i ' + streamInfo.streamUrls.rtspUrl;
 
     ffmpegArgs += // Video
         ' -an -sn -dn' +
         ' -codec:v copy' +
-        ' -copyts -muxdelay 0 -muxpreload 0 ' +
         ' -payload_type ' + request.video.pt;
 
     ffmpegArgs += // Video Stream
@@ -244,7 +245,7 @@ export abstract class StreamingDelegate<T extends CameraController> implements C
         clearTimeout(activeSession.timeout);
       }
       activeSession.timeout = setTimeout(() => {
-        this.log.info('Device appears to be inactive. Stopping stream.', this.camera.getDisplayName());
+        this.log.debug('Device appears to be inactive. Stopping stream.', this.camera.getDisplayName());
         this.controller.forceStopStreamingSession(request.sessionID);
         this.stopStream(request.sessionID);
       }, request.video.rtcp_interval * 2 * 1000);
@@ -264,8 +265,7 @@ export abstract class StreamingDelegate<T extends CameraController> implements C
         this.startStream(request, callback);
         break;
       case StreamRequestTypes.RECONFIGURE:
-        this.log.debug('Received request to reconfigure: ' + request.video.width + ' x ' + request.video.height + ', ' +
-            request.video.fps + ' fps, ' + request.video.max_bit_rate + ' kbps (Ignored)', this.camera.getDisplayName(), this.debug);
+        this.log.debug(`Received request to reconfigure: ${request.video.width} x ${request.video.height}, ${request.video.fps} fps, ${request.video.max_bit_rate} kbps (Ignored)`, this.camera.getDisplayName());
         callback();
         break;
       case StreamRequestTypes.STOP:
@@ -305,6 +305,6 @@ export abstract class StreamingDelegate<T extends CameraController> implements C
     }
 
     delete this.ongoingSessions[sessionId];
-    this.log.info('Stopped video stream.', this.camera.getDisplayName());
+    this.log.debug('Stopped video stream.', this.camera.getDisplayName());
   }
 }

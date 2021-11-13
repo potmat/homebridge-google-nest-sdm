@@ -80,8 +80,8 @@ class SmartDeviceManagement {
         });
     }
     async list_devices() {
-        return this.smartdevicemanagement.enterprises.devices.list({ parent: `enterprises/${this.projectId}` })
-            .then(response => {
+        try {
+            const response = await this.smartdevicemanagement.enterprises.devices.list({ parent: `enterprises/${this.projectId}` });
             this.devices = (0, lodash_1.default)(response.data.devices)
                 .filter(device => device.name !== null)
                 .map(device => {
@@ -99,8 +99,11 @@ class SmartDeviceManagement {
                 }
             })
                 .value();
-            return this.devices;
-        });
+        }
+        catch (error) {
+            this.log.error('Could not execute device LIST request: ', JSON.stringify(error));
+        }
+        return this.devices;
     }
 }
 exports.SmartDeviceManagement = SmartDeviceManagement;

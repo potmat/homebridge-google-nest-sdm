@@ -11,6 +11,12 @@ class Accessory {
         new this.api.hap.Service.AccessoryInformation()
             .setCharacteristic(this.platform.Characteristic.Manufacturer, 'Nest');
     }
+    async convertToNullable(input) {
+        const result = await input;
+        if (!result)
+            return null;
+        return result;
+    }
 }
 exports.Accessory = Accessory;
 //# sourceMappingURL=Accessory.js.map

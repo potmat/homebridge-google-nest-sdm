@@ -7,7 +7,7 @@ class DoorbellAccessory extends Accessory_1.Accessory {
     constructor(api, log, platform, accessory, device) {
         super(api, log, platform, accessory, device);
         this.accessory.on("identify" /* IDENTIFY */, () => {
-            log.info("%s identified!", this.accessory.displayName);
+            this.log.info("%s identified!", this.accessory.displayName);
         });
         this.streamingDelegate = new DoorbellStreamingDelegate_1.DoorbellStreamingDelegate(log, api, this.platform.config.options, this.device);
         this.accessory.configureController(this.streamingDelegate.getController());

@@ -1,4 +1,4 @@
-import {API, Logger, PlatformAccessory} from "homebridge";
+import {API, Logger, Nullable, PlatformAccessory} from "homebridge";
 import {Platform} from "./Platform";
 
 export abstract class Accessory<T> {
@@ -21,5 +21,11 @@ export abstract class Accessory<T> {
         this.device = device;
         new this.api.hap.Service.AccessoryInformation()
             .setCharacteristic(this.platform.Characteristic.Manufacturer, 'Nest')
+    }
+
+    protected async convertToNullable<T>(input: Promise<T | undefined | null>): Promise<Nullable<T>> {
+        const result = await input;
+        if (!result) return null;
+        return result;
     }
 }

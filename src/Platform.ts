@@ -16,11 +16,8 @@ import {DoorbellAccessory} from "./DoorbellAccessory";
  * parse the user config and discover/register accessories with Homebridge.
  */
 export class Platform implements DynamicPlatformPlugin {
-    public readonly Service: typeof Service = this.api.hap.Service;
     public readonly Characteristic: typeof Characteristic = this.api.hap.Characteristic;
     private smartDeviceManagement: SmartDeviceManagement;
-
-    // this is used to track restored cached accessories
     public readonly accessories: PlatformAccessory[] = [];
 
     constructor(
@@ -59,6 +56,9 @@ export class Platform implements DynamicPlatformPlugin {
     async discoverDevices() {
 
         const devices = await this.smartDeviceManagement.list_devices();
+
+        if (!devices)
+            return;
 
         // loop over the discovered devices and register each one if it has not already been registered
         for (const device of devices) {

@@ -19,9 +19,9 @@ export class CameraAccessory extends Accessory<Camera>{
         super(api, log, platform, accessory, device);
 
         this.accessory.on(PlatformAccessoryEvent.IDENTIFY, () => {
-            log.info("%s identified!", this.accessory.displayName);
+            this.log.info("%s identified!", this.accessory.displayName);
         });
-
+api.hap.HAPServer
         const streamingDelegate = new CameraStreamingDelegate(log, api, this.platform.config.options as unknown as Config, this.device);
         this.accessory.configureController(streamingDelegate.getController());
     }

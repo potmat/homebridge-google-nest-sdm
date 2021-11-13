@@ -28,6 +28,22 @@ const Device_1 = require("./Device");
 const Traits = __importStar(require("./Traits"));
 const Commands = __importStar(require("./Commands"));
 class Thermostat extends Device_1.Device {
+    async convertToFahrenheitIfNecessary(input) {
+        if (!input)
+            return input;
+        const unit = await this.getTemperatureUnits();
+        if (unit === Traits.TemperatureScale.FAHRENHEIT)
+            return (input * (9 / 5)) + 32;
+        return input;
+    }
+    async convertToCelsiusIfNecessary(input) {
+        if (!input)
+            return input;
+        const unit = await this.getTemperatureUnits();
+        if (unit === Traits.TemperatureScale.CELSIUS)
+            return (input - 32) * (5 / 9);
+        return input;
+    }
     getDisplayName() {
         return this.displayName ? this.displayName + ' Thermostat' : 'Unknown';
     }
@@ -58,26 +74,39 @@ class Thermostat extends Device_1.Device {
                         const traitVale = value;
                         this.onModeChanged(traitVale.mode);
                     }
+                    break;
+                case Traits.Constants.Temperature:
+                    if (this.onTemperatureChanged) {
+                        const traitVale = value;
+                        this.onTemperatureChanged(traitVale.ambientTemperatureCelsius);
+                    }
+                    break;
+                case Traits.Constants.Settings:
+                    if (this.onTemperatureUnitsChanged) {
+                        const traitVale = value;
+                        this.onTemperatureUnitsChanged(traitVale.temperatureScale);
+                    }
+                    break;
             }
         });
     }
     async getEco() {
         const trait = await this.getTrait(Traits.Constants.ThermostatEco);
-        return trait.mode;
+        return trait === null || trait === void 0 ? void 0 : trait.mode;
     }
     async getMode() {
         const trait = await this.getTrait(Traits.Constants.ThermostatMode);
-        return trait.mode;
+        return trait === null || trait === void 0 ? void 0 : trait.mode;
     }
     async getHvac() {
         const trait = await this.getTrait(Traits.Constants.ThermostatHvac);
-        return trait.status;
+        return trait === null || trait === void 0 ? void 0 : trait.status;
     }
-    async getTemparature() {
+    async getTemperature() {
         const trait = await this.getTrait(Traits.Constants.Temperature);
-        return trait.ambientTemperatureCelsius;
+        return this.convertToFahrenheitIfNecessary(trait === null || trait === void 0 ? void 0 : trait.ambientTemperatureCelsius);
     }
-    async getTargetTemparature() {
+    async getTargetTemperature() {
         const eco = await this.getEco();
         if (eco !== Traits.EcoModeType.OFF)
             return Promise.resolve(undefined);
@@ -87,31 +116,31 @@ class Thermostat extends Device_1.Device {
             case Traits.ThermostatModeType.OFF:
                 return Promise.resolve(undefined);
             case Traits.ThermostatModeType.HEAT:
-                return trait.heatCelsius;
+                return this.convertToFahrenheitIfNecessary(trait === null || trait === void 0 ? void 0 : trait.heatCelsius);
             case Traits.ThermostatModeType.COOL:
-                return trait.coolCelsius;
+                return this.convertToFahrenheitIfNecessary(trait === null || trait === void 0 ? void 0 : trait.coolCelsius);
             case Traits.ThermostatModeType.HEATCOOL:
                 //todo: what to return here?
-                return Promise.resolve(undefined);
+                return undefined;
         }
     }
-    async setTemparature(temparature) {
+    async setTemperature(temperature) {
         const eco = await this.getEco();
         if (eco !== Traits.EcoModeType.OFF)
-            return Promise.resolve(undefined);
+            return undefined;
         const mode = await this.getMode();
+        const temperatureCelsius = await this.convertToCelsiusIfNecessary(temperature);
         switch (mode) {
             case Traits.ThermostatModeType.HEAT:
-                return await this.executeCommand(Commands.Constants.ThermostatTemperatureSetpoint_SetHeat, {
-                    heatCelsius: temparature
+                await this.executeCommand(Commands.Constants.ThermostatTemperatureSetpoint_SetHeat, {
+                    heatCelsius: temperatureCelsius
                 });
             case Traits.ThermostatModeType.COOL:
-                return await this.executeCommand(Commands.Constants.ThermostatTemperatureSetpoint_SetCool, {
-                    coolCelsius: temparature
+                await this.executeCommand(Commands.Constants.ThermostatTemperatureSetpoint_SetCool, {
+                    coolCelsius: temperatureCelsius
                 });
-            case Traits.ThermostatModeType.HEATCOOL:
-                //todo: what to do here?
-                return Promise.resolve(undefined);
+            //todo: what to do here?
+            // case Traits.ThermostatModeType.HEATCOOL:
         }
     }
     async setMode(mode) {
@@ -119,13 +148,13 @@ class Thermostat extends Device_1.Device {
             mode: mode
         });
     }
-    async getTemparatureUnits() {
+    async getTemperatureUnits() {
         const settings = await this.getTrait(Traits.Constants.Settings);
-        return settings.temparatureScale;
+        return settings === null || settings === void 0 ? void 0 : settings.temperatureScale;
     }
     async getRelativeHumitity() {
         const humidity = await this.getTrait(Traits.Constants.Humidity);
-        return humidity.ambientHumidityPercent;
+        return humidity === null || humidity === void 0 ? void 0 : humidity.ambientHumidityPercent;
     }
 }
 exports.Thermostat = Thermostat;

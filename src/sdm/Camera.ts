@@ -38,6 +38,8 @@ export class Camera extends Device {
                 eventId: eventId
             });
 
+            if (!generateResponse) return;
+
             const imageResponse = await axios.get(generateResponse.url, {
                 headers: {
                     'Authorization': 'Basic ' + generateResponse.token
@@ -47,16 +49,16 @@ export class Camera extends Device {
             const buffer = Buffer.from(imageResponse.data, 'binary');
             this.imageQueue.put(buffer);
         } catch (error: any) {
-            this.log.error(error);
+            this.log.error('Could not execute event image GET request: ', JSON.stringify(error));
         }
     }
 
-    async getStreamInfo(): Promise<GenerateRtspStream> {
+    async getStreamInfo(): Promise<GenerateRtspStream | undefined> {
         return this.executeCommand<null, GenerateRtspStream>(Commands.Constants.CameraLiveStream_GenerateRtspStream)
     }
 
-    async stopStream(extensionToken: string): Promise<any> {
-        return this.executeCommand<Commands.CameraLiveStream_StopRtspStream, GenerateRtspStream>(Commands.Constants.CameraLiveStream_StopRtspStream, {
+    async stopStream(extensionToken: string): Promise<void> {
+        await this.executeCommand<Commands.CameraLiveStream_StopRtspStream, GenerateRtspStream>(Commands.Constants.CameraLiveStream_StopRtspStream, {
             streamExtensionToken: extensionToken
         });
     }

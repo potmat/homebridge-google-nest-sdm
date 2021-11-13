@@ -25,6 +25,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.ThermostatAccessory = void 0;
 const lodash_1 = __importDefault(require("lodash"));
 const Traits = __importStar(require("./sdm/Traits"));
+const Traits_1 = require("./sdm/Traits");
 const Accessory_1 = require("./Accessory");
 class ThermostatAccessory extends Accessory_1.Accessory {
     constructor(api, log, platform, accessory, device) {
@@ -48,28 +49,27 @@ class ThermostatAccessory extends Accessory_1.Accessory {
             .onGet(this.handleTargetTemperatureGet.bind(this))
             .onSet(this.handleTargetTemperatureSet.bind(this));
         this.service.getCharacteristic(this.platform.Characteristic.TemperatureDisplayUnits)
-            .onGet(this.handleTemperatureDisplayUnitsGet.bind(this))
-            .onSet(this.handleTemperatureDisplayUnitsSet.bind(this));
+            .onGet(this.handleTemperatureDisplayUnitsGet.bind(this));
         this.service.getCharacteristic(this.platform.Characteristic.CurrentRelativeHumidity)
             .onGet(this.handleCurrentRelativeHumidityGet.bind(this));
         this.device.onTemperatureChanged = this.handleCurrentTemperatureUpdate.bind(this);
-        this.device.onTemperatureUnitsChanged = this.handleTemparatureScaleUpdate.bind(this);
+        this.device.onTemperatureUnitsChanged = this.handleTemperatureScaleUpdate.bind(this);
         this.device.onTargetTemperatureChanged = this.handleTargetTemperatureUpdate.bind(this);
         this.device.onHumidityChanged = this.handleCurrentRelativeHumidityUpdate.bind(this);
         this.device.onHvacChanged = this.handleCurrentHeatingCoolingStateUpdate.bind(this);
         this.device.onModeChanged = this.handleTargetHeatingCoolingStateUpdate.bind(this);
     }
-    handleCurrentTemperatureUpdate(temparature) {
-        this.log.debug('Update CurrentTemperature:' + temparature);
-        this.service.updateCharacteristic(this.platform.Characteristic.CurrentTemperature, temparature);
+    handleCurrentTemperatureUpdate(temperature) {
+        this.log.debug('Update CurrentTemperature:' + temperature);
+        this.service.updateCharacteristic(this.platform.Characteristic.CurrentTemperature, temperature);
     }
-    handleTemparatureScaleUpdate(unit) {
+    handleTemperatureScaleUpdate(unit) {
         this.log.debug('Update TemperatureUnits:' + unit);
         this.service.updateCharacteristic(this.platform.Characteristic.TemperatureDisplayUnits, unit);
     }
-    handleTargetTemperatureUpdate(temparature) {
-        this.log.debug('Update TargetTemperature:' + temparature);
-        this.service.updateCharacteristic(this.platform.Characteristic.TargetTemperature, temparature);
+    handleTargetTemperatureUpdate(temperature) {
+        this.log.debug('Update TargetTemperature:' + temperature);
+        this.service.updateCharacteristic(this.platform.Characteristic.TargetTemperature, temperature);
     }
     handleCurrentRelativeHumidityUpdate(humidity) {
         this.log.debug('Update CurrentRelativeHumidity:' + humidity);
@@ -88,9 +88,7 @@ class ThermostatAccessory extends Accessory_1.Accessory {
      */
     async handleCurrentHeatingCoolingStateGet() {
         this.log.debug('Triggered GET CurrentHeatingCoolingState');
-        // set this to a valid value for CurrentHeatingCoolingState
-        const mode = await this.device.getHvac();
-        return this.convertHvacStatusType(mode);
+        return this.convertHvacStatusType(await this.device.getHvac());
     }
     convertHvacStatusType(mode) {
         switch (mode) {
@@ -98,8 +96,10 @@ class ThermostatAccessory extends Accessory_1.Accessory {
                 return this.platform.Characteristic.CurrentHeatingCoolingState.HEAT;
             case Traits.HvacStatusType.COOLING:
                 return this.platform.Characteristic.CurrentHeatingCoolingState.COOL;
-            default:
+            case Traits.HvacStatusType.OFF:
                 return this.platform.Characteristic.CurrentHeatingCoolingState.OFF;
+            default:
+                return null;
         }
     }
     /**
@@ -107,9 +107,7 @@ class ThermostatAccessory extends Accessory_1.Accessory {
      */
     async handleTargetHeatingCoolingStateGet() {
         this.log.debug('Triggered GET TargetHeatingCoolingState');
-        // set this to a valid value for CurrentHeatingCoolingState
-        const mode = await this.device.getMode();
-        return this.convertThermostatModeType(mode);
+        return this.convertThermostatModeType(await this.device.getMode());
     }
     convertThermostatModeType(mode) {
         switch (mode) {
@@ -119,8 +117,10 @@ class ThermostatAccessory extends Accessory_1.Accessory {
                 return this.platform.Characteristic.TargetHeatingCoolingState.COOL;
             case Traits.ThermostatModeType.HEATCOOL:
                 return this.platform.Characteristic.TargetHeatingCoolingState.AUTO;
-            default:
+            case Traits.ThermostatModeType.OFF:
                 return this.platform.Characteristic.TargetHeatingCoolingState.OFF;
+            default:
+                return null;
         }
     }
     /**
@@ -147,21 +147,21 @@ class ThermostatAccessory extends Accessory_1.Accessory {
      */
     async handleCurrentTemperatureGet() {
         this.log.debug('Triggered GET CurrentTemperature');
-        return await this.device.getTemparature();
+        return await this.convertToNullable(this.device.getTemperature());
     }
     /**
      * Handle requests to get the current value of the "Current Relative Humidity" characteristic
      */
     async handleCurrentRelativeHumidityGet() {
         this.log.debug('Triggered GET CurrentTemperature');
-        return await this.device.getRelativeHumitity();
+        return await this.convertToNullable(this.device.getRelativeHumitity());
     }
     /**
      * Handle requests to get the current value of the "Target Temperature" characteristic
      */
     async handleTargetTemperatureGet() {
         this.log.debug('Triggered GET TargetTemperature');
-        return await this.device.getTargetTemparature() || null;
+        return await this.convertToNullable(this.device.getTargetTemperature());
     }
     /**
      * Handle requests to set the "Target Temperature" characteristic
@@ -169,25 +169,22 @@ class ThermostatAccessory extends Accessory_1.Accessory {
     async handleTargetTemperatureSet(value) {
         this.log.debug('Triggered SET TargetTemperature:' + value);
         if (!lodash_1.default.isNumber(value))
-            throw new Error(`Cannot set "${value}" as temparature.`);
-        await this.device.setTemparature(value);
+            throw new Error(`Cannot set "${value}" as temperature.`);
+        await this.device.setTemperature(value);
     }
     /**
      * Handle requests to get the current value of the "Temperature Display Units" characteristic
      */
     async handleTemperatureDisplayUnitsGet() {
         this.log.debug('Triggered GET TemperatureDisplayUnits');
-        const temparatureUnit = await this.device.getTemparatureUnits();
-        if (temparatureUnit === Traits.TemparatureScale.CELSIUS)
-            return this.platform.Characteristic.TemperatureDisplayUnits.CELSIUS;
-        else
-            return this.platform.Characteristic.TemperatureDisplayUnits.FAHRENHEIT;
-    }
-    /**
-     * Handle requests to set the "Temperature Display Units" characteristic
-     */
-    handleTemperatureDisplayUnitsSet(value) {
-        this.log.debug('Triggered SET TemperatureDisplayUnits:' + value);
+        switch (await this.device.getTemperatureUnits()) {
+            case Traits.TemperatureScale.CELSIUS:
+                return this.platform.Characteristic.TemperatureDisplayUnits.CELSIUS;
+            case Traits_1.TemperatureScale.FAHRENHEIT:
+                return this.platform.Characteristic.TemperatureDisplayUnits.FAHRENHEIT;
+            default:
+                return null;
+        }
     }
 }
 exports.ThermostatAccessory = ThermostatAccessory;

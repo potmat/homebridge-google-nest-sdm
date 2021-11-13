@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.EcoModeType = exports.HvacStatusType = exports.ThermostatModeType = exports.FanTimerModeType = exports.ConnectivityStatusType = exports.Constants = void 0;
+exports.TemperatureScale = exports.EcoModeType = exports.HvacStatusType = exports.ThermostatModeType = exports.FanTimerModeType = exports.ConnectivityStatusType = exports.Constants = void 0;
 var Constants;
 (function (Constants) {
     Constants["Info"] = "sdm.devices.traits.Info";
@@ -44,4 +44,9 @@ var EcoModeType;
     EcoModeType["MANUAL_ECO"] = "MANUAL_ECO";
     EcoModeType["OFF"] = "OFF";
 })(EcoModeType = exports.EcoModeType || (exports.EcoModeType = {}));
+var TemperatureScale;
+(function (TemperatureScale) {
+    TemperatureScale["CELSIUS"] = "CELSIUS";
+    TemperatureScale["FAHRENHEIT"] = "FAHRENHEIT";
+})(TemperatureScale = exports.TemperatureScale || (exports.TemperatureScale = {}));
 //# sourceMappingURL=Traits.js.map

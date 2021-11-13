@@ -19,9 +19,7 @@ class Platform {
         this.log = log;
         this.config = config;
         this.api = api;
-        this.Service = this.api.hap.Service;
         this.Characteristic = this.api.hap.Characteristic;
-        // this is used to track restored cached accessories
         this.accessories = [];
         this.smartDeviceManagement = new Api_1.SmartDeviceManagement(config.options, log);
         // When this event is fired it means Homebridge has restored all cached accessories from disk.
@@ -50,6 +48,8 @@ class Platform {
      */
     async discoverDevices() {
         const devices = await this.smartDeviceManagement.list_devices();
+        if (!devices)
+            return;
         // loop over the discovered devices and register each one if it has not already been registered
         for (const device of devices) {
             // generate a unique id for the accessory this should be generated from

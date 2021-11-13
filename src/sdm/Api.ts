@@ -76,27 +76,30 @@ export class SmartDeviceManagement {
         });
     }
 
-    async list_devices(): Promise<Device[]> {
-        return this.smartdevicemanagement.enterprises.devices.list({parent: `enterprises/${this.projectId}`})
-            .then(response => {
-                this.devices = _(response.data.devices)
-                    .filter(device => device.name !== null)
-                    .map(device => {
-                        switch (device.type) {
-                            case 'sdm.devices.types.DOORBELL':
-                                return new Doorbell(this.smartdevicemanagement, device, this.log)
-                            case 'sdm.devices.types.CAMERA':
-                                return new Camera(this.smartdevicemanagement, device, this.log)
-                            case 'sdm.devices.types.DISPLAY':
-                                return new Display(this.smartdevicemanagement, device, this.log)
-                            case 'sdm.devices.types.THERMOSTAT':
-                                return new Thermostat(this.smartdevicemanagement, device, this.log)
-                            default:
-                                return new UnknownDevice(this.smartdevicemanagement, device, this.log);
-                        }
-                    })
-                    .value();
-                return this.devices;
-            })
+    async list_devices(): Promise<Device[] | undefined> {
+        try {
+            const response = await this.smartdevicemanagement.enterprises.devices.list({parent: `enterprises/${this.projectId}`})
+            this.devices = _(response.data.devices)
+                .filter(device => device.name !== null)
+                .map(device => {
+                    switch (device.type) {
+                        case 'sdm.devices.types.DOORBELL':
+                            return new Doorbell(this.smartdevicemanagement, device, this.log)
+                        case 'sdm.devices.types.CAMERA':
+                            return new Camera(this.smartdevicemanagement, device, this.log)
+                        case 'sdm.devices.types.DISPLAY':
+                            return new Display(this.smartdevicemanagement, device, this.log)
+                        case 'sdm.devices.types.THERMOSTAT':
+                            return new Thermostat(this.smartdevicemanagement, device, this.log)
+                        default:
+                            return new UnknownDevice(this.smartdevicemanagement, device, this.log);
+                    }
+                })
+                .value();
+        } catch (error: any) {
+            this.log.error('Could not execute device LIST request: ', JSON.stringify(error));
+        }
+
+        return this.devices;
     }
 }

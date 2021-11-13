@@ -8,7 +8,7 @@ export class FfmpegProcess {
 
     constructor(cameraName: string, sessionId: string, videoProcessor: string, ffmpegArgs: string, log: Logger,
                 debug: boolean, delegate: StreamingDelegate<CameraController>, callback?: StreamRequestCallback) {
-        log.debug('Stream command: ' + videoProcessor + ' ' + ffmpegArgs, cameraName, debug);
+        log.debug('Stream command: ' + videoProcessor + ' ' + ffmpegArgs, cameraName);
 
         let started = false;
         this.process = spawn(videoProcessor, ffmpegArgs.split(/\s+/), { env: process.env });
@@ -31,7 +31,7 @@ export class FfmpegProcess {
 
                 if (debug) {
                     data.toString().split(/\n/).forEach((line: string) => {
-                        log.debug(line, cameraName, debug);
+                        log.debug(line, cameraName);
                     });
                 }
             });
@@ -48,7 +48,7 @@ export class FfmpegProcess {
 
             if (code == null || code === 255) {
                 if (this.process.killed) {
-                    log.debug(message + ' (Expected)', cameraName, debug);
+                    log.debug(message + ' (Expected)', cameraName);
                 } else {
                     log.error(message + ' (Unexpected)', cameraName);
                 }
