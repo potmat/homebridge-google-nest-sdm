@@ -14,7 +14,6 @@ class StreamingDelegate {
         // keep track of sessions
         this.pendingSessions = {};
         this.ongoingSessions = {};
-        this.timeouts = {};
         this.debug = true;
         this.log = log;
         this.hap = api.hap;
@@ -32,7 +31,19 @@ class StreamingDelegate {
             streamingOptions: {
                 supportedCryptoSuites: [0 /* AES_CM_128_HMAC_SHA1_80 */],
                 video: {
-                    resolutions: camera.getResolutions(),
+                    resolutions: [
+                        [320, 180, 30],
+                        [320, 240, 15],
+                        [320, 240, 30],
+                        [480, 270, 30],
+                        [480, 360, 30],
+                        [640, 360, 30],
+                        [640, 480, 30],
+                        [1280, 720, 30],
+                        [1280, 960, 30],
+                        [1920, 1080, 30],
+                        [1600, 1200, 30]
+                    ],
                     codec: {
                         profiles: [1 /* MAIN */],
                         levels: [0 /* LEVEL3_1 */]
@@ -56,6 +67,22 @@ class StreamingDelegate {
             .then(result => {
             callback(undefined, result);
         });
+    }
+    static determineResolution(request) {
+        let width = request.width;
+        let height = request.height;
+        const filters = [];
+        if (width > 0 || height > 0) {
+            filters.push('scale=' + (width > 0 ? '\'min(' + width + ',iw)\'' : 'iw') + ':' +
+                (height > 0 ? '\'min(' + height + ',ih)\'' : 'ih') +
+                ':force_original_aspect_ratio=decrease');
+            filters.push('scale=trunc(iw/2)*2:trunc(ih/2)*2'); // Force to fit encoder restrictions
+        }
+        return {
+            width: width,
+            height: height,
+            videoFilter: filters.join(',')
+        };
     }
     async getIpAddress(ipv6) {
         var _a;
@@ -116,14 +143,24 @@ class StreamingDelegate {
     }
     async startStream(request, callback) {
         const sessionInfo = this.pendingSessions[request.sessionID];
+        const resolution = StreamingDelegate.determineResolution(request.video);
+        const bitrate = request.video.max_bit_rate * 4;
         this.log.debug(`Video stream requested: ${request.video.width} x ${request.video.height}, ${request.video.fps} fps, ${request.video.max_bit_rate} kbps`, this.camera.getDisplayName());
         const streamInfo = await this.camera.getStreamInfo();
         if (!streamInfo)
             throw new Error('Unable to start stream! Stream info was not received');
-        let ffmpegArgs = '-use_wallclock_as_timestamps 1 -fflags +discardcorrupt+nobuffer -i ' + streamInfo.streamUrls.rtspUrl;
+        let ffmpegArgs = '-i ' + streamInfo.streamUrls.rtspUrl;
         ffmpegArgs += // Video
             ' -an -sn -dn' +
-                ' -codec:v copy' +
+                ' -codec:v libx264 -preset ultrafast -tune zerolatency' +
+                ' -pix_fmt yuv420p' +
+                ' -color_range mpeg' +
+                ' -bf 0' +
+                ` -r ${request.video.fps}` +
+                ` -b:v ${bitrate}k` +
+                ` -bufsize ${bitrate}k` +
+                ` -maxrate ${2 * bitrate}k` +
+                ' -filter:v ' + resolution.videoFilter +
                 ' -payload_type ' + request.video.pt;
         ffmpegArgs += // Video Stream
             ' -ssrc ' + sessionInfo.videoSSRC +

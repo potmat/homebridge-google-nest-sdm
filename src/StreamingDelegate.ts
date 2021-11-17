@@ -17,7 +17,7 @@ import {
   StartStreamRequest,
   StreamingRequest,
   StreamRequestCallback,
-  StreamRequestTypes
+  StreamRequestTypes, VideoInfo
 } from 'homebridge';
 import {createSocket, Socket} from 'dgram';
 import getPort from 'get-port';
@@ -54,6 +54,12 @@ type ActiveSession = {
   streamInfo: GenerateRtspStream;
 };
 
+type ResolutionInfo = {
+  width: number;
+  height: number;
+  videoFilter: string;
+};
+
 export abstract class StreamingDelegate<T extends CameraController> implements CameraStreamingDelegate {
   protected hap: HAP;
   protected log: Logger;
@@ -62,7 +68,6 @@ export abstract class StreamingDelegate<T extends CameraController> implements C
   // keep track of sessions
   protected pendingSessions: Record<string, SessionInfo> = {};
   protected ongoingSessions: Record<string, ActiveSession> = {};
-  protected timeouts: Record<string, NodeJS.Timeout> = {};
   protected config: Config;
   protected camera: Camera;
   protected debug: boolean = true;
@@ -88,7 +93,19 @@ export abstract class StreamingDelegate<T extends CameraController> implements C
       streamingOptions: {
         supportedCryptoSuites: [this.hap.SRTPCryptoSuites.AES_CM_128_HMAC_SHA1_80],
         video: {
-          resolutions: camera.getResolutions(),
+          resolutions: [
+            [320, 180, 30],
+            [320, 240, 15], // Apple Watch requires this configuration
+            [320, 240, 30],
+            [480, 270, 30],
+            [480, 360, 30],
+            [640, 360, 30],
+            [640, 480, 30],
+            [1280, 720, 30],
+            [1280, 960, 30],
+            [1920, 1080, 30],
+            [1600, 1200, 30]
+          ],
           codec: {
             profiles: [this.hap.H264Profile.MAIN],
             levels: [this.hap.H264Level.LEVEL3_1]
@@ -115,6 +132,25 @@ export abstract class StreamingDelegate<T extends CameraController> implements C
         .then(result => {
           callback(undefined, result);
         })
+  }
+
+  private static determineResolution(request: VideoInfo): ResolutionInfo {
+    let width = request.width;
+    let height = request.height;
+
+    const filters: Array<string> = [];
+    if (width > 0 || height > 0) {
+      filters.push('scale=' + (width > 0 ? '\'min(' + width + ',iw)\'' : 'iw') + ':' +
+          (height > 0 ? '\'min(' + height + ',ih)\'' : 'ih') +
+          ':force_original_aspect_ratio=decrease');
+      filters.push('scale=trunc(iw/2)*2:trunc(ih/2)*2'); // Force to fit encoder restrictions
+    }
+
+    return {
+      width: width,
+      height: height,
+      videoFilter: filters.join(',')
+    };
   }
 
   async getIpAddress(ipv6: boolean): Promise<string> {
@@ -186,6 +222,8 @@ export abstract class StreamingDelegate<T extends CameraController> implements C
 
   private async startStream(request: StartStreamRequest, callback: StreamRequestCallback): Promise<void> {
     const sessionInfo = this.pendingSessions[request.sessionID];
+    const resolution = StreamingDelegate.determineResolution(request.video);
+    const bitrate = request.video.max_bit_rate * 4;
 
     this.log.debug(`Video stream requested: ${request.video.width} x ${request.video.height}, ${request.video.fps} fps, ${request.video.max_bit_rate} kbps`, this.camera.getDisplayName());
 
@@ -194,11 +232,19 @@ export abstract class StreamingDelegate<T extends CameraController> implements C
     if (!streamInfo)
       throw new Error('Unable to start stream! Stream info was not received');
 
-    let ffmpegArgs = '-use_wallclock_as_timestamps 1 -fflags +discardcorrupt+nobuffer -i ' + streamInfo.streamUrls.rtspUrl;
+    let ffmpegArgs = '-i ' + streamInfo.streamUrls.rtspUrl;
 
     ffmpegArgs += // Video
         ' -an -sn -dn' +
-        ' -codec:v copy' +
+        ' -codec:v libx264 -preset ultrafast -tune zerolatency' +
+        ' -pix_fmt yuv420p' +
+        ' -color_range mpeg' +
+        ' -bf 0' +
+        ` -r ${request.video.fps}` +
+        ` -b:v ${bitrate}k` +
+        ` -bufsize ${bitrate}k` +
+        ` -maxrate ${2 * bitrate}k` +
+        ' -filter:v ' + resolution.videoFilter +
         ' -payload_type ' + request.video.pt;
 
     ffmpegArgs += // Video Stream
