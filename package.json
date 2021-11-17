@@ -15,6 +15,7 @@
     "homebridge": ">=1.0.0"
   },
   "keywords": [
+    "homebridge",
     "homebridge-plugin"
   ],
   "dependencies": {
