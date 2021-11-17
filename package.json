@@ -8,7 +8,6 @@
     "copy-files": "copyfiles -u 1 src/res/*.* dist/",
     "build": "npm run clean && tsc && npm run copy-files",
     "prepublishOnly": "npm run build",
-    "postpublish": "npm run clean",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "engines": {
@@ -16,8 +15,15 @@
   },
   "keywords": [
     "homebridge",
-    "homebridge-plugin"
+    "homebridge-plugin",
+    "nest",
+    "doorbell",
+    "camera",
+    "thermostat",
+    "smart-device-managment"
   ],
+  "repository": "github:potmat/homebridge-google-nest-sdm",
+  "homepage": "https://github.com/potmat/homebridge-google-nest-sdm",
   "dependencies": {
     "@google-cloud/pubsub": "^2.18.1",
     "axios": "^0.24.0",
