@@ -42,46 +42,51 @@ class SmartDeviceManagement {
         this.smartdevicemanagement = new google.smartdevicemanagement_v1.Smartdevicemanagement({
             auth: this.oauth2Client
         });
-        this.pubSubClient = new pubsub.PubSub({
-            projectId: config.projectId,
-            credentials: {
-                // @ts-ignore
-                type: 'authorized_user',
-                // @ts-ignore
-                client_id: config.clientId,
-                // @ts-ignore
-                client_secret: config.clientSecret,
-                // @ts-ignore
-                refresh_token: config.refreshToken
-            }
-        });
-        this.subscription = this.pubSubClient.subscription(config.subscriptionId);
-        this.subscription.on('message', message => {
-            message.ack();
-            if (!this.devices)
-                return;
-            this.log.debug('Event received: ' + message.data.toString());
-            const event = JSON.parse(message.data);
-            //No need to bother with events older than a minute
-            const timestamp = new Date(event.timestamp);
-            if (Date.now() - timestamp.getDate() > 60000)
-                return;
-            // if ((event as Events.ResourceRelationEvent).relationUpdate) {
-            //     const resourceRelationtEvent = event as Events.ResourceRelationEvent;
-            // } else
-            if (event.resourceUpdate.events) {
-                const resourceEventEvent = event;
-                const device = lodash_1.default.find(this.devices, device => device.getName() === resourceEventEvent.resourceUpdate.name);
-                if (device)
-                    device.event(resourceEventEvent);
-            }
-            else if (event.resourceUpdate.traits) {
-                const resourceTraitEvent = event;
-                const device = lodash_1.default.find(this.devices, device => device.getName() === resourceTraitEvent.resourceUpdate.name);
-                if (device)
-                    device.event(resourceTraitEvent);
-            }
-        });
+        try {
+            this.pubSubClient = new pubsub.PubSub({
+                projectId: config.projectId,
+                credentials: {
+                    // @ts-ignore
+                    type: 'authorized_user',
+                    // @ts-ignore
+                    client_id: config.clientId,
+                    // @ts-ignore
+                    client_secret: config.clientSecret,
+                    // @ts-ignore
+                    refresh_token: config.refreshToken
+                }
+            });
+            this.subscription = this.pubSubClient.subscription(config.subscriptionId);
+            this.subscription.on('message', message => {
+                message.ack();
+                if (!this.devices)
+                    return;
+                this.log.debug('Event received: ' + message.data.toString());
+                const event = JSON.parse(message.data);
+                //No need to bother with events older than a minute
+                const timestamp = new Date(event.timestamp);
+                if (Date.now() - timestamp.getDate() > 60000)
+                    return;
+                // if ((event as Events.ResourceRelationEvent).relationUpdate) {
+                //     const resourceRelationtEvent = event as Events.ResourceRelationEvent;
+                // } else
+                if (event.resourceUpdate.events) {
+                    const resourceEventEvent = event;
+                    const device = lodash_1.default.find(this.devices, device => device.getName() === resourceEventEvent.resourceUpdate.name);
+                    if (device)
+                        device.event(resourceEventEvent);
+                }
+                else if (event.resourceUpdate.traits) {
+                    const resourceTraitEvent = event;
+                    const device = lodash_1.default.find(this.devices, device => device.getName() === resourceTraitEvent.resourceUpdate.name);
+                    if (device)
+                        device.event(resourceTraitEvent);
+                }
+            });
+        }
+        catch (error) {
+            this.log.error("Could not subscribe to events. Did you read the readme: https://github.com/potmat/homebridge-google-nest-sdm/blob/master/README.md", error);
+        }
     }
     async list_devices() {
         try {

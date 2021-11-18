@@ -14,8 +14,8 @@ import {Display} from "./Display";
 export class SmartDeviceManagement {
     private oauth2Client: google.Auth.OAuth2Client;
     private smartdevicemanagement: google.smartdevicemanagement_v1.Smartdevicemanagement;
-    private pubSubClient: pubsub.PubSub;
-    private subscription: pubsub.Subscription;
+    private pubSubClient: pubsub.PubSub | undefined;
+    private subscription: pubsub.Subscription | undefined;
     private projectId: string;
     private log: Logger;
     private devices: Device[] | undefined;
@@ -35,50 +35,54 @@ export class SmartDeviceManagement {
             auth: this.oauth2Client
         });
 
-        this.pubSubClient = new pubsub.PubSub({
-            projectId: config.projectId,
-            credentials: {
-                // @ts-ignore
-                type: 'authorized_user',
-                // @ts-ignore
-                client_id: config.clientId,
-                // @ts-ignore
-                client_secret: config.clientSecret,
-                // @ts-ignore
-                refresh_token: config.refreshToken
-            }
-        });
-        this.subscription = this.pubSubClient.subscription(config.subscriptionId);
-        this.subscription.on('message', message => {
-            message.ack();
+        try {
+            this.pubSubClient = new pubsub.PubSub({
+                projectId: config.projectId,
+                credentials: {
+                    // @ts-ignore
+                    type: 'authorized_user',
+                    // @ts-ignore
+                    client_id: config.clientId,
+                    // @ts-ignore
+                    client_secret: config.clientSecret,
+                    // @ts-ignore
+                    refresh_token: config.refreshToken
+                }
+            });
+            this.subscription = this.pubSubClient.subscription(config.subscriptionId);
+            this.subscription.on('message', message => {
+                message.ack();
 
-            if (!this.devices)
-                return;
+                if (!this.devices)
+                    return;
 
-            this.log.debug('Event received: ' + message.data.toString());
+                this.log.debug('Event received: ' + message.data.toString());
 
-            const event: Events.Event = JSON.parse(message.data);
+                const event: Events.Event = JSON.parse(message.data);
 
-            //No need to bother with events older than a minute
-            const timestamp = new Date(event.timestamp);
-            if (Date.now() - timestamp.getDate() > 60000)
-                return;
+                //No need to bother with events older than a minute
+                const timestamp = new Date(event.timestamp);
+                if (Date.now() - timestamp.getDate() > 60000)
+                    return;
 
-            // if ((event as Events.ResourceRelationEvent).relationUpdate) {
-            //     const resourceRelationtEvent = event as Events.ResourceRelationEvent;
-            // } else
-            if ((event as Events.ResourceEventEvent).resourceUpdate.events) {
-                const resourceEventEvent = event as Events.ResourceEventEvent;
-                const device = _.find(this.devices, device => device.getName() === resourceEventEvent.resourceUpdate.name);
-                if (device)
-                    device.event(resourceEventEvent);
-            } else if ((event as Events.ResourceTraitEvent).resourceUpdate.traits) {
-                const resourceTraitEvent = event as Events.ResourceTraitEvent;
-                const device = _.find(this.devices, device => device.getName() === resourceTraitEvent.resourceUpdate.name);
-                if (device)
-                    device.event(resourceTraitEvent);
-            }
-        });
+                // if ((event as Events.ResourceRelationEvent).relationUpdate) {
+                //     const resourceRelationtEvent = event as Events.ResourceRelationEvent;
+                // } else
+                if ((event as Events.ResourceEventEvent).resourceUpdate.events) {
+                    const resourceEventEvent = event as Events.ResourceEventEvent;
+                    const device = _.find(this.devices, device => device.getName() === resourceEventEvent.resourceUpdate.name);
+                    if (device)
+                        device.event(resourceEventEvent);
+                } else if ((event as Events.ResourceTraitEvent).resourceUpdate.traits) {
+                    const resourceTraitEvent = event as Events.ResourceTraitEvent;
+                    const device = _.find(this.devices, device => device.getName() === resourceTraitEvent.resourceUpdate.name);
+                    if (device)
+                        device.event(resourceTraitEvent);
+                }
+            });
+        } catch (error: any) {
+            this.log.error("Could not subscribe to events. Did you read the readme: https://github.com/potmat/homebridge-google-nest-sdm/blob/master/README.md", error)
+        }
     }
 
     async list_devices(): Promise<Device[] | undefined> {

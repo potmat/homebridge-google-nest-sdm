@@ -136,10 +136,12 @@ class Thermostat extends Device_1.Device {
                 await this.executeCommand(Commands.Constants.ThermostatTemperatureSetpoint_SetHeat, {
                     heatCelsius: temperatureCelsius
                 });
+                break;
             case Traits.ThermostatModeType.COOL:
                 await this.executeCommand(Commands.Constants.ThermostatTemperatureSetpoint_SetCool, {
                     coolCelsius: temperatureCelsius
                 });
+                break;
             //todo: what to do here?
             // case Traits.ThermostatModeType.HEATCOOL:
         }
