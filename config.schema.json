@@ -1,0 +1,41 @@
+{
+  "pluginAlias": "homebridge-google-nest-sdm",
+  "pluginType": "platform",
+  "headerDisplay": "For help getting these values, please see the readme at: https://github.com/potmat/homebridge-google-nest-sdm#where-do-the-config-values-come-from Read it carefully, you must follow the instructions regarding the authorization URL if you want events to work properly.\n**ffmpeg** must be installed on your system for this plugin to work.",
+  "singular": "true",
+  "schema": {
+    "type": "object",
+    "properties": {
+      "clientId": {
+        "title": "Client ID",
+        "type": "string",
+        "required": true
+      },
+      "clientSecret": {
+        "title": "Client Secret",
+        "type": "string",
+        "required": true
+      },
+      "projectId": {
+        "title": "Project ID",
+        "type": "string",
+        "required": true
+      },
+      "refreshToken": {
+        "title": "Refresh Token",
+        "type": "string",
+        "required": true
+      },
+      "subscriptionId": {
+        "title": "PubSub Subscription ID",
+        "type": "string",
+        "required": true
+      },
+      "vEncoder": {
+        "title": "Video Encoder",
+        "type": "string",
+        "required": false
+      }
+    }
+  }
+}

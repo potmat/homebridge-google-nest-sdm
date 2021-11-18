@@ -148,8 +148,10 @@ class StreamingDelegate {
         const vEncoder = this.config.vEncoder || 'libx264 -preset ultrafast -tune zerolatency';
         this.log.debug(`Video stream requested: ${request.video.width} x ${request.video.height}, ${request.video.fps} fps, ${request.video.max_bit_rate} kbps`, this.camera.getDisplayName());
         const streamInfo = await this.camera.getStreamInfo();
-        if (!streamInfo)
-            throw new Error('Unable to start stream! Stream info was not received');
+        if (!streamInfo) {
+            callback(new Error('Unable to start stream! Stream info was not received'));
+            return;
+        }
         let ffmpegArgs = '-i ' + streamInfo.streamUrls.rtspUrl;
         ffmpegArgs += // Video
             ' -an -sn -dn' +
@@ -190,22 +192,28 @@ class StreamingDelegate {
             ffmpegArgs += ' -loglevel level+verbose';
         }
         const activeSession = { streamInfo: streamInfo };
-        activeSession.socket = (0, dgram_1.createSocket)(sessionInfo.ipv6 ? 'udp6' : 'udp4');
-        activeSession.socket.on('error', (err) => {
-            this.log.error('Socket error: ' + err.name, this.camera.getDisplayName());
-            this.stopStream(request.sessionID);
-        });
-        activeSession.socket.on('message', () => {
-            if (activeSession.timeout) {
-                clearTimeout(activeSession.timeout);
-            }
-            activeSession.timeout = setTimeout(() => {
-                this.log.debug('Device appears to be inactive. Stopping stream.', this.camera.getDisplayName());
-                this.controller.forceStopStreamingSession(request.sessionID);
+        try {
+            activeSession.socket = (0, dgram_1.createSocket)(sessionInfo.ipv6 ? 'udp6' : 'udp4');
+            activeSession.socket.on('error', (err) => {
+                this.log.error('Socket error: ' + err.name, this.camera.getDisplayName());
                 this.stopStream(request.sessionID);
-            }, request.video.rtcp_interval * 2 * 1000);
-        });
-        activeSession.socket.bind(sessionInfo.videoReturnPort, sessionInfo.localAddress);
+            });
+            activeSession.socket.on('message', () => {
+                if (activeSession.timeout) {
+                    clearTimeout(activeSession.timeout);
+                }
+                activeSession.timeout = setTimeout(() => {
+                    this.log.debug('Device appears to be inactive. Stopping stream.', this.camera.getDisplayName());
+                    this.controller.forceStopStreamingSession(request.sessionID);
+                    this.stopStream(request.sessionID);
+                }, request.video.rtcp_interval * 2 * 1000);
+            });
+            activeSession.socket.bind(sessionInfo.videoReturnPort, sessionInfo.localAddress);
+        }
+        catch (error) {
+            callback(error);
+            return;
+        }
         activeSession.mainProcess = new FfMpeg_1.FfmpegProcess(this.camera.getDisplayName(), request.sessionID, this.videoProcessor, ffmpegArgs, this.log, this.debug, this, callback);
         this.ongoingSessions[request.sessionID] = activeSession;
         delete this.pendingSessions[request.sessionID];

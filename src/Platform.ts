@@ -1,4 +1,4 @@
-import { API, DynamicPlatformPlugin, Logger, PlatformAccessory, PlatformConfig, Service, Characteristic } from 'homebridge';
+import { API, DynamicPlatformPlugin, Logger, PlatformAccessory, PlatformConfig, Characteristic } from 'homebridge';
 
 import { PLATFORM_NAME, PLUGIN_NAME } from './Settings';
 import { CameraAccessory } from './CameraAccessory';
@@ -17,15 +17,22 @@ import {DoorbellAccessory} from "./DoorbellAccessory";
  */
 export class Platform implements DynamicPlatformPlugin {
     public readonly Characteristic: typeof Characteristic = this.api.hap.Characteristic;
-    private smartDeviceManagement: SmartDeviceManagement;
-    public readonly accessories: PlatformAccessory[] = [];
+    private readonly smartDeviceManagement: SmartDeviceManagement | undefined;
+    private readonly accessories: PlatformAccessory[] = [];
 
     constructor(
         public readonly log: Logger,
         public readonly config: PlatformConfig,
         public readonly api: API,
     ) {
-        this.smartDeviceManagement = new SmartDeviceManagement(config.options as unknown as Config, log);
+        const options = config as unknown as Config;
+
+        if (!options || !options.projectId || !options.clientId || !options.clientSecret || !options.refreshToken || !options.subscriptionId) {
+            log.error(`${config.platform} is not configured correctly. The configuration provided was: ${JSON.stringify(options)}`)
+            return;
+        }
+
+        this.smartDeviceManagement = new SmartDeviceManagement(options, log);
         // When this event is fired it means Homebridge has restored all cached accessories from disk.
         // Dynamic Platform plugins should only register new accessories after this event was fired,
         // in order to ensure they weren't added to homebridge already. This event can also be used
@@ -54,6 +61,9 @@ export class Platform implements DynamicPlatformPlugin {
      * must not be registered again to prevent "duplicate UUID" errors.
      */
     async discoverDevices() {
+
+        if (!this.smartDeviceManagement)
+            return;
 
         const devices = await this.smartDeviceManagement.list_devices();
 

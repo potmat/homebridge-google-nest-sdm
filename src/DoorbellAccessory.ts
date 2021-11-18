@@ -24,7 +24,7 @@ export class DoorbellAccessory extends Accessory<Doorbell> {
             this.log.info("%s identified!", this.accessory.displayName);
         });
 
-        this.streamingDelegate = new DoorbellStreamingDelegate(log, api, this.platform.config.options as unknown as Config, this.device);
+        this.streamingDelegate = new DoorbellStreamingDelegate(log, api, this.platform.config as unknown as Config, this.device);
         this.accessory.configureController(this.streamingDelegate.getController());
 
         this.device.onRing = this.handleRing.bind(this);

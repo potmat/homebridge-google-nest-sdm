@@ -21,7 +21,12 @@ class Platform {
         this.api = api;
         this.Characteristic = this.api.hap.Characteristic;
         this.accessories = [];
-        this.smartDeviceManagement = new Api_1.SmartDeviceManagement(config.options, log);
+        const options = config;
+        if (!options || !options.projectId || !options.clientId || !options.clientSecret || !options.refreshToken || !options.subscriptionId) {
+            log.error(`${config.platform} is not configured correctly. The configuration provided was: ${JSON.stringify(options)}`);
+            return;
+        }
+        this.smartDeviceManagement = new Api_1.SmartDeviceManagement(options, log);
         // When this event is fired it means Homebridge has restored all cached accessories from disk.
         // Dynamic Platform plugins should only register new accessories after this event was fired,
         // in order to ensure they weren't added to homebridge already. This event can also be used
@@ -47,6 +52,8 @@ class Platform {
      * must not be registered again to prevent "duplicate UUID" errors.
      */
     async discoverDevices() {
+        if (!this.smartDeviceManagement)
+            return;
         const devices = await this.smartDeviceManagement.list_devices();
         if (!devices)
             return;

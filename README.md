@@ -7,16 +7,16 @@ A homebridge plugin that uses the Google Smart Device Management API. Supports C
 # Example Homebridge config:
 
     {
-      "platform" : "homebridge-google-nest-sdm",
-      "options": {
+        "platform" : "homebridge-google-nest-sdm",
         "clientId": "...",
         "clientSecret": "...",
         "projectId": "...",
         "refreshToken": "...",
         "subscriptionId": "...",
         "vEncoder": "<optional>"
-      }
     }
+
+You can also use the plugin config UI to enter these values.
     
 # Where do the config values come from?
 

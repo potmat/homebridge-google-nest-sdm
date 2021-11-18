@@ -230,8 +230,10 @@ export abstract class StreamingDelegate<T extends CameraController> implements C
 
     const streamInfo = await this.camera.getStreamInfo();
 
-    if (!streamInfo)
-      throw new Error('Unable to start stream! Stream info was not received');
+    if (!streamInfo) {
+      callback(new Error('Unable to start stream! Stream info was not received'));
+      return;
+    }
 
     let ffmpegArgs = '-i ' + streamInfo.streamUrls.rtspUrl;
 
@@ -282,22 +284,27 @@ export abstract class StreamingDelegate<T extends CameraController> implements C
 
     const activeSession: ActiveSession = { streamInfo: streamInfo };
 
-    activeSession.socket = createSocket(sessionInfo.ipv6 ? 'udp6' : 'udp4');
-    activeSession.socket.on('error', (err: Error) => {
-      this.log.error('Socket error: ' + err.name, this.camera.getDisplayName());
-      this.stopStream(request.sessionID);
-    });
-    activeSession.socket.on('message', () => {
-      if (activeSession.timeout) {
-        clearTimeout(activeSession.timeout);
-      }
-      activeSession.timeout = setTimeout(() => {
-        this.log.debug('Device appears to be inactive. Stopping stream.', this.camera.getDisplayName());
-        this.controller.forceStopStreamingSession(request.sessionID);
+    try {
+      activeSession.socket = createSocket(sessionInfo.ipv6 ? 'udp6' : 'udp4');
+      activeSession.socket.on('error', (err: Error) => {
+        this.log.error('Socket error: ' + err.name, this.camera.getDisplayName());
         this.stopStream(request.sessionID);
-      }, request.video.rtcp_interval * 2 * 1000);
-    });
-    activeSession.socket.bind(sessionInfo.videoReturnPort, sessionInfo.localAddress);
+      });
+      activeSession.socket.on('message', () => {
+        if (activeSession.timeout) {
+          clearTimeout(activeSession.timeout);
+        }
+        activeSession.timeout = setTimeout(() => {
+          this.log.debug('Device appears to be inactive. Stopping stream.', this.camera.getDisplayName());
+          this.controller.forceStopStreamingSession(request.sessionID);
+          this.stopStream(request.sessionID);
+        }, request.video.rtcp_interval * 2 * 1000);
+      });
+      activeSession.socket.bind(sessionInfo.videoReturnPort, sessionInfo.localAddress);
+    } catch (error: any) {
+      callback(error);
+      return;
+    }
 
     activeSession.mainProcess = new FfmpegProcess(this.camera.getDisplayName(), request.sessionID, this.videoProcessor,
         ffmpegArgs, this.log, this.debug, this, callback);

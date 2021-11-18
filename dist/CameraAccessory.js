@@ -10,7 +10,7 @@ class CameraAccessory extends Accessory_1.Accessory {
             this.log.info("%s identified!", this.accessory.displayName);
         });
         api.hap.HAPServer;
-        const streamingDelegate = new CameraStreamingDelegate_1.CameraStreamingDelegate(log, api, this.platform.config.options, this.device);
+        const streamingDelegate = new CameraStreamingDelegate_1.CameraStreamingDelegate(log, api, this.platform.config, this.device);
         this.accessory.configureController(streamingDelegate.getController());
     }
 }
