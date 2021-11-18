@@ -27,6 +27,7 @@ import {Config} from './Config'
 import {FfmpegProcess} from './FfMpeg';
 import {Camera} from "./sdm/Camera";
 import {GenerateRtspStream} from "./sdm/Responses";
+import * as Traits from './sdm/Traits';
 
 type SessionInfo = {
   address: string; // address of the HAP controller
@@ -93,19 +94,7 @@ export abstract class StreamingDelegate<T extends CameraController> implements C
       streamingOptions: {
         supportedCryptoSuites: [this.hap.SRTPCryptoSuites.AES_CM_128_HMAC_SHA1_80],
         video: {
-          resolutions: [
-            [320, 180, 30],
-            [320, 240, 15], // Apple Watch requires this configuration
-            [320, 240, 30],
-            [480, 270, 30],
-            [480, 360, 30],
-            [640, 360, 30],
-            [640, 480, 30],
-            [1280, 720, 30],
-            [1280, 960, 30],
-            [1920, 1080, 30],
-            [1600, 1200, 30]
-          ],
+          resolutions: camera.getResolutions(),
           codec: {
             profiles: [this.hap.H264Profile.MAIN],
             levels: [this.hap.H264Level.LEVEL3_1]
@@ -171,7 +160,26 @@ export abstract class StreamingDelegate<T extends CameraController> implements C
     return addressInfo.address;
   }
 
+  /**
+   * Some callback methods do not log anything if they are called with an error.
+   */
+  logThenCallback(callback: (error?: Error) => void, message: string) {
+    this.log.error(message);
+    callback(new Error(message));
+  }
+
   async prepareStream(request: PrepareStreamRequest, callback: PrepareStreamCallback): Promise<void> {
+
+    const camaraInfo = await this.camera.getCameraLiveStream();
+
+    if (camaraInfo && !camaraInfo.supportedProtocols.includes(Traits.ProtocolType.RTSP)) {
+      this.logThenCallback(callback, "Nest battery powered cameras are not supported at this time.  The plugin developer doesn't own one so he can't add support. See https://github.com/potmat/homebridge-google-nest-sdm#homebridge-google-nest-sdm");
+      return;
+    } else if (!camaraInfo) {
+      this.logThenCallback(callback, 'Unable to start stream! Camera info was not received');
+      return;
+    }
+
     const videoReturnPort = await getPort();
     const videoSSRC = this.hap.CameraController.generateSynchronisationSource();
     const audioReturnPort = await getPort();
@@ -221,6 +229,7 @@ export abstract class StreamingDelegate<T extends CameraController> implements C
   }
 
   private async startStream(request: StartStreamRequest, callback: StreamRequestCallback): Promise<void> {
+
     const sessionInfo = this.pendingSessions[request.sessionID];
     const resolution = StreamingDelegate.determineResolution(request.video);
     const bitrate = request.video.max_bit_rate * 4;
@@ -231,7 +240,7 @@ export abstract class StreamingDelegate<T extends CameraController> implements C
     const streamInfo = await this.camera.getStreamInfo();
 
     if (!streamInfo) {
-      callback(new Error('Unable to start stream! Stream info was not received'));
+      this.logThenCallback(callback, 'Unable to start stream! Stream info was not received');
       return;
     }
 
@@ -302,7 +311,7 @@ export abstract class StreamingDelegate<T extends CameraController> implements C
       });
       activeSession.socket.bind(sessionInfo.videoReturnPort, sessionInfo.localAddress);
     } catch (error: any) {
-      callback(error);
+      this.logThenCallback(callback, error);
       return;
     }
 

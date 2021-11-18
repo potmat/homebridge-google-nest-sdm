@@ -101,9 +101,22 @@ export interface CameraImage {
     maxImageResolution: ImageResolution;
 }
 
+export enum VideoCodecType {
+    H264 = 'H264'
+}
+
+export enum AudioCodecType {
+    AAC = 'AAc'
+}
+
+export enum ProtocolType {
+    RTSP = 'RTSP',
+    WEB_RTC = 'WEB_RTC'
+}
+
 export interface CameraLiveStream {
     maxImageResolution: ImageResolution;
-    videoCodecs: string[];
-    audioCodecs: string[];
-    supportedProtocols: string[];
+    videoCodecs: VideoCodecType[];
+    audioCodecs: AudioCodecType[];
+    supportedProtocols: ProtocolType[];
 }

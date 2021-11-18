@@ -31,6 +31,7 @@ const path_1 = __importDefault(require("path"));
 const ImageQueue_1 = require("./ImageQueue");
 const lodash_1 = __importDefault(require("lodash"));
 const Events = __importStar(require("./Events"));
+const Traits = __importStar(require("./Traits"));
 class Camera extends Device_1.Device {
     constructor() {
         super(...arguments);
@@ -49,7 +50,19 @@ class Camera extends Device_1.Device {
         return await fs_1.default.promises.readFile(path_1.default.join(__dirname, "..", "res", "nest-logo.jpg"));
     }
     getResolutions() {
-        return [[1280, 720, 15], [1920, 1080, 15]];
+        return [
+            [320, 180, 30],
+            [320, 240, 15],
+            [320, 240, 30],
+            [480, 270, 30],
+            [480, 360, 30],
+            [640, 360, 30],
+            [640, 480, 30],
+            [1280, 720, 30],
+            [1280, 960, 30],
+            [1920, 1080, 30],
+            [1600, 1200, 30]
+        ];
     }
     async getEventImage(eventId) {
         try {
@@ -70,6 +83,9 @@ class Camera extends Device_1.Device {
         catch (error) {
             this.log.error('Could not execute event image GET request: ', JSON.stringify(error));
         }
+    }
+    async getCameraLiveStream() {
+        return await this.getTrait(Traits.Constants.CameraLiveStream);
     }
     async getStreamInfo() {
         return this.executeCommand(Commands.Constants.CameraLiveStream_GenerateRtspStream);

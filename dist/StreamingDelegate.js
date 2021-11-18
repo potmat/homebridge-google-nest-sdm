@@ -1,4 +1,23 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -9,6 +28,7 @@ const get_port_1 = __importDefault(require("get-port"));
 const os_1 = __importDefault(require("os"));
 const systeminformation_1 = require("systeminformation");
 const FfMpeg_1 = require("./FfMpeg");
+const Traits = __importStar(require("./sdm/Traits"));
 class StreamingDelegate {
     constructor(log, api, config, camera) {
         // keep track of sessions
@@ -31,19 +51,7 @@ class StreamingDelegate {
             streamingOptions: {
                 supportedCryptoSuites: [0 /* AES_CM_128_HMAC_SHA1_80 */],
                 video: {
-                    resolutions: [
-                        [320, 180, 30],
-                        [320, 240, 15],
-                        [320, 240, 30],
-                        [480, 270, 30],
-                        [480, 360, 30],
-                        [640, 360, 30],
-                        [640, 480, 30],
-                        [1280, 720, 30],
-                        [1280, 960, 30],
-                        [1920, 1080, 30],
-                        [1600, 1200, 30]
-                    ],
+                    resolutions: camera.getResolutions(),
                     codec: {
                         profiles: [1 /* MAIN */],
                         levels: [0 /* LEVEL3_1 */]
@@ -101,7 +109,23 @@ class StreamingDelegate {
         }
         return addressInfo.address;
     }
+    /**
+     * Some callback methods do not log anything if they are called with an error.
+     */
+    logThenCallback(callback, message) {
+        this.log.error(message);
+        callback(new Error(message));
+    }
     async prepareStream(request, callback) {
+        const camaraInfo = await this.camera.getCameraLiveStream();
+        if (camaraInfo && !camaraInfo.supportedProtocols.includes(Traits.ProtocolType.RTSP)) {
+            this.logThenCallback(callback, "Nest battery powered cameras are not supported at this time.  The plugin developer doesn't own one so he can't add support. See https://github.com/potmat/homebridge-google-nest-sdm#homebridge-google-nest-sdm");
+            return;
+        }
+        else if (!camaraInfo) {
+            this.logThenCallback(callback, 'Unable to start stream! Camera info was not received');
+            return;
+        }
         const videoReturnPort = await (0, get_port_1.default)();
         const videoSSRC = this.hap.CameraController.generateSynchronisationSource();
         const audioReturnPort = await (0, get_port_1.default)();
@@ -149,7 +173,7 @@ class StreamingDelegate {
         this.log.debug(`Video stream requested: ${request.video.width} x ${request.video.height}, ${request.video.fps} fps, ${request.video.max_bit_rate} kbps`, this.camera.getDisplayName());
         const streamInfo = await this.camera.getStreamInfo();
         if (!streamInfo) {
-            callback(new Error('Unable to start stream! Stream info was not received'));
+            this.logThenCallback(callback, 'Unable to start stream! Stream info was not received');
             return;
         }
         let ffmpegArgs = '-i ' + streamInfo.streamUrls.rtspUrl;
@@ -211,7 +235,7 @@ class StreamingDelegate {
             activeSession.socket.bind(sessionInfo.videoReturnPort, sessionInfo.localAddress);
         }
         catch (error) {
-            callback(error);
+            this.logThenCallback(callback, error);
             return;
         }
         activeSession.mainProcess = new FfMpeg_1.FfmpegProcess(this.camera.getDisplayName(), request.sessionID, this.videoProcessor, ffmpegArgs, this.log, this.debug, this, callback);

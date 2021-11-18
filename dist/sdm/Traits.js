@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.TemperatureScale = exports.EcoModeType = exports.HvacStatusType = exports.ThermostatModeType = exports.FanTimerModeType = exports.ConnectivityStatusType = exports.Constants = void 0;
+exports.ProtocolType = exports.AudioCodecType = exports.VideoCodecType = exports.TemperatureScale = exports.EcoModeType = exports.HvacStatusType = exports.ThermostatModeType = exports.FanTimerModeType = exports.ConnectivityStatusType = exports.Constants = void 0;
 var Constants;
 (function (Constants) {
     Constants["Info"] = "sdm.devices.traits.Info";
@@ -49,4 +49,17 @@ var TemperatureScale;
     TemperatureScale["CELSIUS"] = "CELSIUS";
     TemperatureScale["FAHRENHEIT"] = "FAHRENHEIT";
 })(TemperatureScale = exports.TemperatureScale || (exports.TemperatureScale = {}));
+var VideoCodecType;
+(function (VideoCodecType) {
+    VideoCodecType["H264"] = "H264";
+})(VideoCodecType = exports.VideoCodecType || (exports.VideoCodecType = {}));
+var AudioCodecType;
+(function (AudioCodecType) {
+    AudioCodecType["AAC"] = "AAc";
+})(AudioCodecType = exports.AudioCodecType || (exports.AudioCodecType = {}));
+var ProtocolType;
+(function (ProtocolType) {
+    ProtocolType["RTSP"] = "RTSP";
+    ProtocolType["WEB_RTC"] = "WEB_RTC";
+})(ProtocolType = exports.ProtocolType || (exports.ProtocolType = {}));
 //# sourceMappingURL=Traits.js.map
