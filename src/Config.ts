@@ -3,5 +3,6 @@ export type Config = {
     clientSecret: string,
     projectId: string,
     refreshToken: string,
-    subscriptionId: string
+    subscriptionId: string,
+    vEncoder?: string
 }

@@ -1,5 +1,4 @@
 import * as Traits from './Traits';
-import exp from "constants";
 
 export enum Constants {
     CameraMotion = 'sdm.devices.events.CameraMotion.Motion',

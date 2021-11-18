@@ -59,6 +59,11 @@ export class SmartDeviceManagement {
 
             const event: Events.Event = JSON.parse(message.data);
 
+            //No need to bother with events older than a minute
+            const timestamp = new Date(event.timestamp);
+            if (Date.now() - timestamp.getDate() > 60000)
+                return;
+
             // if ((event as Events.ResourceRelationEvent).relationUpdate) {
             //     const resourceRelationtEvent = event as Events.ResourceRelationEvent;
             // } else

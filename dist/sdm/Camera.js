@@ -80,6 +80,7 @@ class Camera extends Device_1.Device {
         });
     }
     event(event) {
+        super.event(event);
         lodash_1.default.forEach(event.resourceUpdate.events, (value, key) => {
             switch (key) {
                 case Events.Constants.CameraMotion:

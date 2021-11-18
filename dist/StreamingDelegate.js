@@ -145,6 +145,7 @@ class StreamingDelegate {
         const sessionInfo = this.pendingSessions[request.sessionID];
         const resolution = StreamingDelegate.determineResolution(request.video);
         const bitrate = request.video.max_bit_rate * 4;
+        const vEncoder = this.config.vEncoder || 'libx264 -preset ultrafast -tune zerolatency';
         this.log.debug(`Video stream requested: ${request.video.width} x ${request.video.height}, ${request.video.fps} fps, ${request.video.max_bit_rate} kbps`, this.camera.getDisplayName());
         const streamInfo = await this.camera.getStreamInfo();
         if (!streamInfo)
@@ -152,7 +153,7 @@ class StreamingDelegate {
         let ffmpegArgs = '-i ' + streamInfo.streamUrls.rtspUrl;
         ffmpegArgs += // Video
             ' -an -sn -dn' +
-                ' -codec:v libx264 -preset ultrafast -tune zerolatency' +
+                ` -codec:v ${vEncoder}` +
                 ' -pix_fmt yuv420p' +
                 ' -color_range mpeg' +
                 ' -bf 0' +

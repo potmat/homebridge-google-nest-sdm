@@ -38,6 +38,7 @@ export class Thermostat extends Device {
     onHumidityChanged: ((humidity: number) => void) | undefined;
 
     event(event: Events.ResourceTraitEvent) {
+        super.event(event);
         _.forEach(event.resourceUpdate.traits, (value, key) => {
             switch (key) {
                 case Traits.Constants.ThermostatTemperatureSetpoint:
@@ -138,10 +139,12 @@ export class Thermostat extends Device {
                 await this.executeCommand<Commands.ThermostatTemperatureSetpoint_SetHeat, void>(Commands.Constants.ThermostatTemperatureSetpoint_SetHeat, {
                     heatCelsius: temperatureCelsius!
                 });
+                break;
             case Traits.ThermostatModeType.COOL:
                 await this.executeCommand<Commands.ThermostatTemperatureSetpoint_SetCool, void>(Commands.Constants.ThermostatTemperatureSetpoint_SetCool, {
                     coolCelsius: temperatureCelsius!
                 });
+                break;
             //todo: what to do here?
             // case Traits.ThermostatModeType.HEATCOOL:
         }

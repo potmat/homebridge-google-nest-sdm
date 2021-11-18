@@ -13,7 +13,8 @@ A homebridge plugin that uses the Google Smart Device Management API. Supports C
         "clientSecret": "...",
         "projectId": "...",
         "refreshToken": "...",
-        "subscriptionId": "..."
+        "subscriptionId": "...",
+        "vEncoder": "<optional>"
       }
     }
     
@@ -34,6 +35,12 @@ You should instead use this URL:
 https://nestservices.google.com/partnerconnections/project-id/auth?redirect_uri=https://www.google.com&access_type=offline&prompt=consent&client_id=oauth2-client-id&response_type=code&scope=https://www.googleapis.com/auth/sdm.service+https://www.googleapis.com/auth/pubsub
 
 Note the "+https://www.googleapis.com/auth/pubsub" on the end.  This is so you will have access to events.
+
+# vEncoder
+
+If not specified will default to "libx264 -preset ultrafast -tune zerolatency".
+
+On a Raspberry Pi 4 you can try something like "h264_v4l2m2m". On other platforms use the encoder of your choice.
 
 # Hardware Requirements
 

@@ -48,6 +48,7 @@ class Thermostat extends Device_1.Device {
         return this.displayName ? this.displayName + ' Thermostat' : 'Unknown';
     }
     event(event) {
+        super.event(event);
         lodash_1.default.forEach(event.resourceUpdate.traits, (value, key) => {
             switch (key) {
                 case Traits.Constants.ThermostatTemperatureSetpoint:

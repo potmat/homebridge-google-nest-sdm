@@ -14,6 +14,16 @@ class Device {
         this.displayName = parent === null || parent === void 0 ? void 0 : parent.displayName;
         this.log = log;
     }
+    event(event) {
+        if (event.resourceUpdate && event.resourceUpdate.traits) {
+            const traitEvent = event;
+            lodash_1.default.forEach(traitEvent.resourceUpdate.traits, (value, key) => {
+                if (this.device.traits && this.device.traits[key])
+                    this.device.traits[key] = value;
+            });
+        }
+    }
+    ;
     getName() {
         return this.device.name;
     }
@@ -31,8 +41,12 @@ class Device {
     async getTrait(name) {
         var _a, _b;
         const howLongAgo = Date.now() - this.lastRefresh;
-        if (howLongAgo > 10000)
+        //Events will update traits as necessary
+        //no need to refresh more than once per minute
+        if (howLongAgo > 60000) {
             await this.refresh();
+            this.log.debug(`Last refresh for ${this.getDisplayName()} was ${howLongAgo / 1000}s, refreshing.`);
+        }
         const value = ((_a = this.device) === null || _a === void 0 ? void 0 : _a.traits) ? (_b = this.device) === null || _b === void 0 ? void 0 : _b.traits[name] : null;
         this.log.debug(`Request for trait ${name} had value ${JSON.stringify(value)}`);
         return value;

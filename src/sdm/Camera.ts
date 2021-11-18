@@ -64,6 +64,7 @@ export class Camera extends Device {
     }
 
     event(event: ResourceEventEvent): void {
+        super.event(event);
         _.forEach(event.resourceUpdate.events, (value, key) => {
             switch (key) {
                 case Events.Constants.CameraMotion:

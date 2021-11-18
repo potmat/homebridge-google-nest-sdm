@@ -20,7 +20,16 @@ export abstract class Device {
         this.log = log;
     }
 
-    abstract event(event: Events.Event): void;
+    event(event: Events.Event): void {
+        if ((event as any).resourceUpdate && (event as any).resourceUpdate.traits) {
+            const traitEvent = event as Events.ResourceTraitEvent;
+            _.forEach(traitEvent.resourceUpdate.traits, (value, key) => {
+                if (this.device.traits && this.device.traits[key])
+                    this.device.traits[key] = value;
+            })
+        }
+    };
+
     abstract getDisplayName() : string;
 
     getName(): string {
@@ -40,8 +49,12 @@ export abstract class Device {
 
     async getTrait<T>(name: string): Promise<T | null> {
         const howLongAgo: number = Date.now() - this.lastRefresh;
-        if (howLongAgo > 10000)
+        //Events will update traits as necessary
+        //no need to refresh more than once per minute
+        if (howLongAgo > 60000) {
             await this.refresh();
+            this.log.debug(`Last refresh for ${this.getDisplayName()} was ${howLongAgo/1000}s, refreshing.`)
+        }
 
         const value = this.device?.traits ? this.device?.traits[name] : null;
         this.log.debug(`Request for trait ${name} had value ${JSON.stringify(value)}`);
