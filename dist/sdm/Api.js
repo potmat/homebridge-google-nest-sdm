@@ -83,6 +83,9 @@ class SmartDeviceManagement {
                         device.event(resourceTraitEvent);
                 }
             });
+            this.subscription.on('error', error => {
+                this.log.error("There was a failure with event subscription. Did you read the readme: https://github.com/potmat/homebridge-google-nest-sdm/blob/master/README.md", error);
+            });
         }
         catch (error) {
             this.log.error("Could not subscribe to events. Did you read the readme: https://github.com/potmat/homebridge-google-nest-sdm/blob/master/README.md", error);
