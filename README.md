@@ -18,7 +18,7 @@ A Homebridge plugin for Google Nest devices that uses the [Google Smart Device M
 
 You can also use the plugin config UI to enter these values.
 
-If vEncoder is not specified it will default to "libx264 -preset ultrafast -tune zerolatency". On a Raspberry Pi 4 you can try something like "h264_v4l2m2m". On other platforms use the encoder of your choice.
+vEncoder is the encoder the plugin will use for camera streams. If vEncoder is not specified it will default to "libx264 -preset ultrafast -tune zerolatency". On a Raspberry Pi 4 you can try something like "h264_v4l2m2m". On other platforms you are free to the encoder of your choice.  If you don't know what this means you can probably ignore it.
 
 # Where do the config values come from?
 
@@ -40,7 +40,7 @@ Note the "+https://www.googleapis.com/auth/pubsub" on the end.  This is so you w
 
 # Hardware Requirements
 
-The minimum hardware requirement is something like a Raspberry Pi 4.  If you want multiple people viewing the streams at once then you'd probably need even more.
+The minimum hardware requirement is something like a Raspberry Pi 4.  If you want multiple people viewing the camera streams at once then you'll probably need even more power.
 
 I tried very hard to avoid having to transcode the video, which would allow the plugin to run on something like a pi-zero.  Unfortunately this is simply not possible, the Apple Home App will not properly display the native stream.  In most cases the frame rate will be off, or it will fail to show at all (the iPhone will not show any video higher than 1080p, the Nest Doorbell produces video at a higher resolution).
 
