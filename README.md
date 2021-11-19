@@ -1,6 +1,6 @@
 # homebridge-google-nest-sdm
 
-A Homebridge plugin for Google Nest devices that uses the Google Smart Device Management API. Supports Cameras, Doorbells, Displays, and Thermostats.
+A Homebridge plugin for Google Nest devices that uses the [Google Smart Device Management API](https://developers.google.com/nest/device-access). Supports Cameras, Doorbells, Displays, and Thermostats.
 
 *Currently does not support the new battery powered cameras/doorbells.  The SDM API does support these devices, but I don't have one, so I have no way to test it. If anyone has one of the new battery cameras they're willing to loan me it should not be that hard to add.* 
 
@@ -48,7 +48,7 @@ I tried very hard to avoid having to transcode the video, which would allow the 
 
 Q: I'm having problems getting through the getting started guide and getting the config values. Can you help?
 
-A: Maybe, but probably not.  Having a day job and family I don't have much time to help with this.  The Nest plugin for Home Assistant uses much the same process (don't forget the "ONE IMPORTANT DIFFERENCE" section above).  It has an illustrated guide here: https://www.home-assistant.io/integrations/nest/. You can also try reaching out on Discord for help.
+A: Maybe, but probably not.  Having a day job and family I don't have much time to help with this.  The Nest plugin for Home Assistant uses much the same process (don't forget the "ONE IMPORTANT DIFFERENCE" section above).  It has an illustrated guide here: https://www.home-assistant.io/integrations/nest/. You can also try reaching out to others on [Discord](https://discord.gg/kqNCe2D) or [Reddit](https://www.reddit.com/r/homebridge/), some people there may be able to help.
 
 Q: Do I really have to pay $5 to use the API?
 
