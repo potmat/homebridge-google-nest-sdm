@@ -1,6 +1,6 @@
 # homebridge-google-nest-sdm
 
-A homebridge plugin that uses the Google Smart Device Management API. Supports Cameras, Doorbells, Displays, and Thermostats.
+A Homebridge plugin for Google Nest devices that uses the Google Smart Device Management API. Supports Cameras, Doorbells, Displays, and Thermostats.
 
 *Currently does not support the new battery powered cameras/doorbells.  The SDM API does support these devices, but I don't have one, so I have no way to test it. If anyone has one of the new battery cameras they're willing to loan me it should not be that hard to add.* 
 
