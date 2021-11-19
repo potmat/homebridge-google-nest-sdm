@@ -46,17 +46,25 @@ I tried very hard to avoid having to transcode the video, which would allow the 
 
 # FAQ
 
+Q: I'm having problems getting through the getting started guide and getting the config values. Can you help?
+
+A: Maybe, but probably not.  Having a day job and family I don't have much time to help with this.  The Nest plugin for Home Assistant uses much the same process (don't forget the "ONE IMPORTANT DIFFERENCE" section above).  It has an illustrated guide here: https://www.home-assistant.io/integrations/nest/. You can also try reaching out on Discord for help.
+
+Q: Do I really have to pay $5 to use the API?
+
+A: Yup.
+
 Q: Isn't there already a Nest plugin for Homebridge that does more stuff than this?
 
 A: Yup.
 
 Q: So why this plugin?  
 
-A: Well, the "official" Homebridge Nest plugin(s) use undocumented APIs.  That is, the authors reverse engineered the APIs the Nest app itself uses.  Don't get me wrong, I have no problem with that. But the SDM API is a documented API for precisely this use case.  But the more important reason for making this plugin is the same as the reason for climbing a mountain, because you can.
+A: Well, the "official" Homebridge Nest plugin(s) use undocumented APIs.  That is, the authors reverse engineered the APIs the Nest app itself uses.  Don't get me wrong, I have no problem with that. But the SDM API is a documented API for precisely this use case.  The more important reason for making this plugin is the same as the reason for climbing a mountain, because you can.
 
 Q: Sometimes my cameras don't respond. Why?
 
-A: Much like the behaviour some of us have experieced in the Nest app, sometimes the API errors out for unknown reasons.  If it's a battery camera, see above.
+A: Much like the behaviour some of us have experienced in the Nest app, sometimes the API errors out for unknown reasons.  If it's a battery camera, see above.
 
 Q: My cameras never respond.  Why?
 
