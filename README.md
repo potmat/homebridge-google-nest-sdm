@@ -17,7 +17,9 @@ A homebridge plugin that uses the Google Smart Device Management API. Supports C
     }
 
 You can also use the plugin config UI to enter these values.
-    
+
+If vEncoder is not specified it will default to "libx264 -preset ultrafast -tune zerolatency". On a Raspberry Pi 4 you can try something like "h264_v4l2m2m". On other platforms use the encoder of your choice.
+
 # Where do the config values come from?
 
 Follow the getting started guide here: https://developers.google.com/nest/device-access/get-started
@@ -36,16 +38,30 @@ https://nestservices.google.com/partnerconnections/project-id/auth?redirect_uri=
 
 Note the "+https://www.googleapis.com/auth/pubsub" on the end.  This is so you will have access to events.
 
-# vEncoder
-
-If not specified will default to "libx264 -preset ultrafast -tune zerolatency".
-
-On a Raspberry Pi 4 you can try something like "h264_v4l2m2m". On other platforms use the encoder of your choice.
-
 # Hardware Requirements
 
 The minimum hardware requirement is something like a Raspberry Pi 4.  If you want multiple people viewing the streams at once then you'd probably need even more.
 
 I tried very hard to avoid having to transcode the video, which would allow the plugin to run on something like a pi-zero.  Unfortunately this is simply not possible, the Apple Home App will not properly display the native stream.  In most cases the frame rate will be off, or it will fail to show at all (the iPhone will not show any video higher than 1080p, the Nest Doorbell produces video at a higher resolution).
+
+# FAQ
+
+Q: Isn't there already a Nest plugin for Homebridge that does more stuff than this?
+
+A: Yup.
+
+Q: So why this plugin?  
+
+A: Well, the "official" Homebridge Nest plugin(s) use undocumented APIs.  That is, the authors reverse engineered the APIs the Nest app itself uses.  Don't get me wrong, I have no problem with that. But the SDM API is a documented API for precisely this use case.  But the more important reason for making this plugin is the same as the reason for climbing a mountain, because you can.
+
+Q: Sometimes my cameras don't respond. Why?
+
+A: Much like the behaviour some of us have experieced in the Nest app, sometimes the API errors out for unknown reasons.  If it's a battery camera, see above.
+
+Q: My cameras never respond.  Why?
+
+A: Is your Apple device connected to a VPN? If so disconnect, remember Homekit works with your local network. You can also try waiting a while, I have seen the API refuse all requests for short periods as well.
+
+
 
 
