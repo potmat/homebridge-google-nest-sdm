@@ -74,6 +74,8 @@ Q: My cameras never respond.  Why?
 
 A: Is your Apple device connected to a VPN? If so disconnect, remember Homekit works with your local network. You can also try waiting a while, I have seen the API refuse all requests for short periods as well.
 
+Q: I just added a Nest device to my account, but it's not showing up in Home. Why?
 
+A: You need to visit the "ONE IMPORTANT DIFFERENCE" URL again.  Here you will choose which Nest devices to authorize, you should see your new device here.  After you finish the process and get a new refresh token restart Homebridge, your device shoulld now be visible.
 
 
