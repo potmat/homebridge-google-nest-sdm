@@ -46,7 +46,13 @@ export class Camera extends Device {
         ];
     }
 
-    async getEventImage(eventId: string): Promise<void> {
+    async getEventImage(eventId: string, date: Date): Promise<void> {
+
+        if (Date.now() - date.getTime() > 30 * 1000) {
+            this.log.debug('Camera event image is too old, ignoring.', this.getDisplayName());
+            return;
+        }
+
         try {
             const generateResponse = await this.executeCommand<Commands.CameraEventImage_GenerateImage, Responses.GenerateImage>(Commands.Constants.CameraEventImage_GenerateImage, {
                 eventId: eventId
@@ -86,13 +92,13 @@ export class Camera extends Device {
         _.forEach(event.resourceUpdate.events, (value, key) => {
             switch (key) {
                 case Events.Constants.CameraMotion:
-                    this.getEventImage((value as Events.CameraMotion).eventId);
+                    this.getEventImage((value as Events.CameraMotion).eventId, new Date(event.timestamp));
                     break;
                 case Events.Constants.CameraPerson:
-                    this.getEventImage((value as Events.CameraPerson).eventId);
+                    this.getEventImage((value as Events.CameraPerson).eventId, new Date(event.timestamp));
                     break;
                 case Events.Constants.CameraSound:
-                    this.getEventImage((value as Events.CameraSound).eventId);
+                    this.getEventImage((value as Events.CameraSound).eventId, new Date(event.timestamp));
                     break;
             }
         });

@@ -17,7 +17,7 @@ export class Doorbell extends Camera {
             switch (key) {
                 case Events.Constants.DoorbellChime:
                     const eventValue = value as Events.DoorbellChime;
-                    this.getEventImage(eventValue.eventId)
+                    this.getEventImage(eventValue.eventId, new Date(event.timestamp))
                         .then(() => {
                             if (this.onRing) this.onRing();
                         });

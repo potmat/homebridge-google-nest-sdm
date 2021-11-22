@@ -50,8 +50,8 @@ export abstract class Device {
     async getTrait<T>(name: string): Promise<T | null> {
         const howLongAgo: number = Date.now() - this.lastRefresh;
         //Events will update traits as necessary
-        //no need to refresh more than once per minute
-        if (howLongAgo > 60000) {
+        //no need to refresh more than once per day
+        if (howLongAgo > 1000 * 60 * 60 * 24) {
             await this.refresh();
             this.log.debug(`Last refresh for ${this.getDisplayName()} was ${howLongAgo/1000}s, refreshing.`)
         }

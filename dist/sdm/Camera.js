@@ -64,7 +64,11 @@ class Camera extends Device_1.Device {
             [1600, 1200, 30]
         ];
     }
-    async getEventImage(eventId) {
+    async getEventImage(eventId, date) {
+        if (Date.now() - date.getTime() > 30 * 1000) {
+            this.log.debug('Camera event image is too old, ignoring.', this.getDisplayName());
+            return;
+        }
         try {
             const generateResponse = await this.executeCommand(Commands.Constants.CameraEventImage_GenerateImage, {
                 eventId: eventId
@@ -100,13 +104,13 @@ class Camera extends Device_1.Device {
         lodash_1.default.forEach(event.resourceUpdate.events, (value, key) => {
             switch (key) {
                 case Events.Constants.CameraMotion:
-                    this.getEventImage(value.eventId);
+                    this.getEventImage(value.eventId, new Date(event.timestamp));
                     break;
                 case Events.Constants.CameraPerson:
-                    this.getEventImage(value.eventId);
+                    this.getEventImage(value.eventId, new Date(event.timestamp));
                     break;
                 case Events.Constants.CameraSound:
-                    this.getEventImage(value.eventId);
+                    this.getEventImage(value.eventId, new Date(event.timestamp));
                     break;
             }
         });
