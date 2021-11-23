@@ -1,6 +1,6 @@
 {
   "name": "homebridge-google-nest-sdm",
-  "version": "1.0.11",
+  "version": "1.0.12",
   "description": "A homebridge plugin that uses the Google Smart Device Management API.",
   "main": "dist/index.js",
   "scripts": {

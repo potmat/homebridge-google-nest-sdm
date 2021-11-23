@@ -68,9 +68,22 @@ export class ThermostatAccessory extends Accessory<Thermostat> {
         this.service.updateCharacteristic(this.platform.Characteristic.CurrentTemperature, temperature);
     }
 
+    private convertTemperatureDisplayUnits(unit: Traits.TemperatureScale | undefined): Nullable<CharacteristicValue> {
+        switch (unit) {
+            case TemperatureScale.CELSIUS:
+                return this.platform.Characteristic.TemperatureDisplayUnits.CELSIUS;
+            case TemperatureScale.FAHRENHEIT:
+                return this.platform.Characteristic.TemperatureDisplayUnits.FAHRENHEIT;
+            default:
+                return null;
+        }
+    }
+
     handleTemperatureScaleUpdate(unit: Traits.TemperatureScale) {
         this.log.debug('Update TemperatureUnits:' + unit);
-        this.service.updateCharacteristic(this.platform.Characteristic.TemperatureDisplayUnits, unit);
+        let converted = this.convertTemperatureDisplayUnits(unit);
+        if (converted)
+            this.service.updateCharacteristic(this.platform.Characteristic.TemperatureDisplayUnits, converted);
     }
 
     handleTargetTemperatureUpdate(temperature: number) {
@@ -85,12 +98,16 @@ export class ThermostatAccessory extends Accessory<Thermostat> {
 
     handleCurrentHeatingCoolingStateUpdate(status: Traits.HvacStatusType) {
         this.log.debug('Update CurrentHeatingCoolingState:' + status);
-        this.service.updateCharacteristic(this.platform.Characteristic.CurrentHeatingCoolingState, this.convertHvacStatusType(status)!);
+        let converted = this.convertHvacStatusType(status);
+        if (converted)
+            this.service.updateCharacteristic(this.platform.Characteristic.CurrentHeatingCoolingState, converted);
     }
 
     handleTargetHeatingCoolingStateUpdate(status: Traits.ThermostatModeType) {
         this.log.debug('Update TargetHeatingCoolingState:' + status);
-        this.service.updateCharacteristic(this.platform.Characteristic.CurrentHeatingCoolingState, this.convertThermostatModeType(status)!);
+        let converted = this.convertThermostatModeType(status);
+        if (converted)
+            this.service.updateCharacteristic(this.platform.Characteristic.CurrentHeatingCoolingState, converted);
     }
 
     /**
@@ -201,14 +218,6 @@ export class ThermostatAccessory extends Accessory<Thermostat> {
      */
     async handleTemperatureDisplayUnitsGet(): Promise<Nullable<CharacteristicValue>> {
         this.log.debug('Triggered GET TemperatureDisplayUnits');
-
-        switch (await this.device.getTemperatureUnits()) {
-            case Traits.TemperatureScale.CELSIUS:
-                return this.platform.Characteristic.TemperatureDisplayUnits.CELSIUS;
-            case TemperatureScale.FAHRENHEIT:
-                return this.platform.Characteristic.TemperatureDisplayUnits.FAHRENHEIT;
-            default:
-                return null;
-        }
+        return this.convertTemperatureDisplayUnits(await this.device.getTemperatureUnits());
     }
 }
