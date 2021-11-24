@@ -7,7 +7,7 @@ A Homebridge plugin for Google Nest devices that uses the [Google Smart Device M
 
 Requires that ffmpeg be installed and available on the PATH on the system you're running Homebridge on.  If you are using the Homebridge Raspberry-Pi image it's already there, otherwise go [here](https://www.ffmpeg.org/download.html).
 
-*Currently does not support the new battery powered cameras/doorbells.  The SDM API does support these devices, but I don't have one, so I have no way to test it. If anyone has one of the new battery cameras they're willing to loan me it should not be that hard to add. If I get some donations I'll purchase one:*
+*Currently does not support the new battery powered cameras/doorbells.  The SDM API does support these devices, but I don't have one, so I have no way to test it. If anyone has one of the new battery cameras they're willing to loan me it should not be that hard to add. If I get some donations I'll purchase one.*
 
 **Please read the [FAQ](https://github.com/potmat/homebridge-google-nest-sdm#faq) before creating an issue.**
 
