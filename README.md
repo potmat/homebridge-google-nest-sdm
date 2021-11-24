@@ -65,6 +65,10 @@ Q: My cameras never respond.  Why?
 
 A: Do you see something like `[homebridge-google-nest-sdm] Failed to start stream: spawn ffmpeg ENOENT` in your logs?  If so, either ffmpeg is not installed or not available on the system PATH. Is your Apple device connected to a VPN? If so disconnect, remember Homekit works with your local network. You can also try waiting a while, I have seen the API refuse all requests for short periods as well.
 
+Q: My camera shows up as ```<null> Camera``` or ``` Camera``` without the room name or anything.  Why?
+
+A: This is actually a glitch on the Google side, see [this comment](https://github.com/potmat/homebridge-google-nest-sdm/issues/6#issuecomment-978088908).
+
 Q: I'm having problems getting through the getting started guide and getting the config values. Can you help?
 
 A: Probably not.  Having a day job and family I don't have much time to help with this.  The Nest plugin for Home Assistant uses much the same process (don't forget the "ONE IMPORTANT DIFFERENCE" section above).  It has an [illustrated guide](https://www.home-assistant.io/integrations/nest/) that you may find helpful. You can also try reaching out to others on [Discord](https://discord.gg/kqNCe2D) or [Reddit](https://www.reddit.com/r/homebridge/), some people there may be able to help.
