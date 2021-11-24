@@ -53,33 +53,37 @@ I tried very hard to avoid having to transcode the video, which would allow the 
 
 # FAQ
 
-Q: I don't see camera snapshots in the Home app, just the Nest logo. Why?
+**Q**: I don't see camera snapshots in the Home app, just the Nest logo. Why?
 
-A: The SDM API does not have any method for getting a camera snapshot on demand, only when an event occurs. The Nest logo is used as a placeholder.  If an event occurred in the last few seconds you will likely see an image.
+**A**: The SDM API does not have any method for getting a camera snapshot on demand, only when an event occurs. The Nest logo is used as a placeholder.  If an event occurred in the last few seconds you will likely see an image.
 
-Q: Sometimes my cameras don't respond. Why?
+**Q**: Sometimes my cameras don't respond. Why?
 
-A: Much like the behaviour some of us have experienced in the Nest app, sometimes the API errors out for unknown reasons.  See also this [issue](https://github.com/potmat/homebridge-google-nest-sdm/issues/4).  I am doing my best to find out why the API fails so often.
+**A**: Much like the behaviour some of us have experienced in the Nest app, sometimes the API errors out for unknown reasons.  See also this [issue](https://github.com/potmat/homebridge-google-nest-sdm/issues/4).  I am doing my best to find out why the API fails so often.
 
-Q: My cameras never respond.  Why?
+**Q**: My cameras never respond.  Why?
 
-A: Do you see something like `[homebridge-google-nest-sdm] Failed to start stream: spawn ffmpeg ENOENT` in your logs?  If so, either ffmpeg is not installed or not available on the system PATH. Is your Apple device connected to a VPN? If so disconnect, remember Homekit works with your local network. You can also try waiting a while, I have seen the API refuse all requests for short periods as well.
+**A**: Remember, the newer battery Nest cameras are not supported at this time, they will not respond.  
 
-Q: My camera shows up as ```<null> Camera``` or ``` Camera``` without the room name or anything.  Why?
+Do you see something like `[homebridge-google-nest-sdm] Failed to start stream: spawn ffmpeg ENOENT` in your logs?  If so, either ffmpeg is not installed or not available on the system PATH. 
 
-A: This is actually a glitch on the Google side, see [this comment](https://github.com/potmat/homebridge-google-nest-sdm/issues/6#issuecomment-978088908).
+Is your Apple device connected to a VPN? If so, disconnect, remember Homekit works with your local network. You can also try waiting a while, I have seen the API refuse all requests for short periods as well.
 
-Q: I'm having problems getting through the getting started guide and getting the config values. Can you help?
+**Q**: My camera shows up as ```<null> Camera``` or ``` Camera``` without the room name or anything.  Why?
 
-A: Probably not.  Having a day job and family I don't have much time to help with this.  The Nest plugin for Home Assistant uses much the same process (don't forget the "ONE IMPORTANT DIFFERENCE" section above).  It has an [illustrated guide](https://www.home-assistant.io/integrations/nest/) that you may find helpful. You can also try reaching out to others on [Discord](https://discord.gg/kqNCe2D) or [Reddit](https://www.reddit.com/r/homebridge/), some people there may be able to help.
+**A**: This is actually a glitch on the Google side, see [this comment](https://github.com/potmat/homebridge-google-nest-sdm/issues/6#issuecomment-978088908).
 
-Q: Do I really have to pay $5 to use the API?
+**Q**: I'm having problems getting through the getting started guide and getting the config values. Can you help?
 
-A: Yup.
+**A**: Probably not.  Having a day job and family I don't have much time to help with this.  The Nest plugin for Home Assistant uses much the same process (don't forget the "ONE IMPORTANT DIFFERENCE" section above).  It has an [illustrated guide](https://www.home-assistant.io/integrations/nest/) that you may find helpful. You can also try reaching out to others on [Discord](https://discord.gg/kqNCe2D) or [Reddit](https://www.reddit.com/r/homebridge/), some people there may be able to help.
 
-Q: Isn't there already a Nest plugin for Homebridge that does more stuff than this?
+**Q**: Do I really have to pay $5 to use the API?
 
-A: Yup.
+**A**: Yup.
+
+**Q**: Isn't there already a Nest plugin for Homebridge that does more stuff than this?
+
+**A**: Yup.
 
 Q: So why this plugin?  
 
