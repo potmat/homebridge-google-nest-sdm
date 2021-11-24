@@ -115,7 +115,8 @@ export class ThermostatAccessory extends Accessory<Thermostat> {
      */
     async handleCurrentHeatingCoolingStateGet(): Promise<Nullable<CharacteristicValue>> {
         this.log.debug('Triggered GET CurrentHeatingCoolingState');
-        return this.convertHvacStatusType(await this.device.getHvac());
+        let hvac = await this.device.getHvac();
+        return this.convertHvacStatusType(hvac?.status);
     }
 
     private convertHvacStatusType(mode: Traits.HvacStatusType | undefined): Nullable<CharacteristicValue> {
@@ -136,7 +137,8 @@ export class ThermostatAccessory extends Accessory<Thermostat> {
      */
     async handleTargetHeatingCoolingStateGet(): Promise<Nullable<CharacteristicValue>> {
         this.log.debug('Triggered GET TargetHeatingCoolingState');
-        return this.convertThermostatModeType(await this.device.getMode());
+        let mode = await this.device.getMode();
+        return this.convertThermostatModeType(mode?.mode);
     }
 
     private convertThermostatModeType(mode: Traits.ThermostatModeType | undefined): Nullable<CharacteristicValue> {

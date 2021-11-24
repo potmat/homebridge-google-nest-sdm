@@ -23,9 +23,8 @@ export class Thermostat extends Device {
             switch (key) {
                 case Traits.Constants.ThermostatTemperatureSetpoint:
                     if (this.onTargetTemperatureChanged) {
-                        const traitValue = value as Traits.ThermostatTemperatureSetpoint;
-                        const target = traitValue.heatCelsius ? <number>traitValue.heatCelsius : <number>traitValue.coolCelsius;
-                        this.onTargetTemperatureChanged(target);
+                        // @ts-ignore
+                        this.getTargetTemperature().then(targetTemperature => this.onTargetTemperatureChanged(targetTemperature));
                     }
                     break;
                 case Traits.Constants.ThermostatHvac:
@@ -62,20 +61,16 @@ export class Thermostat extends Device {
         })
     }
 
-    async getEco(): Promise<Traits.EcoModeType | undefined> {
-        const trait =  await this.getTrait<Traits.ThermostatEco>(Traits.Constants.ThermostatEco);
-        return trait?.mode;
+    async getEco(): Promise<Traits.ThermostatEco | null> {
+        return await this.getTrait<Traits.ThermostatEco>(Traits.Constants.ThermostatEco);
     }
 
-    async getMode(): Promise<Traits.ThermostatModeType | undefined> {
-        const trait =  await this.getTrait<Traits.ThermostatMode>(Traits.Constants.ThermostatMode);
-        return trait?.mode;
+    async getMode(): Promise<Traits.ThermostatMode | null> {
+        return await this.getTrait<Traits.ThermostatMode>(Traits.Constants.ThermostatMode);
     }
 
-    async getHvac(): Promise<Traits.HvacStatusType | undefined> {
-        const trait =  await this.getTrait<Traits.ThermostatHvac>(Traits.Constants.ThermostatHvac);
-        return trait?.status;
-    }
+    async getHvac(): Promise<Traits.ThermostatHvac | null> {
+        return await this.getTrait<Traits.ThermostatHvac>(Traits.Constants.ThermostatHvac);}
 
     async getTemperature(): Promise<number | undefined> {
         const trait =  await this.getTrait<Traits.Temperature>(Traits.Constants.Temperature);
@@ -86,34 +81,37 @@ export class Thermostat extends Device {
 
         const eco = await this.getEco();
 
-        if (eco !== Traits.EcoModeType.OFF)
-            return Promise.resolve(undefined);
+        if (eco?.mode !== Traits.EcoModeType.OFF) {
+            //Homebridge always requires a set temperature, even if the thermostat is off
+            return eco?.heatCelsius;
+        }
 
         const trait =  await this.getTrait<Traits.ThermostatTemperatureSetpoint>(Traits.Constants.ThermostatTemperatureSetpoint);
         const mode = await this.getMode();
 
-        switch (mode) {
+        switch (mode?.mode) {
             case Traits.ThermostatModeType.OFF:
-                return Promise.resolve(undefined);
+                //Homebridge always requires a set temperature, even if the thermostat is off
+                return await this.getTemperature();
             case Traits.ThermostatModeType.HEAT:
                 return trait?.heatCelsius;
             case Traits.ThermostatModeType.COOL:
                 return trait?.coolCelsius;
             case Traits.ThermostatModeType.HEATCOOL:
-                //todo: what to return here?
-                return undefined;
+                //todo: not sure what to return here
+                return trait?.heatCelsius;
         }
     }
 
     async setTemperature(temperature:number): Promise<void> {
         const eco = await this.getEco();
 
-        if (eco !== Traits.EcoModeType.OFF)
+        if (eco?.mode !== Traits.EcoModeType.OFF)
             return undefined;
 
         const mode = await this.getMode();
 
-        switch (mode) {
+        switch (mode?.mode) {
             case Traits.ThermostatModeType.HEAT:
                 await this.executeCommand<Commands.ThermostatTemperatureSetpoint_SetHeat, void>(Commands.Constants.ThermostatTemperatureSetpoint_SetHeat, {
                     heatCelsius: temperature
@@ -124,8 +122,13 @@ export class Thermostat extends Device {
                     coolCelsius: temperature
                 });
                 break;
-            //todo: what to do here?
-            // case Traits.ThermostatModeType.HEATCOOL:
+            case Traits.ThermostatModeType.HEATCOOL:
+                this.log.error('Setting a target temperature when the thermostat is in auto mode is not supported at this time.  The plugin author is looking into it.');
+                // await this.executeCommand<Commands.ThermostatTemperatureSetpoint_SetRange, void>(Commands.Constants.ThermostatTemperatureSetpoint_SetRange, {
+                //     heatCelsius: temperature,
+                //     coolCelsius: temperature
+                // });
+                break;
         }
     }
 

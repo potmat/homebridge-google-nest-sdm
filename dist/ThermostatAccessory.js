@@ -104,7 +104,8 @@ class ThermostatAccessory extends Accessory_1.Accessory {
      */
     async handleCurrentHeatingCoolingStateGet() {
         this.log.debug('Triggered GET CurrentHeatingCoolingState');
-        return this.convertHvacStatusType(await this.device.getHvac());
+        let hvac = await this.device.getHvac();
+        return this.convertHvacStatusType(hvac === null || hvac === void 0 ? void 0 : hvac.status);
     }
     convertHvacStatusType(mode) {
         switch (mode) {
@@ -123,7 +124,8 @@ class ThermostatAccessory extends Accessory_1.Accessory {
      */
     async handleTargetHeatingCoolingStateGet() {
         this.log.debug('Triggered GET TargetHeatingCoolingState');
-        return this.convertThermostatModeType(await this.device.getMode());
+        let mode = await this.device.getMode();
+        return this.convertThermostatModeType(mode === null || mode === void 0 ? void 0 : mode.mode);
     }
     convertThermostatModeType(mode) {
         switch (mode) {

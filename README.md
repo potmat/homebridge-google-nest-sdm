@@ -1,12 +1,15 @@
 [![verified-by-homebridge](https://badgen.net/badge/homebridge/verified/purple)](https://github.com/homebridge/homebridge/wiki/Verified-Plugins)
+[![Donate](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://www.paypal.com/donate/?business=EVN8JACZRMPTJ&no_recurring=1&currency_code=CAD)
 
 # homebridge-google-nest-sdm
 
 A Homebridge plugin for Google Nest devices that uses the [Google Smart Device Management API](https://developers.google.com/nest/device-access). Supports Cameras, Doorbells, Displays, and Thermostats.
 
+Requires that ffmpeg be installed and available on the PATH on system you're running Homebridge on.  If you are using the Homebridge Raspberry-Pi image it's already there, otherwise go [here](https://www.ffmpeg.org/download.html).
+
 *Currently does not support the new battery powered cameras/doorbells.  The SDM API does support these devices, but I don't have one, so I have no way to test it. If anyone has one of the new battery cameras they're willing to loan me it should not be that hard to add. If I get some donations I'll purchase one:*
 
-[![Donate](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://www.paypal.com/donate/?business=EVN8JACZRMPTJ&no_recurring=1&currency_code=CAD)
+**Please read the [FAQ](https://github.com/potmat/homebridge-google-nest-sdm#faq) before creating an issue.**
 
 # Example Homebridge config:
 
@@ -22,7 +25,7 @@ A Homebridge plugin for Google Nest devices that uses the [Google Smart Device M
 
 You can also use the plugin config UI to enter these values.
 
-vEncoder is the encoder the plugin will use for camera streams. If vEncoder is not specified it will default to "libx264 -preset ultrafast -tune zerolatency". On a Raspberry Pi 4 you can try something like "h264_v4l2m2m". On other platforms you are free to the encoder of your choice.  If you don't know what this means you can probably ignore it.
+vEncoder is the encoder the plugin will use for camera streams. If vEncoder is not specified it will default to "libx264 -preset ultrafast -tune zerolatency". On a Raspberry Pi 4 you can try something like "h264_v4l2m2m". On other platforms you are free to use the encoder of your choice.  If you don't know what this means you can probably ignore it.
 
 # Where do the config values come from?
 
@@ -50,9 +53,21 @@ I tried very hard to avoid having to transcode the video, which would allow the 
 
 # FAQ
 
+Q: I don't see camera snapshots in the Home app, just the Nest logo. Why?
+
+A: The SDM API does not have any method for getting a camera snapshot on demand, only when an event occurs. The Nest logo is used as a placeholder.  If an event occurred in the last few seconds you will likely see an image.
+
+Q: Sometimes my cameras don't respond. Why?
+
+A: Much like the behaviour some of us have experienced in the Nest app, sometimes the API errors out for unknown reasons.  See also this [issue](https://github.com/potmat/homebridge-google-nest-sdm/issues/4).  I am doing my best to find out why the API fails so often.
+
+Q: My cameras never respond.  Why?
+
+A: Do you see something like `[homebridge-google-nest-sdm] Failed to start stream: spawn ffmpeg ENOENT` in your logs?  If so, either ffmpeg is not installed or not available on the system PATH. Is your Apple device connected to a VPN? If so disconnect, remember Homekit works with your local network. You can also try waiting a while, I have seen the API refuse all requests for short periods as well.
+
 Q: I'm having problems getting through the getting started guide and getting the config values. Can you help?
 
-A: Maybe, but probably not.  Having a day job and family I don't have much time to help with this.  The Nest plugin for Home Assistant uses much the same process (don't forget the "ONE IMPORTANT DIFFERENCE" section above).  It has an [illustrated guide](https://www.home-assistant.io/integrations/nest/) that you may find helpful. You can also try reaching out to others on [Discord](https://discord.gg/kqNCe2D) or [Reddit](https://www.reddit.com/r/homebridge/), some people there may be able to help.
+A: Probably not.  Having a day job and family I don't have much time to help with this.  The Nest plugin for Home Assistant uses much the same process (don't forget the "ONE IMPORTANT DIFFERENCE" section above).  It has an [illustrated guide](https://www.home-assistant.io/integrations/nest/) that you may find helpful. You can also try reaching out to others on [Discord](https://discord.gg/kqNCe2D) or [Reddit](https://www.reddit.com/r/homebridge/), some people there may be able to help.
 
 Q: Do I really have to pay $5 to use the API?
 
@@ -65,14 +80,6 @@ A: Yup.
 Q: So why this plugin?  
 
 A: Well, the "official" Homebridge Nest plugin(s) use undocumented APIs.  That is, the authors reverse engineered the APIs the Nest app itself uses.  Don't get me wrong, I have no problem with that. But the SDM API is a documented API for precisely this use case.  The more important reason for making this plugin is the same as the reason for climbing a mountain, because you can.
-
-Q: Sometimes my cameras don't respond. Why?
-
-A: Much like the behaviour some of us have experienced in the Nest app, sometimes the API errors out for unknown reasons.  If it's a battery camera, see above.
-
-Q: My cameras never respond.  Why?
-
-A: Is your Apple device connected to a VPN? If so disconnect, remember Homekit works with your local network. You can also try waiting a while, I have seen the API refuse all requests for short periods as well.
 
 Q: I just added a Nest device to my account, but it's not showing up in Home. Why?
 
