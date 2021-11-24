@@ -63,10 +63,7 @@ I tried very hard to avoid having to transcode the video, which would allow the 
 
 **Q**: My cameras never respond.  Why?
 
-**A**: Remember, the newer battery Nest cameras are not supported at this time, they will not respond.  
-
-Do you see something like `[homebridge-google-nest-sdm] Failed to start stream: spawn ffmpeg ENOENT` in your logs?  If so, either ffmpeg is not installed or not available on the system PATH. 
-
+**A**: Remember, the newer battery Nest cameras are not supported at this time, they will not respond. If you see something like `[homebridge-google-nest-sdm] Failed to start stream: spawn ffmpeg ENOENT` in your logs?  If so, either ffmpeg is not installed or not available on the system PATH. 
 Is your Apple device connected to a VPN? If so, disconnect, remember Homekit works with your local network. You can also try waiting a while, I have seen the API refuse all requests for short periods as well.
 
 **Q**: My camera shows up as ```<null> Camera``` or ``` Camera``` without the room name or anything.  Why?
