@@ -97,7 +97,7 @@ class ThermostatAccessory extends Accessory_1.Accessory {
         this.log.debug('Update TargetHeatingCoolingState:' + status);
         let converted = this.convertThermostatModeType(status);
         if (converted)
-            this.service.updateCharacteristic(this.platform.Characteristic.CurrentHeatingCoolingState, converted);
+            this.service.updateCharacteristic(this.platform.Characteristic.TargetHeatingCoolingState, converted);
     }
     /**
      * Handle requests to get the current value of the "Current Heating Cooling State" characteristic

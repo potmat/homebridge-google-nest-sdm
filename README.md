@@ -1,4 +1,4 @@
-[![verified-by-homebridge](https://badgen.net/badge/homebridge/verified/purple)](https://github.com/homebridge/homebridge/wiki/Verified-Plugins)
+w[![verified-by-homebridge](https://badgen.net/badge/homebridge/verified/purple)](https://github.com/homebridge/homebridge/wiki/Verified-Plugins)
 [![Donate](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://www.paypal.com/donate/?business=EVN8JACZRMPTJ&no_recurring=1&currency_code=CAD)
 
 # homebridge-google-nest-sdm
@@ -66,13 +66,17 @@ I tried very hard to avoid having to transcode the video, which would allow the 
 **A**: Remember, the newer battery Nest cameras are not supported at this time, they will not respond. If you see something like `[homebridge-google-nest-sdm] Failed to start stream: spawn ffmpeg ENOENT` in your logs?  If so, either ffmpeg is not installed or not available on the system PATH. 
 Is your Apple device connected to a VPN? If so, disconnect, remember Homekit works with your local network. You can also try waiting a while, I have seen the API refuse all requests for short periods as well.
 
+**Q**: When the plugin starts I get some message about ```Plugin initialization failed, there was a failure with event subscription```.  Why?
+
+**A**: As the error message tells you, make sure you mind the ["ONE IMPORTANT DIFFERENCE"](https://github.com/potmat/homebridge-google-nest-sdm#where-do-the-config-values-come-from) when setting up your config values.
+
 **Q**: My camera shows up as ```<null> Camera``` or ``` Camera``` without the room name or anything.  Why?
 
 **A**: This is actually a glitch on the Google side, see [this comment](https://github.com/potmat/homebridge-google-nest-sdm/issues/6#issuecomment-978088908).
 
 **Q**: I'm having problems getting through the getting started guide and getting the config values. Can you help?
 
-**A**: Probably not.  Having a day job and family I don't have much time to help with this.  The Nest plugin for Home Assistant uses much the same process (don't forget the "ONE IMPORTANT DIFFERENCE" section above).  It has an [illustrated guide](https://www.home-assistant.io/integrations/nest/) that you may find helpful. You can also try reaching out to others on [Discord](https://discord.gg/kqNCe2D) or [Reddit](https://www.reddit.com/r/homebridge/), some people there may be able to help.
+**A**: Probably not.  Having a day job and family I don't have much time to help with this.  The Nest plugin for Home Assistant uses much the same process (don't forget the ["ONE IMPORTANT DIFFERENCE"](https://github.com/potmat/homebridge-google-nest-sdm#where-do-the-config-values-come-from) section above).  It has an [illustrated guide](https://www.home-assistant.io/integrations/nest/) that you may find helpful. You can also try reaching out to others on [Discord](https://discord.gg/kqNCe2D) or [Reddit](https://www.reddit.com/r/homebridge/), some people there may be able to help.
 
 **Q**: Do I really have to pay $5 to use the API?
 
@@ -88,6 +92,6 @@ A: Well, the "official" Homebridge Nest plugin(s) use undocumented APIs.  That i
 
 Q: I just added a Nest device to my account, but it's not showing up in Home. Why?
 
-A: You need to visit the "ONE IMPORTANT DIFFERENCE" URL again.  Here you will choose which Nest devices to authorize, you should see your new device here.  After you finish the process and get a new refresh token restart Homebridge, your device shoulld now be visible.
+A: You need to visit the ["ONE IMPORTANT DIFFERENCE"](https://github.com/potmat/homebridge-google-nest-sdm#where-do-the-config-values-come-from) URL again.  Here you will choose which Nest devices to authorize, you should see your new device here.  After you finish the process and get a new refresh token restart Homebridge, your device should now be visible.
 
 

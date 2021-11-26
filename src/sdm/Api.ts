@@ -19,6 +19,7 @@ export class SmartDeviceManagement {
     private projectId: string;
     private log: Logger;
     private devices: Device[] | undefined;
+    private subscribed = true;
 
     constructor(config: Config, log: Logger) {
         this.log = log;
@@ -76,14 +77,20 @@ export class SmartDeviceManagement {
                 }
             });
             this.subscription.on('error', error => {
-                this.log.error("There was a failure with event subscription. Did you read the readme: https://github.com/potmat/homebridge-google-nest-sdm/blob/master/README.md", error)
+                this.log.error("Plugin initialization failed, there was a failure with event subscription. Did you read the readme: https://github.com/potmat/homebridge-google-nest-sdm#where-do-the-config-values-come-from", error);
+                this.subscribed = false;
             });
         } catch (error: any) {
-            this.log.error("Could not subscribe to events. Did you read the readme: https://github.com/potmat/homebridge-google-nest-sdm/blob/master/README.md", error)
+            this.log.error("Plugin initialization failed, there was a failure with event subscription. Did you read the readme: https://github.com/potmat/homebridge-google-nest-sdm#where-do-the-config-values-come-from", error);
+            this.subscribed = false;
         }
     }
 
     async list_devices(): Promise<Device[] | undefined> {
+
+        if (!this.subscribed)
+            return this.devices;
+
         try {
             const response = await this.smartdevicemanagement.enterprises.devices.list({parent: `enterprises/${this.projectId}`})
             this.devices = _(response.data.devices)
