@@ -14,7 +14,7 @@ class DoorbellAccessory extends Accessory_1.Accessory {
         this.device.onRing = this.handleRing.bind(this);
     }
     handleRing() {
-        this.log.debug('Doorbell ring!');
+        this.log.debug('Doorbell ring!', this.accessory.displayName);
         this.streamingDelegate.getController().ringDoorbell();
     }
 }

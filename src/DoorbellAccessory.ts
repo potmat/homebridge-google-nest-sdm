@@ -31,7 +31,7 @@ export class DoorbellAccessory extends Accessory<Doorbell> {
     }
 
     handleRing(): void {
-        this.log.debug('Doorbell ring!');
+        this.log.debug('Doorbell ring!', this.accessory.displayName);
         this.streamingDelegate.getController().ringDoorbell();
     }
 }

@@ -45,22 +45,56 @@ class ThermostatAccessory extends Accessory_1.Accessory {
             .onSet(this.handleTargetHeatingCoolingStateSet.bind(this));
         this.service.getCharacteristic(this.platform.Characteristic.CurrentTemperature)
             .onGet(this.handleCurrentTemperatureGet.bind(this));
-        this.service.getCharacteristic(this.platform.Characteristic.TargetTemperature)
-            .onGet(this.handleTargetTemperatureGet.bind(this))
-            .onSet(this.handleTargetTemperatureSet.bind(this));
         this.service.getCharacteristic(this.platform.Characteristic.TemperatureDisplayUnits)
             .onGet(this.handleTemperatureDisplayUnitsGet.bind(this));
         this.service.getCharacteristic(this.platform.Characteristic.CurrentRelativeHumidity)
             .onGet(this.handleCurrentRelativeHumidityGet.bind(this));
+        this.setupEvents();
         this.device.onTemperatureChanged = this.handleCurrentTemperatureUpdate.bind(this);
         this.device.onTemperatureUnitsChanged = this.handleTemperatureScaleUpdate.bind(this);
         this.device.onTargetTemperatureChanged = this.handleTargetTemperatureUpdate.bind(this);
+        this.device.onTargetTemperatureRangeChanged = this.handleTargetTemperatureRangeUpdate.bind(this);
         this.device.onHumidityChanged = this.handleCurrentRelativeHumidityUpdate.bind(this);
         this.device.onHvacChanged = this.handleCurrentHeatingCoolingStateUpdate.bind(this);
         this.device.onModeChanged = this.handleTargetHeatingCoolingStateUpdate.bind(this);
+        this.device.onEcoChanged = this.handleEcoUpdate.bind(this);
+    }
+    async setupEvents() {
+        var _a, _b;
+        this.service.getCharacteristic(this.platform.Characteristic.CoolingThresholdTemperature).removeOnGet();
+        this.service.getCharacteristic(this.platform.Characteristic.CoolingThresholdTemperature).removeOnSet();
+        this.service.getCharacteristic(this.platform.Characteristic.HeatingThresholdTemperature).removeOnGet();
+        this.service.getCharacteristic(this.platform.Characteristic.HeatingThresholdTemperature).removeOnSet();
+        this.service.getCharacteristic(this.platform.Characteristic.TargetTemperature).removeOnGet();
+        this.service.getCharacteristic(this.platform.Characteristic.TargetTemperature).removeOnSet();
+        if (((_a = (await this.device.getEco())) === null || _a === void 0 ? void 0 : _a.mode) !== Traits_1.EcoModeType.OFF) {
+            this.service.getCharacteristic(this.platform.Characteristic.CoolingThresholdTemperature)
+                .onGet(this.handleCoolingThresholdTemperatureGet.bind(this));
+            this.service.getCharacteristic(this.platform.Characteristic.HeatingThresholdTemperature)
+                .onGet(this.handleHeatingThresholdTemperatureGet.bind(this));
+            this.log.debug('Events reset.', this.accessory.displayName);
+            return;
+        }
+        switch ((_b = (await this.device.getMode())) === null || _b === void 0 ? void 0 : _b.mode) {
+            case Traits_1.ThermostatModeType.HEATCOOL:
+                this.service.getCharacteristic(this.platform.Characteristic.CoolingThresholdTemperature)
+                    .onGet(this.handleCoolingThresholdTemperatureGet.bind(this))
+                    .onSet(this.handleCoolingThresholdTemperatureSet.bind(this));
+                this.service.getCharacteristic(this.platform.Characteristic.HeatingThresholdTemperature)
+                    .onGet(this.handleHeatingThresholdTemperatureGet.bind(this))
+                    .onSet(this.handleHeatingThresholdTemperatureSet.bind(this));
+                break;
+            case Traits_1.ThermostatModeType.HEAT:
+            case Traits_1.ThermostatModeType.COOL:
+                this.service.getCharacteristic(this.platform.Characteristic.TargetTemperature)
+                    .onGet(this.handleTargetTemperatureGet.bind(this))
+                    .onSet(this.handleTargetTemperatureSet.bind(this));
+                break;
+        }
+        this.log.debug('Events reset.', this.accessory.displayName);
     }
     handleCurrentTemperatureUpdate(temperature) {
-        this.log.debug('Update CurrentTemperature:' + temperature);
+        this.log.debug('Update CurrentTemperature:' + temperature, this.accessory.displayName);
         this.service.updateCharacteristic(this.platform.Characteristic.CurrentTemperature, temperature);
     }
     convertTemperatureDisplayUnits(unit) {
@@ -74,36 +108,51 @@ class ThermostatAccessory extends Accessory_1.Accessory {
         }
     }
     handleTemperatureScaleUpdate(unit) {
-        this.log.debug('Update TemperatureUnits:' + unit);
+        this.log.debug('Update TemperatureUnits:' + unit, this.accessory.displayName);
         let converted = this.convertTemperatureDisplayUnits(unit);
         if (converted)
             this.service.updateCharacteristic(this.platform.Characteristic.TemperatureDisplayUnits, converted);
     }
     handleTargetTemperatureUpdate(temperature) {
-        this.log.debug('Update TargetTemperature:' + temperature);
+        this.log.debug('Update TargetTemperature:' + temperature, this.accessory.displayName);
         this.service.updateCharacteristic(this.platform.Characteristic.TargetTemperature, temperature);
     }
+    handleTargetTemperatureRangeUpdate(range) {
+        this.log.debug('Update TargetTemperatureRange:' + range, this.accessory.displayName);
+        this.service.updateCharacteristic(this.platform.Characteristic.HeatingThresholdTemperature, range.heat);
+        this.service.updateCharacteristic(this.platform.Characteristic.CoolingThresholdTemperature, range.cool);
+    }
     handleCurrentRelativeHumidityUpdate(humidity) {
-        this.log.debug('Update CurrentRelativeHumidity:' + humidity);
+        this.log.debug('Update CurrentRelativeHumidity:' + humidity, this.accessory.displayName);
         this.service.updateCharacteristic(this.platform.Characteristic.CurrentRelativeHumidity, humidity);
     }
     handleCurrentHeatingCoolingStateUpdate(status) {
-        this.log.debug('Update CurrentHeatingCoolingState:' + status);
+        this.log.debug('Update CurrentHeatingCoolingState:' + status, this.accessory.displayName);
         let converted = this.convertHvacStatusType(status);
         if (converted)
             this.service.updateCharacteristic(this.platform.Characteristic.CurrentHeatingCoolingState, converted);
     }
     handleTargetHeatingCoolingStateUpdate(status) {
-        this.log.debug('Update TargetHeatingCoolingState:' + status);
+        this.log.debug(`Update TargetHeatingCoolingState:${status}`, this.accessory.displayName);
+        this.setupEvents();
         let converted = this.convertThermostatModeType(status);
         if (converted)
             this.service.updateCharacteristic(this.platform.Characteristic.TargetHeatingCoolingState, converted);
+    }
+    handleEcoUpdate(mode) {
+        this.log.debug(`Update EcoMode: ${mode.mode}`, this.accessory.displayName);
+        this.setupEvents();
+        if (mode.mode === Traits.EcoModeType.MANUAL_ECO) {
+            this.service.updateCharacteristic(this.platform.Characteristic.HeatingThresholdTemperature, mode.heatCelsius);
+            this.service.updateCharacteristic(this.platform.Characteristic.CoolingThresholdTemperature, mode.coolCelsius);
+            this.service.updateCharacteristic(this.platform.Characteristic.TargetHeatingCoolingState, this.platform.Characteristic.TargetHeatingCoolingState.AUTO);
+        }
     }
     /**
      * Handle requests to get the current value of the "Current Heating Cooling State" characteristic
      */
     async handleCurrentHeatingCoolingStateGet() {
-        this.log.debug('Triggered GET CurrentHeatingCoolingState');
+        this.log.debug('Triggered GET CurrentHeatingCoolingState', this.accessory.displayName);
         let hvac = await this.device.getHvac();
         return this.convertHvacStatusType(hvac === null || hvac === void 0 ? void 0 : hvac.status);
     }
@@ -123,7 +172,10 @@ class ThermostatAccessory extends Accessory_1.Accessory {
      * Handle requests to get the current value of the "Target Heating Cooling State" characteristic
      */
     async handleTargetHeatingCoolingStateGet() {
-        this.log.debug('Triggered GET TargetHeatingCoolingState');
+        var _a;
+        this.log.debug('Triggered GET TargetHeatingCoolingState', this.accessory.displayName);
+        if (((_a = (await this.device.getEco())) === null || _a === void 0 ? void 0 : _a.mode) !== Traits_1.EcoModeType.OFF)
+            return this.platform.Characteristic.TargetHeatingCoolingState.AUTO;
         let mode = await this.device.getMode();
         return this.convertThermostatModeType(mode === null || mode === void 0 ? void 0 : mode.mode);
     }
@@ -145,7 +197,7 @@ class ThermostatAccessory extends Accessory_1.Accessory {
      * Handle requests to set the "Target Heating Cooling State" characteristic
      */
     async handleTargetHeatingCoolingStateSet(value) {
-        this.log.debug('Triggered SET TargetHeatingCoolingState:' + value);
+        this.log.debug('Triggered SET TargetHeatingCoolingState:' + value, this.accessory.displayName);
         let mode = Traits.ThermostatModeType.OFF;
         switch (value) {
             case this.platform.Characteristic.TargetHeatingCoolingState.HEAT:
@@ -158,43 +210,91 @@ class ThermostatAccessory extends Accessory_1.Accessory {
                 mode = Traits.ThermostatModeType.HEATCOOL;
                 break;
         }
-        await this.device.setMode(mode);
+        try {
+            await this.device.setMode(mode);
+        }
+        catch (e) {
+            this.log.warn(e, this.accessory.displayName);
+            setTimeout(async () => {
+                var _a, _b;
+                if (((_a = (await this.device.getEco())) === null || _a === void 0 ? void 0 : _a.mode) !== Traits_1.EcoModeType.OFF) {
+                    this.service.updateCharacteristic(this.platform.Characteristic.TargetHeatingCoolingState, this.platform.Characteristic.TargetHeatingCoolingState.AUTO);
+                }
+                else {
+                    let converted = this.convertThermostatModeType((_b = (await this.device.getMode())) === null || _b === void 0 ? void 0 : _b.mode);
+                    if (converted)
+                        this.service.updateCharacteristic(this.platform.Characteristic.TargetHeatingCoolingState, converted);
+                }
+            }, 1000);
+        }
     }
     /**
      * Handle requests to get the current value of the "Current Temperature" characteristic
      */
     async handleCurrentTemperatureGet() {
-        this.log.debug('Triggered GET CurrentTemperature');
+        this.log.debug('Triggered GET CurrentTemperature', this.accessory.displayName);
         return await this.convertToNullable(this.device.getTemperature());
     }
     /**
      * Handle requests to get the current value of the "Current Relative Humidity" characteristic
      */
     async handleCurrentRelativeHumidityGet() {
-        this.log.debug('Triggered GET CurrentTemperature');
+        this.log.debug('Triggered GET CurrentTemperature', this.accessory.displayName);
         return await this.convertToNullable(this.device.getRelativeHumitity());
     }
     /**
      * Handle requests to get the current value of the "Target Temperature" characteristic
      */
     async handleTargetTemperatureGet() {
-        this.log.debug('Triggered GET TargetTemperature');
+        this.log.debug('Triggered GET TargetTemperature', this.accessory.displayName);
         return await this.convertToNullable(this.device.getTargetTemperature());
     }
     /**
      * Handle requests to set the "Target Temperature" characteristic
      */
     async handleTargetTemperatureSet(value) {
-        this.log.debug('Triggered SET TargetTemperature:' + value);
+        this.log.debug('Triggered SET TargetTemperature:' + value, this.accessory.displayName);
         if (!lodash_1.default.isNumber(value))
             throw new Error(`Cannot set "${value}" as temperature.`);
-        await this.device.setTemperature(value);
+        await this.device.setTargetTemperature(value);
+    }
+    /**
+     * Handle requests to get the current value of the "Cooling Threshold Temperature" characteristic
+     */
+    async handleCoolingThresholdTemperatureGet() {
+        this.log.debug('Triggered GET CoolingThresholdTemperature', this.accessory.displayName);
+        return await this.convertToNullable(this.device.getTargetTemperatureRange().then(range => range === null || range === void 0 ? void 0 : range.cool));
+    }
+    /**
+     * Handle requests to set the "Cooling Threshold Temperature" characteristic
+     */
+    async handleCoolingThresholdTemperatureSet(value) {
+        this.log.debug('Triggered SET CoolingThresholdTemperature:' + value, this.accessory.displayName);
+        if (!lodash_1.default.isNumber(value))
+            throw new Error(`Cannot set "${value}" as cooling threshold temperature.`);
+        await this.device.setTargetTemperatureRange(value, undefined);
+    }
+    /**
+     * Handle requests to get the current value of the "Cooling Threshold Temperature" characteristic
+     */
+    async handleHeatingThresholdTemperatureGet() {
+        this.log.debug('Triggered GET HeatingThresholdTemperatureGet', this.accessory.displayName);
+        return await this.convertToNullable(this.device.getTargetTemperatureRange().then(range => range === null || range === void 0 ? void 0 : range.heat));
+    }
+    /**
+     * Handle requests to set the "Cooling Threshold Temperature" characteristic
+     */
+    async handleHeatingThresholdTemperatureSet(value) {
+        this.log.debug('Triggered SET HeatingThresholdTemperatureSet:' + value, this.accessory.displayName);
+        if (!lodash_1.default.isNumber(value))
+            throw new Error(`Cannot set "${value}" as heating threshold temperature.`);
+        await this.device.setTargetTemperatureRange(undefined, value);
     }
     /**
      * Handle requests to get the current value of the "Temperature Display Units" characteristic
      */
     async handleTemperatureDisplayUnitsGet() {
-        this.log.debug('Triggered GET TemperatureDisplayUnits');
+        this.log.debug('Triggered GET TemperatureDisplayUnits', this.accessory.displayName);
         return this.convertTemperatureDisplayUnits(await this.device.getTemperatureUnits());
     }
 }

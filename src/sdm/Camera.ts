@@ -18,6 +18,7 @@ export class Camera extends Device {
         return this.displayName ? this.displayName + ' Camera' : 'Unknown';
     }
 
+    onMotion: (() => void) | undefined;
     private imageQueue: ImageQueue = new ImageQueue(this.getDisplayName(), this.log);
 
     async getSnapshot(): Promise<Buffer | undefined> {
@@ -69,7 +70,7 @@ export class Camera extends Device {
             const buffer = Buffer.from(imageResponse.data, 'binary');
             this.imageQueue.put(buffer);
         } catch (error: any) {
-            this.log.error('Could not execute event image GET request: ', JSON.stringify(error));
+            this.log.error('Could not execute event image GET request: ', JSON.stringify(error), this.getDisplayName());
         }
     }
 
@@ -92,10 +93,18 @@ export class Camera extends Device {
         _.forEach(event.resourceUpdate.events, (value, key) => {
             switch (key) {
                 case Events.Constants.CameraMotion:
-                    this.getEventImage((value as Events.CameraMotion).eventId, new Date(event.timestamp));
+                    this.getEventImage((value as Events.CameraMotion).eventId, new Date(event.timestamp))
+                        .then(() => {
+                            if (this.onMotion)
+                                this.onMotion();
+                        });
                     break;
                 case Events.Constants.CameraPerson:
-                    this.getEventImage((value as Events.CameraPerson).eventId, new Date(event.timestamp));
+                    this.getEventImage((value as Events.CameraPerson).eventId, new Date(event.timestamp))
+                        .then(() => {
+                            if (this.onMotion)
+                                this.onMotion();
+                        });
                     break;
                 case Events.Constants.CameraSound:
                     this.getEventImage((value as Events.CameraSound).eventId, new Date(event.timestamp));

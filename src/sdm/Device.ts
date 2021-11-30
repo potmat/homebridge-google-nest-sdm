@@ -43,7 +43,7 @@ export abstract class Device {
             this.device = response.data;
             this.lastRefresh = Date.now();
         } catch (error: any) {
-            this.log.error('Could not execute device GET request: ', JSON.stringify(error));
+            this.log.error('Could not execute device GET request: ', JSON.stringify(error), this.getDisplayName());
         }
     }
 
@@ -57,12 +57,12 @@ export abstract class Device {
         }
 
         const value = this.device?.traits ? this.device?.traits[name] : null;
-        this.log.debug(`Request for trait ${name} had value ${JSON.stringify(value)}`);
+        this.log.debug(`Request for trait ${name} had value ${JSON.stringify(value)}`, this.getDisplayName());
         return value;
     }
 
     async executeCommand<T, U>(name: string, params?: T): Promise<U | undefined> {
-        this.log.debug(`Executing command ${name} with parameters ${JSON.stringify(params)}`);
+        this.log.debug(`Executing command ${name} with parameters ${JSON.stringify(params)}`, this.getDisplayName());
         try {
             const response = await this.smartdevicemanagement.enterprises.devices.executeCommand({
                 name: this.device?.name || undefined,
@@ -71,10 +71,10 @@ export abstract class Device {
                     params: params
                 }
             });
-            this.log.debug(`Execution of command ${name} returned ${JSON.stringify(response.data.results)}`);
+            this.log.debug(`Execution of command ${name} returned ${JSON.stringify(response.data.results)}`, this.getDisplayName());
             return <U>response.data.results;
         } catch (error: any) {
-            this.log.error('Could not execute device command: ', JSON.stringify(error));
+            this.log.error('Could not execute device command: ', JSON.stringify(error), this.getDisplayName());
         }
 
         return undefined;

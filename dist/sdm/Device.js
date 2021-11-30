@@ -35,7 +35,7 @@ class Device {
             this.lastRefresh = Date.now();
         }
         catch (error) {
-            this.log.error('Could not execute device GET request: ', JSON.stringify(error));
+            this.log.error('Could not execute device GET request: ', JSON.stringify(error), this.getDisplayName());
         }
     }
     async getTrait(name) {
@@ -48,12 +48,12 @@ class Device {
             this.log.debug(`Last refresh for ${this.getDisplayName()} was ${howLongAgo / 1000}s, refreshing.`);
         }
         const value = ((_a = this.device) === null || _a === void 0 ? void 0 : _a.traits) ? (_b = this.device) === null || _b === void 0 ? void 0 : _b.traits[name] : null;
-        this.log.debug(`Request for trait ${name} had value ${JSON.stringify(value)}`);
+        this.log.debug(`Request for trait ${name} had value ${JSON.stringify(value)}`, this.getDisplayName());
         return value;
     }
     async executeCommand(name, params) {
         var _a;
-        this.log.debug(`Executing command ${name} with parameters ${JSON.stringify(params)}`);
+        this.log.debug(`Executing command ${name} with parameters ${JSON.stringify(params)}`, this.getDisplayName());
         try {
             const response = await this.smartdevicemanagement.enterprises.devices.executeCommand({
                 name: ((_a = this.device) === null || _a === void 0 ? void 0 : _a.name) || undefined,
@@ -62,11 +62,11 @@ class Device {
                     params: params
                 }
             });
-            this.log.debug(`Execution of command ${name} returned ${JSON.stringify(response.data.results)}`);
+            this.log.debug(`Execution of command ${name} returned ${JSON.stringify(response.data.results)}`, this.getDisplayName());
             return response.data.results;
         }
         catch (error) {
-            this.log.error('Could not execute device command: ', JSON.stringify(error));
+            this.log.error('Could not execute device command: ', JSON.stringify(error), this.getDisplayName());
         }
         return undefined;
     }

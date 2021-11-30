@@ -85,7 +85,7 @@ class Camera extends Device_1.Device {
             this.imageQueue.put(buffer);
         }
         catch (error) {
-            this.log.error('Could not execute event image GET request: ', JSON.stringify(error));
+            this.log.error('Could not execute event image GET request: ', JSON.stringify(error), this.getDisplayName());
         }
     }
     async getCameraLiveStream() {
@@ -104,10 +104,18 @@ class Camera extends Device_1.Device {
         lodash_1.default.forEach(event.resourceUpdate.events, (value, key) => {
             switch (key) {
                 case Events.Constants.CameraMotion:
-                    this.getEventImage(value.eventId, new Date(event.timestamp));
+                    this.getEventImage(value.eventId, new Date(event.timestamp))
+                        .then(() => {
+                        if (this.onMotion)
+                            this.onMotion();
+                    });
                     break;
                 case Events.Constants.CameraPerson:
-                    this.getEventImage(value.eventId, new Date(event.timestamp));
+                    this.getEventImage(value.eventId, new Date(event.timestamp))
+                        .then(() => {
+                        if (this.onMotion)
+                            this.onMotion();
+                    });
                     break;
                 case Events.Constants.CameraSound:
                     this.getEventImage(value.eventId, new Date(event.timestamp));
