@@ -61,14 +61,19 @@ I tried very hard to avoid having to transcode the video, which would allow the 
 
 **A**: The SDM API does not have any method for getting a camera snapshot on demand, only when an event occurs. The Nest logo is used as a placeholder.  If an event occurred in the last few seconds you will likely see an image.
 
-**Q**: Sometimes my cameras don't respond. Why?
-
-**A**: Much like the behaviour some of us have experienced in the Nest app, sometimes the API errors out for unknown reasons.  See also this [issue](https://github.com/potmat/homebridge-google-nest-sdm/issues/4).  I am doing my best to find out why the API fails so often.
-
 **Q**: My cameras never respond.  Why?
 
-**A**: Remember, the newer battery Nest cameras are not supported at this time, they will not respond. If you see something like `[homebridge-google-nest-sdm] Failed to start stream: spawn ffmpeg ENOENT` in your logs?  The plugin requires ffmpeg and tries to auto-install it, but if it can't, you'll have to install it manually. Go [here](https://www.ffmpeg.org/download.html). 
-Is your Apple device connected to a VPN? If so, disconnect, remember Homekit works with your local network. You can also try waiting a while, I have seen the API refuse all requests for short periods as well.
+**A**: There are a couple possible reasons for this:
+
+1. Second generation Nest cameras are not yet supported.
+2. Is the microphone/audio disabled on your camera?  If so you will need to enable it.
+3. Do you see something like `[homebridge-google-nest-sdm] Failed to start stream: spawn ffmpeg ENOENT` in your logs? The plugin requires ffmpeg and tries to auto-install it, but if it can't, you'll have to install it manually. Go [here](https://www.ffmpeg.org/download.html). 
+4. Is your Apple device connected to a VPN? If so, disconnect.
+5. Wait a while, occasionally the API will refuse all requests for short periods.
+
+**Q**: My cameras only respond some of the time. Why?
+
+**A**: Much like the behaviour some of us have experienced in the Nest app, sometimes the API errors out for unknown reasons.  See also this [issue](https://github.com/potmat/homebridge-google-nest-sdm/issues/4).  I am doing my best to find out why the API fails so often.
 
 **Q**: When the plugin starts I get some message about ```Plugin initialization failed, there was a failure with event subscription```.  Why?
 
