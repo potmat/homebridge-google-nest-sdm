@@ -5,8 +5,6 @@
 
 A Homebridge plugin for Google Nest devices that uses the [Google Smart Device Management API](https://developers.google.com/nest/device-access). Supports Cameras, Doorbells, Displays, and Thermostats.
 
-Requires that ffmpeg be installed and available on the PATH on the system you're running Homebridge on.  If you are using the Homebridge Raspberry-Pi image it's already there, otherwise go [here](https://www.ffmpeg.org/download.html).
-
 *Currently does not support the new battery powered cameras/doorbells.  The SDM API does support these devices, but I don't have one, so I have no way to test it. If anyone has one of the new battery cameras they're willing to loan me it should not be that hard to add. If I get some donations I'll purchase one.*
 
 **Please read the [FAQ](https://github.com/potmat/homebridge-google-nest-sdm#faq) before creating an issue.**
@@ -63,7 +61,7 @@ I tried very hard to avoid having to transcode the video, which would allow the 
 
 **Q**: My cameras never respond.  Why?
 
-**A**: Remember, the newer battery Nest cameras are not supported at this time, they will not respond. If you see something like `[homebridge-google-nest-sdm] Failed to start stream: spawn ffmpeg ENOENT` in your logs?  If so, either ffmpeg is not installed or not available on the system PATH. 
+**A**: Remember, the newer battery Nest cameras are not supported at this time, they will not respond. If you see something like `[homebridge-google-nest-sdm] Failed to start stream: spawn ffmpeg ENOENT` in your logs?  The plugin requires ffmpeg and tries to auto-install it, but if it can't, you'll have to install it manually. Go [here](https://www.ffmpeg.org/download.html). 
 Is your Apple device connected to a VPN? If so, disconnect, remember Homekit works with your local network. You can also try waiting a while, I have seen the API refuse all requests for short periods as well.
 
 **Q**: When the plugin starts I get some message about ```Plugin initialization failed, there was a failure with event subscription```.  Why?

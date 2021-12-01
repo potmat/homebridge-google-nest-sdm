@@ -64,7 +64,6 @@ type ResolutionInfo = {
 export abstract class StreamingDelegate<T extends CameraController> implements CameraStreamingDelegate {
   protected hap: HAP;
   protected log: Logger;
-  protected videoProcessor: string;
 
   // keep track of sessions
   protected pendingSessions: Record<string, SessionInfo> = {};
@@ -80,7 +79,6 @@ export abstract class StreamingDelegate<T extends CameraController> implements C
     this.hap = api.hap;
     this.config = config;
     this.camera = camera;
-    this.videoProcessor = 'ffmpeg';
 
     api.on(APIEvent.SHUTDOWN, () => {
       for (const session in this.ongoingSessions) {
@@ -315,8 +313,7 @@ export abstract class StreamingDelegate<T extends CameraController> implements C
       return;
     }
 
-    activeSession.mainProcess = new FfmpegProcess(this.camera.getDisplayName(), request.sessionID, this.videoProcessor,
-        ffmpegArgs, this.log, this.debug, this, callback);
+    activeSession.mainProcess = new FfmpegProcess(this.camera.getDisplayName(), request.sessionID, ffmpegArgs, this.log, this.debug, this, callback);
 
     this.ongoingSessions[request.sessionID] = activeSession;
     delete this.pendingSessions[request.sessionID];

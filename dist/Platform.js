@@ -39,7 +39,6 @@ class Platform {
             // run the method to discover / register your devices as accessories
             this.discoverDevices();
         });
-        // Extends Characteristic for hap with custom AirPressureLevel.
         this.Characteristic = Object.defineProperty(this.api.hap.Characteristic, 'EcoMode', { value: this.EcoMode });
     }
     /**

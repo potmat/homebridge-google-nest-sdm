@@ -50,7 +50,6 @@ export class Platform implements DynamicPlatformPlugin {
             this.discoverDevices();
         });
 
-        // Extends Characteristic for hap with custom AirPressureLevel.
         this.Characteristic = Object.defineProperty(this.api.hap.Characteristic, 'EcoMode', {value: this.EcoMode});
     }
 

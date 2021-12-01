@@ -6,12 +6,16 @@ import { StreamingDelegate } from './StreamingDelegate';
 export class FfmpegProcess {
     private readonly process: ChildProcess;
 
-    constructor(cameraName: string, sessionId: string, videoProcessor: string, ffmpegArgs: string, log: Logger,
+    constructor(cameraName: string, sessionId: string, ffmpegArgs: string, log: Logger,
                 debug: boolean, delegate: StreamingDelegate<CameraController>, callback?: StreamRequestCallback) {
-        log.debug('Stream command: ' + videoProcessor + ' ' + ffmpegArgs, cameraName);
+        let pathToFfmpeg = require('ffmpeg-for-homebridge');
+        if (!pathToFfmpeg)
+            pathToFfmpeg = 'ffmpeg';
+
+        log.debug(`Stream command: ${pathToFfmpeg} ${ffmpegArgs}`, cameraName);
 
         let started = false;
-        this.process = spawn(videoProcessor, ffmpegArgs.split(/\s+/), { env: process.env });
+        this.process = spawn(pathToFfmpeg, ffmpegArgs.split(/\s+/), { env: process.env });
 
         if (this.process.stdin) {
             this.process.stdin.on('error', (error: Error) => {

@@ -3,10 +3,13 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.FfmpegProcess = void 0;
 const child_process_1 = require("child_process");
 class FfmpegProcess {
-    constructor(cameraName, sessionId, videoProcessor, ffmpegArgs, log, debug, delegate, callback) {
-        log.debug('Stream command: ' + videoProcessor + ' ' + ffmpegArgs, cameraName);
+    constructor(cameraName, sessionId, ffmpegArgs, log, debug, delegate, callback) {
+        let pathToFfmpeg = require('ffmpeg-for-homebridge');
+        if (!pathToFfmpeg)
+            pathToFfmpeg = 'ffmpeg';
+        log.debug(`Stream command: ${pathToFfmpeg} ${ffmpegArgs}`, cameraName);
         let started = false;
-        this.process = (0, child_process_1.spawn)(videoProcessor, ffmpegArgs.split(/\s+/), { env: process.env });
+        this.process = (0, child_process_1.spawn)(pathToFfmpeg, ffmpegArgs.split(/\s+/), { env: process.env });
         if (this.process.stdin) {
             this.process.stdin.on('error', (error) => {
                 if (!error.message.includes('EPIPE')) {

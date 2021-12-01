@@ -39,7 +39,6 @@ class StreamingDelegate {
         this.hap = api.hap;
         this.config = config;
         this.camera = camera;
-        this.videoProcessor = 'ffmpeg';
         api.on("shutdown" /* SHUTDOWN */, () => {
             for (const session in this.ongoingSessions) {
                 this.stopStream(session);
@@ -238,7 +237,7 @@ class StreamingDelegate {
             this.logThenCallback(callback, error);
             return;
         }
-        activeSession.mainProcess = new FfMpeg_1.FfmpegProcess(this.camera.getDisplayName(), request.sessionID, this.videoProcessor, ffmpegArgs, this.log, this.debug, this, callback);
+        activeSession.mainProcess = new FfMpeg_1.FfmpegProcess(this.camera.getDisplayName(), request.sessionID, ffmpegArgs, this.log, this.debug, this, callback);
         this.ongoingSessions[request.sessionID] = activeSession;
         delete this.pendingSessions[request.sessionID];
     }
