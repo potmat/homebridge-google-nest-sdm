@@ -9,6 +9,12 @@ A Homebridge plugin for Google Nest devices that uses the [Google Smart Device M
 
 **Please read the [FAQ](https://github.com/potmat/homebridge-google-nest-sdm#faq) before creating an issue.**
 
+# Installation
+
+``npm install -g --unsafe-perm homebridge-google-nest-sdm``
+
+Don't forget the ``--unsafe-perm`` part!
+
 # Example Homebridge config:
 
     {
