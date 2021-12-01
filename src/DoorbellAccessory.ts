@@ -6,10 +6,10 @@ import {
 import {Platform} from './Platform';
 import {Config} from "./Config";
 import {Doorbell} from "./sdm/Doorbell";
-import {Accessory} from "./Accessory";
 import {DoorbellStreamingDelegate} from "./DoorbellStreamingDelegate";
+import {MotionAccessory} from "./MotionAccessory";
 
-export class DoorbellAccessory extends Accessory<Doorbell> {
+export class DoorbellAccessory extends MotionAccessory<Doorbell> {
     private streamingDelegate: DoorbellStreamingDelegate;
 
     constructor(
@@ -26,7 +26,6 @@ export class DoorbellAccessory extends Accessory<Doorbell> {
 
         this.streamingDelegate = new DoorbellStreamingDelegate(log, api, this.platform.config as unknown as Config, this.device);
         this.accessory.configureController(this.streamingDelegate.getController());
-
         this.device.onRing = this.handleRing.bind(this);
     }
 

@@ -1,9 +1,9 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.DoorbellAccessory = void 0;
-const Accessory_1 = require("./Accessory");
 const DoorbellStreamingDelegate_1 = require("./DoorbellStreamingDelegate");
-class DoorbellAccessory extends Accessory_1.Accessory {
+const MotionAccessory_1 = require("./MotionAccessory");
+class DoorbellAccessory extends MotionAccessory_1.MotionAccessory {
     constructor(api, log, platform, accessory, device) {
         super(api, log, platform, accessory, device);
         this.accessory.on("identify" /* IDENTIFY */, () => {

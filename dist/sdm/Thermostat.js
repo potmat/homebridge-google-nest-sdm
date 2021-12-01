@@ -217,6 +217,11 @@ class Thermostat extends Device_1.Device {
         const humidity = await this.getTrait(Traits.Constants.Humidity);
         return humidity === null || humidity === void 0 ? void 0 : humidity.ambientHumidityPercent;
     }
+    async setEco(mode) {
+        await this.executeCommand(Commands.Constants.ThermostatEco_SetMode, {
+            mode: mode
+        });
+    }
 }
 exports.Thermostat = Thermostat;
 //# sourceMappingURL=Thermostat.js.map

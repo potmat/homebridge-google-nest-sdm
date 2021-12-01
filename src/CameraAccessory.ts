@@ -1,17 +1,15 @@
 import {
     PlatformAccessory,
     PlatformAccessoryEvent,
-    Logger, API, Service, Nullable, CharacteristicValue
+    Logger, API
 } from 'homebridge';
 import {Platform} from './Platform';
 import {Config} from "./Config";
 import {Camera} from "./sdm/Camera";
-import {Accessory} from "./Accessory";
 import {CameraStreamingDelegate} from "./CameraStreamingDelegate";
+import {MotionAccessory} from "./MotionAccessory";
 
-export class CameraAccessory extends Accessory<Camera> {
-    private readonly motionService: Service;
-    private lastMotion: number | undefined;
+export class CameraAccessory extends MotionAccessory<Camera> {
 
     constructor(
         api: API,
@@ -27,30 +25,5 @@ export class CameraAccessory extends Accessory<Camera> {
 
         const streamingDelegate = new CameraStreamingDelegate(log, api, this.platform.config as unknown as Config, this.device);
         this.accessory.configureController(streamingDelegate.getController());
-        //create a new Motion service
-        this.motionService = <Service>accessory.getService(this.api.hap.Service.MotionSensor);
-        if (!this.motionService) {
-            this.motionService = accessory.addService(this.api.hap.Service.MotionSensor);
-        }
-        this.motionService.getCharacteristic(this.platform.Characteristic.MotionDetected)
-            .onGet(this.handleMotionDetectedGet.bind(this));
-
-        this.device.onMotion = this.handleMotion.bind(this);
-    }
-
-    private handleMotion() {
-        this.log.debug('Motion detected!', this.accessory.displayName);
-        this.lastMotion = Date.now();
-        this.motionService.updateCharacteristic(this.platform.Characteristic.MotionDetected, true);
-        setTimeout(() => {
-            if (!this.lastMotion || Date.now() - this.lastMotion > 2000) {
-                this.lastMotion = undefined;
-                this.motionService.updateCharacteristic(this.platform.Characteristic.MotionDetected, false);
-            }
-        }, 2100)
-    }
-
-    private handleMotionDetectedGet(): Nullable<CharacteristicValue> {
-        return !!(this.lastMotion && Date.now() - this.lastMotion <= 2000);
     }
 }

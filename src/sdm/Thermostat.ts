@@ -1,7 +1,7 @@
 import _ from 'lodash';
 import {Device} from "./Device";
 import * as Traits from "./Traits";
-import {ThermostatModeType, ThermostatTemperatureSetpoint} from "./Traits";
+import {EcoModeType, ThermostatModeType, ThermostatTemperatureSetpoint} from "./Traits";
 import {TemperatureRange} from './Types';
 import * as Commands from "./Commands";
 import * as Events from './Events';
@@ -235,5 +235,11 @@ export class Thermostat extends Device {
     async getRelativeHumitity(): Promise<number | undefined> {
         const humidity = await this.getTrait<Traits.Humidity>(Traits.Constants.Humidity);
         return humidity?.ambientHumidityPercent;
+    }
+
+    async setEco(mode: EcoModeType) {
+        await this.executeCommand<Commands.ThermostatEco_SetMode, void>(Commands.Constants.ThermostatEco_SetMode, {
+            mode: mode
+        });
     }
 }

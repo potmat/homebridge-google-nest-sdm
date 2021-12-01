@@ -38,6 +38,12 @@ class ThermostatAccessory extends Accessory_1.Accessory {
         if (!this.service) {
             this.service = accessory.addService(this.api.hap.Service.Thermostat);
         }
+        let ecoMode = this.service.getCharacteristic(this.platform.Characteristic.EcoMode);
+        if (!ecoMode)
+            ecoMode = this.service.addCharacteristic(this.platform.Characteristic.EcoMode);
+        ecoMode
+            .onGet(this.handleEcoModeGet.bind(this))
+            .onSet(this.handleEcoModeSet.bind(this));
         this.service.getCharacteristic(this.platform.Characteristic.CurrentHeatingCoolingState)
             .onGet(this.handleCurrentHeatingCoolingStateGet.bind(this));
         this.service.getCharacteristic(this.platform.Characteristic.TargetHeatingCoolingState)
@@ -60,7 +66,7 @@ class ThermostatAccessory extends Accessory_1.Accessory {
         this.device.onEcoChanged = this.handleEcoUpdate.bind(this);
     }
     async setupEvents() {
-        var _a, _b;
+        var _a;
         this.service.getCharacteristic(this.platform.Characteristic.CoolingThresholdTemperature).removeOnGet();
         this.service.getCharacteristic(this.platform.Characteristic.CoolingThresholdTemperature).removeOnSet();
         this.service.getCharacteristic(this.platform.Characteristic.HeatingThresholdTemperature).removeOnGet();
@@ -75,7 +81,12 @@ class ThermostatAccessory extends Accessory_1.Accessory {
             this.log.debug('Events reset.', this.accessory.displayName);
             return;
         }
-        switch ((_b = (await this.device.getMode())) === null || _b === void 0 ? void 0 : _b.mode) {
+        const targetMode = await this.device.getMode();
+        this.service.getCharacteristic(this.platform.Characteristic.TargetHeatingCoolingState)
+            .setProps({
+            validValues: lodash_1.default.map(targetMode === null || targetMode === void 0 ? void 0 : targetMode.availableModes, (availableMode) => this.convertThermostatModeType(availableMode))
+        });
+        switch (targetMode === null || targetMode === void 0 ? void 0 : targetMode.mode) {
             case Traits_1.ThermostatModeType.HEATCOOL:
                 this.service.getCharacteristic(this.platform.Characteristic.CoolingThresholdTemperature)
                     .onGet(this.handleCoolingThresholdTemperatureGet.bind(this))
@@ -145,8 +156,9 @@ class ThermostatAccessory extends Accessory_1.Accessory {
         if (mode.mode === Traits.EcoModeType.MANUAL_ECO) {
             this.service.updateCharacteristic(this.platform.Characteristic.HeatingThresholdTemperature, mode.heatCelsius);
             this.service.updateCharacteristic(this.platform.Characteristic.CoolingThresholdTemperature, mode.coolCelsius);
-            this.service.updateCharacteristic(this.platform.Characteristic.TargetHeatingCoolingState, this.platform.Characteristic.TargetHeatingCoolingState.AUTO);
+            this.service.updateCharacteristic(this.platform.Characteristic.TargetHeatingCoolingState, this.platform.Characteristic.TargetHeatingCoolingState.OFF);
         }
+        this.service.updateCharacteristic(this.platform.Characteristic.EcoMode, mode.mode === Traits.EcoModeType.MANUAL_ECO);
     }
     /**
      * Handle requests to get the current value of the "Current Heating Cooling State" characteristic
@@ -175,7 +187,7 @@ class ThermostatAccessory extends Accessory_1.Accessory {
         var _a;
         this.log.debug('Triggered GET TargetHeatingCoolingState', this.accessory.displayName);
         if (((_a = (await this.device.getEco())) === null || _a === void 0 ? void 0 : _a.mode) !== Traits_1.EcoModeType.OFF)
-            return this.platform.Characteristic.TargetHeatingCoolingState.AUTO;
+            return this.platform.Characteristic.TargetHeatingCoolingState.OFF;
         let mode = await this.device.getMode();
         return this.convertThermostatModeType(mode === null || mode === void 0 ? void 0 : mode.mode);
     }
@@ -210,23 +222,7 @@ class ThermostatAccessory extends Accessory_1.Accessory {
                 mode = Traits.ThermostatModeType.HEATCOOL;
                 break;
         }
-        try {
-            await this.device.setMode(mode);
-        }
-        catch (e) {
-            this.log.warn(e, this.accessory.displayName);
-            setTimeout(async () => {
-                var _a, _b;
-                if (((_a = (await this.device.getEco())) === null || _a === void 0 ? void 0 : _a.mode) !== Traits_1.EcoModeType.OFF) {
-                    this.service.updateCharacteristic(this.platform.Characteristic.TargetHeatingCoolingState, this.platform.Characteristic.TargetHeatingCoolingState.AUTO);
-                }
-                else {
-                    let converted = this.convertThermostatModeType((_b = (await this.device.getMode())) === null || _b === void 0 ? void 0 : _b.mode);
-                    if (converted)
-                        this.service.updateCharacteristic(this.platform.Characteristic.TargetHeatingCoolingState, converted);
-                }
-            }, 1000);
-        }
+        await this.device.setMode(mode);
     }
     /**
      * Handle requests to get the current value of the "Current Temperature" characteristic
@@ -296,6 +292,20 @@ class ThermostatAccessory extends Accessory_1.Accessory {
     async handleTemperatureDisplayUnitsGet() {
         this.log.debug('Triggered GET TemperatureDisplayUnits', this.accessory.displayName);
         return this.convertTemperatureDisplayUnits(await this.device.getTemperatureUnits());
+    }
+    /**
+     * Handle requests to get the current value of the "Eco" characteristic
+     */
+    async handleEcoModeGet() {
+        this.log.debug('Triggered GET EcoMode', this.accessory.displayName);
+        return await this.convertToNullable(this.device.getEco().then(eco => (eco === null || eco === void 0 ? void 0 : eco.mode) === Traits_1.EcoModeType.MANUAL_ECO));
+    }
+    /**
+     * Handle requests to set the "Eco" characteristic
+     */
+    async handleEcoModeSet(value) {
+        this.log.debug('Triggered SET EcoMode:' + value, this.accessory.displayName);
+        await this.device.setEco(value ? Traits_1.EcoModeType.MANUAL_ECO : Traits_1.EcoModeType.OFF);
     }
 }
 exports.ThermostatAccessory = ThermostatAccessory;

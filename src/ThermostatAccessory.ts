@@ -1,6 +1,5 @@
 import {
-    API,
-    CharacteristicValue,
+    API, CharacteristicValue,
     Logger,
     Nullable,
     PlatformAccessory,
@@ -35,6 +34,14 @@ export class ThermostatAccessory extends Accessory<Thermostat> {
         if (!this.service) {
             this.service = accessory.addService(this.api.hap.Service.Thermostat);
         }
+
+        let ecoMode = this.service.getCharacteristic(this.platform.Characteristic.EcoMode);
+        if (!ecoMode)
+            ecoMode = this.service.addCharacteristic(this.platform.Characteristic.EcoMode);
+
+        ecoMode
+            .onGet(this.handleEcoModeGet.bind(this))
+            .onSet(this.handleEcoModeSet.bind(this));
 
         this.service.getCharacteristic(this.platform.Characteristic.CurrentHeatingCoolingState)
             .onGet(this.handleCurrentHeatingCoolingStateGet.bind(this));
@@ -82,7 +89,14 @@ export class ThermostatAccessory extends Accessory<Thermostat> {
             return;
         }
 
-        switch ((await this.device.getMode())?.mode) {
+        const targetMode = await this.device.getMode();
+
+        this.service.getCharacteristic(this.platform.Characteristic.TargetHeatingCoolingState)
+            .setProps({
+                validValues: _.map(targetMode?.availableModes, (availableMode) => <number>this.convertThermostatModeType(availableMode))
+            });
+
+        switch (targetMode?.mode) {
             case ThermostatModeType.HEATCOOL:
                 this.service.getCharacteristic(this.platform.Characteristic.CoolingThresholdTemperature)
                     .onGet(this.handleCoolingThresholdTemperatureGet.bind(this))
@@ -163,8 +177,10 @@ export class ThermostatAccessory extends Accessory<Thermostat> {
         if (mode.mode === Traits.EcoModeType.MANUAL_ECO) {
             this.service.updateCharacteristic(this.platform.Characteristic.HeatingThresholdTemperature, mode.heatCelsius);
             this.service.updateCharacteristic(this.platform.Characteristic.CoolingThresholdTemperature, mode.coolCelsius);
-            this.service.updateCharacteristic(this.platform.Characteristic.TargetHeatingCoolingState, this.platform.Characteristic.TargetHeatingCoolingState.AUTO);
+            this.service.updateCharacteristic(this.platform.Characteristic.TargetHeatingCoolingState, this.platform.Characteristic.TargetHeatingCoolingState.OFF);
         }
+
+        this.service.updateCharacteristic(this.platform.Characteristic.EcoMode, mode.mode === Traits.EcoModeType.MANUAL_ECO);
     }
 
     /**
@@ -196,7 +212,7 @@ export class ThermostatAccessory extends Accessory<Thermostat> {
         this.log.debug('Triggered GET TargetHeatingCoolingState', this.accessory.displayName);
 
         if ((await this.device.getEco())?.mode !== EcoModeType.OFF)
-            return this.platform.Characteristic.TargetHeatingCoolingState.AUTO;
+            return this.platform.Characteristic.TargetHeatingCoolingState.OFF;
 
         let mode = await this.device.getMode();
         return this.convertThermostatModeType(mode?.mode);
@@ -236,20 +252,7 @@ export class ThermostatAccessory extends Accessory<Thermostat> {
                 break;
         }
 
-        try {
-            await this.device.setMode(mode);
-        } catch (e: any) {
-            this.log.warn(e, this.accessory.displayName);
-            setTimeout(async () => {
-                if ((await this.device.getEco())?.mode !== EcoModeType.OFF) {
-                    this.service.updateCharacteristic(this.platform.Characteristic.TargetHeatingCoolingState, this.platform.Characteristic.TargetHeatingCoolingState.AUTO);
-                } else {
-                    let converted = this.convertThermostatModeType((await this.device.getMode())?.mode);
-                    if (converted)
-                        this.service.updateCharacteristic(this.platform.Characteristic.TargetHeatingCoolingState, converted);
-                }
-            }, 1000);
-        }
+        await this.device.setMode(mode);
     }
 
     /**
@@ -335,5 +338,21 @@ export class ThermostatAccessory extends Accessory<Thermostat> {
     private async handleTemperatureDisplayUnitsGet(): Promise<Nullable<CharacteristicValue>> {
         this.log.debug('Triggered GET TemperatureDisplayUnits', this.accessory.displayName);
         return this.convertTemperatureDisplayUnits(await this.device.getTemperatureUnits());
+    }
+
+    /**
+     * Handle requests to get the current value of the "Eco" characteristic
+     */
+    private async handleEcoModeGet(): Promise<Nullable<CharacteristicValue>> {
+        this.log.debug('Triggered GET EcoMode', this.accessory.displayName);
+        return await this.convertToNullable(this.device.getEco().then(eco => eco?.mode === EcoModeType.MANUAL_ECO));
+    }
+
+    /**
+     * Handle requests to set the "Eco" characteristic
+     */
+    private async handleEcoModeSet(value:CharacteristicValue) {
+        this.log.debug('Triggered SET EcoMode:' + value, this.accessory.displayName);
+        await this.device.setEco(value ? EcoModeType.MANUAL_ECO : EcoModeType.OFF);
     }
 }

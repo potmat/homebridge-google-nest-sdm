@@ -9,6 +9,8 @@ const Camera_1 = require("./sdm/Camera");
 const Thermostat_1 = require("./sdm/Thermostat");
 const Doorbell_1 = require("./sdm/Doorbell");
 const DoorbellAccessory_1 = require("./DoorbellAccessory");
+const EcoMode = require("./EcoMode");
+let IEcoMode;
 /**
  * HomebridgePlatform
  * This class is the main constructor for your plugin, this is where you should
@@ -19,8 +21,9 @@ class Platform {
         this.log = log;
         this.config = config;
         this.api = api;
-        this.Characteristic = this.api.hap.Characteristic;
         this.accessories = [];
+        this.EcoMode = EcoMode(api);
+        IEcoMode = this.EcoMode;
         const options = config;
         if (!options || !options.projectId || !options.clientId || !options.clientSecret || !options.refreshToken || !options.subscriptionId) {
             log.error(`${config.platform} is not configured correctly. The configuration provided was: ${JSON.stringify(options)}`);
@@ -36,6 +39,8 @@ class Platform {
             // run the method to discover / register your devices as accessories
             this.discoverDevices();
         });
+        // Extends Characteristic for hap with custom AirPressureLevel.
+        this.Characteristic = Object.defineProperty(this.api.hap.Characteristic, 'EcoMode', { value: this.EcoMode });
     }
     /**
      * This function is invoked when homebridge restores cached accessories from disk at startup.

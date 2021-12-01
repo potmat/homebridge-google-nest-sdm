@@ -9,6 +9,9 @@ import {Camera} from "./sdm/Camera";
 import {Thermostat} from "./sdm/Thermostat";
 import {Doorbell} from "./sdm/Doorbell";
 import {DoorbellAccessory} from "./DoorbellAccessory";
+import EcoMode = require('./EcoMode');
+
+let IEcoMode: any;
 
 /**
  * HomebridgePlatform
@@ -16,15 +19,19 @@ import {DoorbellAccessory} from "./DoorbellAccessory";
  * parse the user config and discover/register accessories with Homebridge.
  */
 export class Platform implements DynamicPlatformPlugin {
-    public readonly Characteristic: typeof Characteristic = this.api.hap.Characteristic;
+    public readonly Characteristic: typeof Characteristic & typeof IEcoMode;
     private readonly smartDeviceManagement: SmartDeviceManagement | undefined;
     private readonly accessories: PlatformAccessory[] = [];
+    private readonly EcoMode;
 
     constructor(
         public readonly log: Logger,
         public readonly config: PlatformConfig,
         public readonly api: API,
     ) {
+        this.EcoMode = EcoMode(api);
+        IEcoMode = this.EcoMode;
+
         const options = config as unknown as Config;
 
         if (!options || !options.projectId || !options.clientId || !options.clientSecret || !options.refreshToken || !options.subscriptionId) {
@@ -42,6 +49,9 @@ export class Platform implements DynamicPlatformPlugin {
             // run the method to discover / register your devices as accessories
             this.discoverDevices();
         });
+
+        // Extends Characteristic for hap with custom AirPressureLevel.
+        this.Characteristic = Object.defineProperty(this.api.hap.Characteristic, 'EcoMode', {value: this.EcoMode});
     }
 
     /**
