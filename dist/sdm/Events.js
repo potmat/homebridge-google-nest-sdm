@@ -27,6 +27,7 @@ var Constants;
     Constants["CameraPerson"] = "sdm.devices.events.CameraPerson.Person";
     Constants["CameraSound"] = "sdm.devices.events.CameraSound.Sound";
     Constants["DoorbellChime"] = "sdm.devices.events.DoorbellChime.Chime";
+    Constants["ClipPreview"] = "sdm.devices.events.CameraClipPreview.ClipPreview";
 })(Constants = exports.Constants || (exports.Constants = {}));
 var RelationUpdateType;
 (function (RelationUpdateType) {

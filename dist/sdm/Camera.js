@@ -47,7 +47,11 @@ class Camera extends Device_1.Device {
         //Nest cams do not have any method to get a current snapshot,
         //starting streams up just to retrieve one is slow and will cause
         //the SDM API to hit a rate limit of creating too many streams
-        return await fs_1.default.promises.readFile(path_1.default.join(__dirname, "..", "res", "nest-logo.jpg"));
+        const camaraInfo = await this.getCameraLiveStream();
+        if (camaraInfo === null || camaraInfo === void 0 ? void 0 : camaraInfo.supportedProtocols.includes(Traits.ProtocolType.RTSP))
+            return await fs_1.default.promises.readFile(path_1.default.join(__dirname, "..", "res", "nest-logo.jpg"));
+        else
+            return await fs_1.default.promises.readFile(path_1.default.join(__dirname, "..", "res", "google-logo.jpg"));
     }
     getResolutions() {
         return [

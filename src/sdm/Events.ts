@@ -5,6 +5,7 @@ export enum Constants {
     CameraPerson = 'sdm.devices.events.CameraPerson.Person',
     CameraSound = 'sdm.devices.events.CameraSound.Sound',
     DoorbellChime = 'sdm.devices.events.DoorbellChime.Chime',
+    ClipPreview = 'sdm.devices.events.CameraClipPreview.ClipPreview'
 }
 
 export enum RelationUpdateType {
@@ -80,6 +81,11 @@ export interface CameraPerson {
 export interface CameraSound {
     eventSessionId: string;
     eventId: string;
+}
+
+export interface CameraClipPreview {
+    eventSessionId: string;
+    previewUrl: string;
 }
 
 export interface DoorbellChime {

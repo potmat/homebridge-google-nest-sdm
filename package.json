@@ -38,7 +38,8 @@
     "googleapis": "^87.0.0",
     "ip": "^1.1.5",
     "lodash": "^4.17.21",
-    "systeminformation": "^5.9.3"
+    "systeminformation": "^5.9.3",
+    "wrtc": "^0.4.7"
   },
   "devDependencies": {
     "@types/ip": "^1.1.0",
