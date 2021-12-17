@@ -175,7 +175,7 @@ class StreamingDelegate {
             this.logThenCallback(callback, 'Unable to start stream! Stream info was not received');
             return;
         }
-        let ffmpegArgs = '-i ' + streamInfo.streamUrls.rtspUrl;
+        let ffmpegArgs = '-analyzeduration 15000000 -probesize 100000000 -i ' + streamInfo.streamUrls.rtspUrl;
         ffmpegArgs += // Video
             ' -an -sn -dn' +
                 ` -codec:v ${vEncoder}` +

@@ -6,23 +6,22 @@ import axios from 'axios';
 import fs from "fs";
 import path from "path";
 import * as Responses from "./Responses";
-import {ImageQueue} from "./ImageQueue";
 import _ from "lodash";
 import * as Events from "./Events";
 import * as Traits from "./Traits";
 
 export class Camera extends Device {
 
+    private image: Buffer | null = null;
+
     getDisplayName(): string {
         return this.displayName ? this.displayName + ' Camera' : 'Unknown';
     }
 
     onMotion: (() => void) | undefined;
-    private imageQueue: ImageQueue = new ImageQueue(this.getDisplayName(), this.log);
 
     async getSnapshot(): Promise<Buffer | undefined> {
-        const image = this.imageQueue.get();
-        if (image) return image;
+        if (this.image) return this.image;
 
         //Nest cams do not have any method to get a current snapshot,
         //starting streams up just to retrieve one is slow and will cause
@@ -70,8 +69,8 @@ export class Camera extends Device {
                 },
                 responseType: 'arraybuffer'
             });
-            const buffer = Buffer.from(imageResponse.data, 'binary');
-            this.imageQueue.put(buffer);
+            this.image = Buffer.from(imageResponse.data, 'binary');
+            setTimeout(() => this.image = null, 10000);
         } catch (error: any) {
             this.log.error('Could not execute event image GET request: ', JSON.stringify(error), this.getDisplayName());
         }
@@ -96,21 +95,28 @@ export class Camera extends Device {
         _.forEach(event.resourceUpdate.events, (value, key) => {
             switch (key) {
                 case Events.Constants.CameraMotion:
-                    this.getEventImage((value as Events.CameraMotion).eventId, new Date(event.timestamp))
-                        .then(() => {
-                            if (this.onMotion)
-                                this.onMotion();
-                        });
-                    break;
                 case Events.Constants.CameraPerson:
-                    this.getEventImage((value as Events.CameraPerson).eventId, new Date(event.timestamp))
-                        .then(() => {
-                            if (this.onMotion)
-                                this.onMotion();
+                    this.getCameraLiveStream()
+                        .then(streamInfo => {
+                            if (streamInfo?.supportedProtocols.includes(Traits.ProtocolType.WEB_RTC)) {
+                                if (this.onMotion)
+                                    this.onMotion();
+                            } else {
+                                this.getEventImage((value as Events.CameraMotion).eventId, new Date(event.timestamp))
+                                    .then(() => {
+                                        if (this.onMotion)
+                                            this.onMotion();
+                                    });
+                            }
                         });
                     break;
                 case Events.Constants.CameraSound:
-                    this.getEventImage((value as Events.CameraSound).eventId, new Date(event.timestamp));
+                    this.getCameraLiveStream()
+                        .then(streamInfo => {
+                            if (streamInfo?.supportedProtocols.includes(Traits.ProtocolType.RTSP)) {
+                                this.getEventImage((value as Events.CameraSound).eventId, new Date(event.timestamp));
+                            }
+                        });
                     break;
             }
         });

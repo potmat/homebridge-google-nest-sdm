@@ -55,7 +55,7 @@ var VideoCodecType;
 })(VideoCodecType = exports.VideoCodecType || (exports.VideoCodecType = {}));
 var AudioCodecType;
 (function (AudioCodecType) {
-    AudioCodecType["AAC"] = "AAc";
+    AudioCodecType["AAC"] = "AAC";
 })(AudioCodecType = exports.AudioCodecType || (exports.AudioCodecType = {}));
 var ProtocolType;
 (function (ProtocolType) {

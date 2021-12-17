@@ -242,7 +242,7 @@ export abstract class StreamingDelegate<T extends CameraController> implements C
       return;
     }
 
-    let ffmpegArgs = '-i ' + streamInfo.streamUrls.rtspUrl;
+    let ffmpegArgs = '-analyzeduration 15000000 -probesize 100000000 -i ' + streamInfo.streamUrls.rtspUrl;
 
     ffmpegArgs += // Video
         ' -an -sn -dn' +

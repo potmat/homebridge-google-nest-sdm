@@ -9,6 +9,7 @@ import {Accessory} from "./Accessory";
 export abstract class MotionAccessory<T extends Camera> extends Accessory<T> {
     private readonly motionService: Service;
     private lastMotion: number | undefined;
+    private readonly motionDecay: number = 10000;
 
     constructor(
         api: API,
@@ -34,14 +35,14 @@ export abstract class MotionAccessory<T extends Camera> extends Accessory<T> {
         this.lastMotion = Date.now();
         this.motionService.updateCharacteristic(this.platform.Characteristic.MotionDetected, true);
         setTimeout(() => {
-            if (!this.lastMotion || Date.now() - this.lastMotion > 2000) {
+            if (!this.lastMotion || Date.now() - this.lastMotion > this.motionDecay) {
                 this.lastMotion = undefined;
                 this.motionService.updateCharacteristic(this.platform.Characteristic.MotionDetected, false);
             }
-        }, 2100)
+        }, this.motionDecay)
     }
 
     private handleMotionDetectedGet(): Nullable<CharacteristicValue> {
-        return !!(this.lastMotion && Date.now() - this.lastMotion <= 2000);
+        return !!(this.lastMotion && Date.now() - this.lastMotion <= this.motionDecay);
     }
 }

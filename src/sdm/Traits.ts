@@ -106,7 +106,7 @@ export enum VideoCodecType {
 }
 
 export enum AudioCodecType {
-    AAC = 'AAc'
+    AAC = 'AAC'
 }
 
 export enum ProtocolType {
