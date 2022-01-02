@@ -34,7 +34,7 @@ export class Platform implements DynamicPlatformPlugin {
 
         const options = config as unknown as Config;
 
-        if (!options || !options.projectId || !options.clientId || !options.clientSecret || !options.refreshToken || !options.subscriptionId) {
+        if (!options || !options.projectId || !options.clientId || !options.clientSecret || !options.refreshToken || !options.subscriptionId || !options.gcpProjectId) {
             log.error(`${config.platform} is not configured correctly. The configuration provided was: ${JSON.stringify(options)}`)
             return;
         }

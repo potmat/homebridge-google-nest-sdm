@@ -17,7 +17,12 @@
         "required": true
       },
       "projectId": {
-        "title": "Project ID",
+        "title": "SDM Project ID",
+        "type": "string",
+        "required": true
+      },
+      "gcpProjectId": {
+        "title": "GCP Project ID",
         "type": "string",
         "required": true
       },
