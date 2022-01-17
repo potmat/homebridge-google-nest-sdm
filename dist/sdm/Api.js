@@ -45,7 +45,8 @@ class SmartDeviceManagement {
         });
         try {
             this.pubSubClient = new pubsub.PubSub({
-                projectId: config.projectId,
+                //use GCP project ID if it's present
+                projectId: config.gcpProjectId || config.projectId,
                 credentials: {
                     // @ts-ignore
                     type: 'authorized_user',

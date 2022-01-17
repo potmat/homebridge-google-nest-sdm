@@ -17,7 +17,7 @@
         "required": true
       },
       "projectId": {
-        "title": "Project ID",
+        "title": "SDM Project ID",
         "type": "string",
         "required": true
       },
@@ -30,6 +30,11 @@
         "title": "PubSub Subscription ID",
         "type": "string",
         "required": true
+      },
+      "gcpProjectId": {
+        "title": "GCP Project ID",
+        "type": "string",
+        "required": false
       },
       "vEncoder": {
         "title": "Video Encoder",

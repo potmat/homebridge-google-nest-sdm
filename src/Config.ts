@@ -4,5 +4,6 @@ export type Config = {
     projectId: string,
     refreshToken: string,
     subscriptionId: string,
+    gcpProjectId?: string,
     vEncoder?: string
 }

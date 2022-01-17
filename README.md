@@ -24,16 +24,27 @@ Don't forget the ``--unsafe-perm`` part!
         "projectId": "...",
         "refreshToken": "...",
         "subscriptionId": "...",
+        "gcpProjectId": "<optional>",
         "vEncoder": "<optional>"
     }
 
-You can also use the plugin config UI to enter these values.
-
-vEncoder is the encoder the plugin will use for camera streams. If vEncoder is not specified it will default to "libx264 -preset ultrafast -tune zerolatency". On a Raspberry Pi 4 you can try something like "h264_v4l2m2m". On other platforms you are free to use the encoder of your choice.  If you don't know what this means you can probably ignore it.
+I recommend you use the plugin config UI to enter these values.
 
 # Where do the config values come from?
 
 Follow the getting started guide here: https://developers.google.com/nest/device-access/get-started
+
+**clientId** and **clientSecret** come from this step: https://developers.google.com/nest/device-access/get-started#set_up_google_cloud_platform
+
+**projectId** comes from this step: https://developers.google.com/nest/device-access/get-started#create_a_device_access_project
+
+**refreshToken** comes from this step: https://developers.google.com/nest/device-access/authorize#get_an_access_token
+
+**subscriptionID** comes from this step: https://developers.google.com/nest/device-access/subscribe-to-events#create_a_pull_subscription
+
+**gcpProjectId** is optional. It is the ID of the Google Cloud Platform project you created when getting the **clientId** and **clientSecret**. If you are having trouble subsribing to events try populating this fiels.
+
+**vEncoder** is optional.  Id is the encoder the plugin will use for camera streams. If vEncoder is not specified it will default to "libx264 -preset ultrafast -tune zerolatency". On a Raspberry Pi 4 you can try something like "h264_v4l2m2m". On other platforms you are free to use the encoder of your choice.  If you don't know what this means you can probably ignore it.
 
 ONE IMPORTANT DIFFERENCE!
 
@@ -48,6 +59,9 @@ You should instead use this URL:
 https://nestservices.google.com/partnerconnections/project-id/auth?redirect_uri=https://www.google.com&access_type=offline&prompt=consent&client_id=oauth2-client-id&response_type=code&scope=https://www.googleapis.com/auth/sdm.service+https://www.googleapis.com/auth/pubsub
 
 Note the "+https://www.googleapis.com/auth/pubsub" on the end.  This is so you will have access to events.
+
+
+
 
 # Hardware Requirements
 
