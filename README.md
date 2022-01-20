@@ -5,8 +5,6 @@
 
 A Homebridge plugin for Google Nest devices that uses the [Google Smart Device Management API](https://developers.google.com/nest/device-access). Supports Cameras, Doorbells, Displays, and Thermostats.
 
-*Currently does not support the new battery powered cameras/doorbells.  The SDM API does support these devices, but I don't have one, so I have no way to test it. If anyone has one of the new battery cameras they're willing to loan me it should not be that hard to add. If I get some donations I'll purchase one.*
-
 **Please read the [FAQ](https://github.com/potmat/homebridge-google-nest-sdm#faq) before creating an issue.**
 
 # Installation
@@ -32,7 +30,7 @@ I recommend you use the plugin config UI to enter these values.
 
 # Where do the config values come from?
 
-Follow the getting started guide here: https://developers.google.com/nest/device-access/get-started
+Follow the getting started guide here: https://developers.google.com/nest/device-access/get-started  Please mind the "ONE IMPORTANT DIFFERENCE" section below.
 
 **clientId** and **clientSecret** come from this step: https://developers.google.com/nest/device-access/get-started#set_up_google_cloud_platform
 
@@ -42,9 +40,9 @@ Follow the getting started guide here: https://developers.google.com/nest/device
 
 **subscriptionID** comes from this step: https://developers.google.com/nest/device-access/subscribe-to-events#create_a_pull_subscription
 
-**gcpProjectId** is optional. It is the ID of the Google Cloud Platform project you created when getting the **clientId** and **clientSecret**. If you are having trouble subsribing to events try populating this fiels.
+**gcpProjectId** is optional. It is the ID of the Google Cloud Platform project you created when getting the **clientId** and **clientSecret**. If you are having trouble subsribing to events try populating this field.
 
-**vEncoder** is optional.  Id is the encoder the plugin will use for camera streams. If vEncoder is not specified it will default to "libx264 -preset ultrafast -tune zerolatency". On a Raspberry Pi 4 you can try something like "h264_v4l2m2m". On other platforms you are free to use the encoder of your choice.  If you don't know what this means you can probably ignore it.
+**vEncoder** is optional.  It is the encoder the plugin will use for camera streams. If vEncoder is not specified it will default to "libx264 -preset ultrafast -tune zerolatency". On a Raspberry Pi 4 you can try something like "h264_v4l2m2m". On other platforms you are free to use the encoder of your choice.  If you don't know what this means you can probably ignore it.
 
 ONE IMPORTANT DIFFERENCE!
 
@@ -71,27 +69,30 @@ I tried very hard to avoid having to transcode the video, which would allow the 
 
 # FAQ
 
-**Q**: I don't see camera snapshots in the Home app, just the Nest logo. Why?
+**Q**: I don't see camera snapshots in the Home app, just the Nest/Google logo. Why?
 
-**A**: The SDM API does not have any method for getting a camera snapshot on demand, only when an event occurs. The Nest logo is used as a placeholder.  If an event occurred in the last few seconds you will likely see an image.
+**A**: The SDM API does not have any method for getting a camera snapshot on demand, only when an event occurs. The Nest logo is used as a placeholder for first generation cameras, while the Google logo is used for second generation cameras.  If an event occurred in the last few seconds you will likely see an image.
 
 **Q**: My cameras never respond.  Why?
 
 **A**: There are a couple possible reasons for this:
 
-1. Second generation Nest cameras are not yet supported.
-2. Is the microphone/audio disabled on your camera?  If so you will need to enable it.
-3. Do you see something like `[homebridge-google-nest-sdm] Failed to start stream: spawn ffmpeg ENOENT` in your logs? The plugin requires ffmpeg and tries to auto-install it, but if it can't, you'll have to install it manually. Go [here](https://www.ffmpeg.org/download.html). 
-4. Is your Apple device connected to a VPN? If so, disconnect.
-5. Wait a while, occasionally the API will refuse all requests for short periods.
+1. Is the microphone/audio disabled on your camera?  If so you will need to enable it.
+2. Do you see something like `[homebridge-google-nest-sdm] Failed to start stream: spawn ffmpeg ENOENT` in your logs? The plugin requires ffmpeg and tries to auto-install it, but if it can't, you'll have to install it manually. For Windows go [here](https://www.ffmpeg.org/download.html). If you have a Mac, especially an Apple Silicon Mac, you should probably use [brew](https://formulae.brew.sh/formula/ffmpeg). On Linux use the package manager of your choice. 
+3. Is your Apple device connected to a VPN? If so, disconnect.
+4. Wait a while, occasionally the API will refuse all requests for short periods.
 
 **Q**: My cameras only respond some of the time. Why?
 
 **A**: Much like the behaviour some of us have experienced in the Nest app, sometimes the API errors out for unknown reasons.  See also this [issue](https://github.com/potmat/homebridge-google-nest-sdm/issues/4).  I am doing my best to find out why the API fails so often.
 
+**Q**: My cameras stream stops responding after five minutes. Why?
+
+**A**: Streams on the battery powered cameras only last five minutes.  On the wired cameras it's in theory possible to view the stream for more than five minutes, but I haven't figured out how to make that work yet.
+
 **Q**: When the plugin starts I get some message about ```Plugin initialization failed, there was a failure with event subscription```.  Why?
 
-**A**: As the error message tells you, make sure you mind the ["ONE IMPORTANT DIFFERENCE"](https://github.com/potmat/homebridge-google-nest-sdm#where-do-the-config-values-come-from) when setting up your config values.
+**A**: As the error message tells you, make sure you mind the ["ONE IMPORTANT DIFFERENCE"](https://github.com/potmat/homebridge-google-nest-sdm#where-do-the-config-values-come-from) when setting up your config values.  Try using the **gcpProjectId** config value if you continue to have problems.
 
 **Q**: My camera shows up as ```<null> Camera``` or ``` Camera``` without the room name or anything.  Why?
 

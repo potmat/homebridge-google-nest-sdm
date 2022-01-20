@@ -1,23 +1,4 @@
 "use strict";
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
-    __setModuleDefault(result, mod);
-    return result;
-};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -28,7 +9,7 @@ const get_port_1 = __importDefault(require("get-port"));
 const os_1 = __importDefault(require("os"));
 const systeminformation_1 = require("systeminformation");
 const FfMpeg_1 = require("./FfMpeg");
-const Traits = __importStar(require("./sdm/Traits"));
+const NestStreamer_1 = require("./NestStreamer");
 class StreamingDelegate {
     constructor(log, api, config, camera) {
         // keep track of sessions
@@ -117,11 +98,7 @@ class StreamingDelegate {
     }
     async prepareStream(request, callback) {
         const camaraInfo = await this.camera.getCameraLiveStream();
-        if (camaraInfo && !camaraInfo.supportedProtocols.includes(Traits.ProtocolType.RTSP)) {
-            this.logThenCallback(callback, "Nest battery powered cameras are not supported at this time.  The plugin developer doesn't own one so he can't add support. See https://github.com/potmat/homebridge-google-nest-sdm#homebridge-google-nest-sdm");
-            return;
-        }
-        else if (!camaraInfo) {
+        if (!camaraInfo) {
             this.logThenCallback(callback, 'Unable to start stream! Camera info was not received');
             return;
         }
@@ -170,12 +147,15 @@ class StreamingDelegate {
         const bitrate = request.video.max_bit_rate * 4;
         const vEncoder = this.config.vEncoder || 'libx264 -preset ultrafast -tune zerolatency';
         this.log.debug(`Video stream requested: ${request.video.width} x ${request.video.height}, ${request.video.fps} fps, ${request.video.max_bit_rate} kbps`, this.camera.getDisplayName());
-        const streamInfo = await this.camera.getStreamInfo();
-        if (!streamInfo) {
-            this.logThenCallback(callback, 'Unable to start stream! Stream info was not received');
+        const nestStreamer = await (0, NestStreamer_1.getStreamer)(this.log, this.camera);
+        let ffmpegArgs;
+        try {
+            ffmpegArgs = await nestStreamer.initialize(); // '-analyzeduration 15000000 -probesize 100000000 -i ' + streamInfo.streamUrls.rtspUrl;
+        }
+        catch (error) {
+            this.logThenCallback(callback, error);
             return;
         }
-        let ffmpegArgs = '-analyzeduration 15000000 -probesize 100000000 -i ' + streamInfo.streamUrls.rtspUrl;
         ffmpegArgs += // Video
             ' -an -sn -dn' +
                 ` -codec:v ${vEncoder}` +
@@ -214,7 +194,7 @@ class StreamingDelegate {
         if (this.debug) {
             ffmpegArgs += ' -loglevel level+verbose';
         }
-        const activeSession = { streamInfo: streamInfo };
+        const activeSession = { streamer: nestStreamer };
         try {
             activeSession.socket = (0, dgram_1.createSocket)(sessionInfo.ipv6 ? 'udp6' : 'udp4');
             activeSession.socket.on('error', (err) => {
@@ -283,7 +263,7 @@ class StreamingDelegate {
             }
         }
         try {
-            await this.camera.stopStream(session.streamInfo.streamExtensionToken);
+            await session.streamer.teardown();
         }
         catch (err) {
             this.log.error('Error terminating SDM stream: ' + err, this.camera.getDisplayName());

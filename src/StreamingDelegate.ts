@@ -26,8 +26,7 @@ import {networkInterfaceDefault} from 'systeminformation';
 import {Config} from './Config'
 import {FfmpegProcess} from './FfMpeg';
 import {Camera} from "./sdm/Camera";
-import {GenerateRtspStream} from "./sdm/Responses";
-import * as Traits from './sdm/Traits';
+import {getStreamer, NestStreamer} from "./NestStreamer";
 
 type SessionInfo = {
   address: string; // address of the HAP controller
@@ -52,7 +51,7 @@ type ActiveSession = {
   returnProcess?: FfmpegProcess;
   timeout?: NodeJS.Timeout;
   socket?: Socket;
-  streamInfo: GenerateRtspStream;
+  streamer: NestStreamer;
 };
 
 type ResolutionInfo = {
@@ -170,10 +169,7 @@ export abstract class StreamingDelegate<T extends CameraController> implements C
 
     const camaraInfo = await this.camera.getCameraLiveStream();
 
-    if (camaraInfo && !camaraInfo.supportedProtocols.includes(Traits.ProtocolType.RTSP)) {
-      this.logThenCallback(callback, "Nest battery powered cameras are not supported at this time.  The plugin developer doesn't own one so he can't add support. See https://github.com/potmat/homebridge-google-nest-sdm#homebridge-google-nest-sdm");
-      return;
-    } else if (!camaraInfo) {
+    if (!camaraInfo) {
       this.logThenCallback(callback, 'Unable to start stream! Camera info was not received');
       return;
     }
@@ -235,14 +231,16 @@ export abstract class StreamingDelegate<T extends CameraController> implements C
 
     this.log.debug(`Video stream requested: ${request.video.width} x ${request.video.height}, ${request.video.fps} fps, ${request.video.max_bit_rate} kbps`, this.camera.getDisplayName());
 
-    const streamInfo = await this.camera.getStreamInfo();
+    const nestStreamer = await getStreamer(this.log, this.camera);
 
-    if (!streamInfo) {
-      this.logThenCallback(callback, 'Unable to start stream! Stream info was not received');
+    let ffmpegArgs: string;
+
+    try {
+      ffmpegArgs = await nestStreamer.initialize(); // '-analyzeduration 15000000 -probesize 100000000 -i ' + streamInfo.streamUrls.rtspUrl;
+    } catch (error: any) {
+      this.logThenCallback(callback, error);
       return;
     }
-
-    let ffmpegArgs = '-analyzeduration 15000000 -probesize 100000000 -i ' + streamInfo.streamUrls.rtspUrl;
 
     ffmpegArgs += // Video
         ' -an -sn -dn' +
@@ -289,7 +287,7 @@ export abstract class StreamingDelegate<T extends CameraController> implements C
       ffmpegArgs += ' -loglevel level+verbose';
     }
 
-    const activeSession: ActiveSession = { streamInfo: streamInfo };
+    const activeSession: ActiveSession = { streamer: nestStreamer };
 
     try {
       activeSession.socket = createSocket(sessionInfo.ipv6 ? 'udp6' : 'udp4');
@@ -359,7 +357,7 @@ export abstract class StreamingDelegate<T extends CameraController> implements C
     }
 
     try {
-      await this.camera.stopStream(session.streamInfo.streamExtensionToken);
+      await session.streamer.teardown();
     } catch (err) {
       this.log.error('Error terminating SDM stream: ' + err, this.camera.getDisplayName());
     }

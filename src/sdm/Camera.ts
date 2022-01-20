@@ -1,14 +1,15 @@
 import {Device} from './Device';
-import {GenerateRtspStream} from './Responses';
+import * as Responses from './Responses';
+import {GenerateRtspStream, GenerateWebRtcStream} from './Responses';
+import * as Events from './Events';
 import {ResourceEventEvent} from './Events';
 import * as Commands from './Commands';
 import axios from 'axios';
 import fs from "fs";
 import path from "path";
-import * as Responses from "./Responses";
 import _ from "lodash";
-import * as Events from "./Events";
 import * as Traits from "./Traits";
+import {CameraLiveStream_GenerateWebRtcStream} from "./Commands";
 
 export class Camera extends Device {
 
@@ -26,11 +27,10 @@ export class Camera extends Device {
         //Nest cams do not have any method to get a current snapshot,
         //starting streams up just to retrieve one is slow and will cause
         //the SDM API to hit a rate limit of creating too many streams
-        const camaraInfo = await this.getCameraLiveStream();
-        if (camaraInfo?.supportedProtocols.includes(Traits.ProtocolType.RTSP))
-            return await fs.promises.readFile(path.join(__dirname, "..", "res", "nest-logo.jpg"))
+        if ((await this.getVideoProtocol()) === Traits.ProtocolType.RTSP)
+            return await fs.promises.readFile(path.join(__dirname, "..", "res", "nest-logo.jpg"));
         else
-            return await fs.promises.readFile(path.join(__dirname, "..", "res", "google-logo.jpg"))
+            return await fs.promises.readFile(path.join(__dirname, "..", "res", "google-logo.jpg"));
     }
 
     getResolutions(): [number, number, number][] {
@@ -80,14 +80,36 @@ export class Camera extends Device {
         return await this.getTrait<Traits.CameraLiveStream>(Traits.Constants.CameraLiveStream);
     }
 
-    async getStreamInfo(): Promise<GenerateRtspStream | undefined> {
-        return this.executeCommand<null, GenerateRtspStream>(Commands.Constants.CameraLiveStream_GenerateRtspStream)
+    async getVideoProtocol(): Promise<Traits.ProtocolType> {
+        if ((await this.getCameraLiveStream())?.supportedProtocols.includes(Traits.ProtocolType.WEB_RTC)) {
+            return Traits.ProtocolType.WEB_RTC;
+        } else {
+            return Traits.ProtocolType.RTSP;
+        }
     }
 
-    async stopStream(extensionToken: string): Promise<void> {
-        await this.executeCommand<Commands.CameraLiveStream_StopRtspStream, GenerateRtspStream>(Commands.Constants.CameraLiveStream_StopRtspStream, {
-            streamExtensionToken: extensionToken
-        });
+    async generateStream(params?: string): Promise<GenerateRtspStream | GenerateWebRtcStream | undefined> {
+        if ((await this.getVideoProtocol()) === Traits.ProtocolType.WEB_RTC) {
+            if (!params)
+                throw new Error('Must specify params for WebRTC streams.');
+            return this.executeCommand<CameraLiveStream_GenerateWebRtcStream, GenerateWebRtcStream>(Commands.Constants.CameraLiveStream_GenerateWebRtcStream, {
+                offerSdp: params
+            })
+        } else {
+            return this.executeCommand<null, GenerateRtspStream>(Commands.Constants.CameraLiveStream_GenerateRtspStream)
+        }
+    }
+
+    async stopStream(id: string): Promise<void> {
+        if ((await this.getVideoProtocol()) === Traits.ProtocolType.WEB_RTC) {
+            await this.executeCommand<Commands.CameraLiveStream_StopWebRtcStream, null>(Commands.Constants.CameraLiveStream_StopWebRtcStream, {
+                mediaSessionId: id
+            });
+        } else {
+            await this.executeCommand<Commands.CameraLiveStream_StopRtspStream, null>(Commands.Constants.CameraLiveStream_StopRtspStream, {
+                streamExtensionToken: id
+            });
+        }
     }
 
     event(event: ResourceEventEvent): void {
@@ -96,9 +118,9 @@ export class Camera extends Device {
             switch (key) {
                 case Events.Constants.CameraMotion:
                 case Events.Constants.CameraPerson:
-                    this.getCameraLiveStream()
-                        .then(streamInfo => {
-                            if (streamInfo?.supportedProtocols.includes(Traits.ProtocolType.WEB_RTC)) {
+                    this.getVideoProtocol()
+                        .then(protocol => {
+                            if (protocol === Traits.ProtocolType.WEB_RTC) {
                                 if (this.onMotion)
                                     this.onMotion();
                             } else {
@@ -111,9 +133,9 @@ export class Camera extends Device {
                         });
                     break;
                 case Events.Constants.CameraSound:
-                    this.getCameraLiveStream()
-                        .then(streamInfo => {
-                            if (streamInfo?.supportedProtocols.includes(Traits.ProtocolType.RTSP)) {
+                    this.getVideoProtocol()
+                        .then(protocol => {
+                            if (protocol === Traits.ProtocolType.RTSP) {
                                 this.getEventImage((value as Events.CameraSound).eventId, new Date(event.timestamp));
                             }
                         });

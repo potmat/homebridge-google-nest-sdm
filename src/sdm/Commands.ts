@@ -8,6 +8,8 @@ export enum Constants {
     ThermostatEco_SetMode = 'sdm.devices.commands.ThermostatEco.SetMode',
     CameraLiveStream_GenerateRtspStream = 'sdm.devices.commands.CameraLiveStream.GenerateRtspStream',
     CameraLiveStream_StopRtspStream = 'sdm.devices.commands.CameraLiveStream.StopRtspStream',
+    CameraLiveStream_GenerateWebRtcStream = 'sdm.devices.commands.CameraLiveStream.GenerateWebRtcStream',
+    CameraLiveStream_StopWebRtcStream = 'sdm.devices.commands.CameraLiveStream.StopWebRtcStream',
     CameraEventImage_GenerateImage = 'sdm.devices.commands.CameraEventImage.GenerateImage'
 }
 
@@ -38,4 +40,12 @@ export interface CameraEventImage_GenerateImage {
 
 export interface CameraLiveStream_StopRtspStream {
     streamExtensionToken: string;
+}
+
+export interface CameraLiveStream_GenerateWebRtcStream {
+    offerSdp: string;
+}
+
+export interface CameraLiveStream_StopWebRtcStream {
+    mediaSessionId: string;
 }
