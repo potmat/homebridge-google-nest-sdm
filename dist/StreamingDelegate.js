@@ -15,7 +15,7 @@ class StreamingDelegate {
         // keep track of sessions
         this.pendingSessions = {};
         this.ongoingSessions = {};
-        this.debug = true;
+        this.debug = false;
         this.log = log;
         this.hap = api.hap;
         this.config = config;

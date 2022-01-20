@@ -69,7 +69,7 @@ export abstract class StreamingDelegate<T extends CameraController> implements C
   protected ongoingSessions: Record<string, ActiveSession> = {};
   protected config: Config;
   protected camera: Camera;
-  protected debug: boolean = true;
+  protected debug: boolean = false;
   protected options: CameraControllerOptions;
   protected controller!: T;
 
