@@ -4,7 +4,6 @@ import {
     Logger, API
 } from 'homebridge';
 import {Platform} from './Platform';
-import {Config} from "./Config";
 import {Doorbell} from "./sdm/Doorbell";
 import {DoorbellStreamingDelegate} from "./DoorbellStreamingDelegate";
 import {MotionAccessory} from "./MotionAccessory";
@@ -24,7 +23,7 @@ export class DoorbellAccessory extends MotionAccessory<Doorbell> {
             this.log.info("%s identified!", this.accessory.displayName);
         });
 
-        this.streamingDelegate = new DoorbellStreamingDelegate(log, api, this.platform.config as unknown as Config, this.device);
+        this.streamingDelegate = new DoorbellStreamingDelegate(log, api, this.platform, this.device);
         this.accessory.configureController(this.streamingDelegate.getController());
         this.device.onRing = this.handleRing.bind(this);
     }

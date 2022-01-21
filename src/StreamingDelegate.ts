@@ -27,6 +27,7 @@ import {Config} from './Config'
 import {FfmpegProcess} from './FfMpeg';
 import {Camera} from "./sdm/Camera";
 import {getStreamer, NestStreamer} from "./NestStreamer";
+import {Platform} from "./Platform";
 
 type SessionInfo = {
   address: string; // address of the HAP controller
@@ -69,14 +70,15 @@ export abstract class StreamingDelegate<T extends CameraController> implements C
   protected ongoingSessions: Record<string, ActiveSession> = {};
   protected config: Config;
   protected camera: Camera;
-  protected debug: boolean = false;
+  protected platform: Platform;
   protected options: CameraControllerOptions;
   protected controller!: T;
 
-  constructor(log: Logger, api: API, config: Config, camera: Camera) {
+  constructor(log: Logger, api: API, platform: Platform, camera: Camera) {
+    this.platform = platform;
     this.log = log;
     this.hap = api.hap;
-    this.config = config;
+    this.config = platform.config as unknown as Config
     this.camera = camera;
 
     api.on(APIEvent.SHUTDOWN, () => {
@@ -283,7 +285,7 @@ export abstract class StreamingDelegate<T extends CameraController> implements C
           '?rtcpport=' + sessionInfo.audioPort + '&pkt_size=188';
 
 
-    if (this.debug) {
+    if (this.platform.debugMode) {
       ffmpegArgs += ' -loglevel level+verbose';
     }
 
@@ -311,7 +313,7 @@ export abstract class StreamingDelegate<T extends CameraController> implements C
       return;
     }
 
-    activeSession.mainProcess = new FfmpegProcess(this.camera.getDisplayName(), request.sessionID, ffmpegArgs, this.log, this.debug, this, callback);
+    activeSession.mainProcess = new FfmpegProcess(this.camera.getDisplayName(), request.sessionID, ffmpegArgs, this.log, this.platform.debugMode, this, callback);
 
     this.ongoingSessions[request.sessionID] = activeSession;
     delete this.pendingSessions[request.sessionID];

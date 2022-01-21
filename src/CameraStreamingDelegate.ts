@@ -1,12 +1,12 @@
 import {StreamingDelegate} from "./StreamingDelegate";
 import {API, CameraController, Logger} from "homebridge";
-import {Config} from "./Config";
 import {Camera} from "./sdm/Camera";
+import {Platform} from "./Platform";
 
 export class CameraStreamingDelegate extends StreamingDelegate<CameraController> {
 
-    constructor(log: Logger, api: API, config: Config, camera: Camera) {
-        super(log, api, config, camera);
+    constructor(log: Logger, api: API, platform: Platform, camera: Camera) {
+        super(log, api, platform, camera);
         this.controller = new this.hap.CameraController(this.options);
     }
 
