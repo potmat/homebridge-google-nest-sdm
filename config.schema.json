@@ -7,7 +7,7 @@
     "type": "object",
     "properties": {
       "clientId": {
-        "title": "Client ID (should look something like \"780816631155-gbvyo1o7r2pn95qc4ei9d61io4uh48hl.apps.googleusercontent.com\")",
+        "title": "Client ID (e.g. \"780816631155-gbvyo1o7r2pn95qc4ei9d61io4uh48hl.apps.googleusercontent.com\")",
         "type": "string",
         "required": true
       },
@@ -27,7 +27,7 @@
         "required": true
       },
       "subscriptionId": {
-        "title": "PubSub Subscription (should look like \"projects/your-gcp-project-id/subscriptions/your-subscription-id\")",
+        "title": "PubSub Subscription (e.g. \"projects/your-gcp-project-id/subscriptions/your-subscription-id\")",
         "type": "string",
         "required": true
       },
