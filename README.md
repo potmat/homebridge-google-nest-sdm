@@ -36,13 +36,13 @@ I recommend you use the plugin config UI to enter these values.
 
 Follow the getting started guide here: https://developers.google.com/nest/device-access/get-started  Please mind the "ONE IMPORTANT DIFFERENCE" section below.
 
-**clientId** and **clientSecret** come from this step: https://developers.google.com/nest/device-access/get-started#set_up_google_cloud_platform
+**clientId** and **clientSecret** come from this step: https://developers.google.com/nest/device-access/get-started#set_up_google_cloud_platform.  **clientId** should look something like "780816631155-gbvyo1o7r2pn95qc4ei9d61io4uh48hl.apps.googleusercontent.com". **clientSecret** will be a random string of letters, numbers, and dashes.
 
 **projectId** comes from this step: https://developers.google.com/nest/device-access/get-started#create_a_device_access_project
 
 **refreshToken** comes from this step: https://developers.google.com/nest/device-access/authorize#get_an_access_token
 
-**subscriptionID** comes from this step: https://developers.google.com/nest/device-access/subscribe-to-events#create_a_pull_subscription
+**subscriptionID** comes from this step: https://developers.google.com/nest/device-access/subscribe-to-events#create_a_pull_subscription. It should look like "projects/your-gcp-project-id/subscriptions/your-subscription-id".
 
 **gcpProjectId** is optional. It is the ID of the Google Cloud Platform project you created when getting the **clientId** and **clientSecret**. If you are having trouble subsribing to events try populating this field.
 
