@@ -1,0 +1,79 @@
+<link rel="stylesheet" href="styles.css">
+
+<div class="card">
+    <div class="form-group">
+        <label for="clientId">Client ID*</label>
+        <input class="form-control" id="clientId" aria-describedby="clientIdHelp">
+        <small id="clientIdHelp" class="form-text text-muted">Should look something like "780816631155-gbvyo1o7r2pn95qc4ei9d61io4uh48hl.apps.googleusercontent.com".</small>
+    </div>
+
+    <div class="form-group">
+        <label for="clientSecret">Client Secret*</label>
+        <input class="form-control" id="clientSecret">
+    </div>
+
+    <div class="form-group">
+        <label for="projectId">Smart Device Management Project ID*</label>
+        <input class="form-control" id="projectId" aria-describedby="projectIdHelp">
+        <small id="projectIdHelp" class="form-text text-muted">Should look something like "308jhd09-21ds-23kk-4d1j-98fskh309dk".</small>
+    </div>
+
+    <div class="form-group">
+        <label for="refreshToken">Refresh Token*</label>
+        <div class="form-row">
+            <div class="col-10">
+                <input class="form-control" id="refreshToken">
+            </div>
+            <div class="col-2">
+                <button id="autofill" type="button" class="btn btn-primary">Autofill</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label for="subscription">Subscription*</label>
+        <input class="form-control" id="subscription" aria-describedby="subscriptionHelp">
+        <small id="subscriptionHelp" class="form-text text-muted">Should look something like "projects/your-gcp-project-id/subscriptions/your-subscription-id".</small>
+    </div>
+
+    <div class="form-group">
+        <label for="gcpProjectId">GCP Project ID</label>
+        <input class="form-control" id="gcpProjectId" aria-describedby="gcpProjectIdHelp">
+        <small id="gcpProjectIdHelp" class="form-text text-muted">Optional, if you don't know what this means you can probably ignore it.</small>
+    </div>
+
+    <div class="form-group">
+        <label for="vEncoder">Video Encoder</label>
+        <input class="form-control" id="vEncoder" aria-describedby="vEncoderHelp">
+        <small id="vEncoderHelp" class="form-text text-muted">Optional, if you don't know what this means you can probably ignore it.</small>
+    </div>
+</div>
+
+<script>
+    (async () => {
+        const clientIdInput = document.getElementById('clientId');
+        const clientSecretInput = document.getElementById('clientSecret');
+        const projectIdInput = document.getElementById('projectId');
+        const refreshTokenInput = document.getElementById('refreshToken');
+        const subscriptionInput = document.getElementById('subscription');
+        const gcpProjectIdInput = document.getElementById('gcpProjectId');
+        const vEncoderInput = document.getElementById('vEncoder');
+
+        // get the current homebridge config
+        const pluginConfig = await homebridge.getPluginConfig();
+        console.log(pluginConfig);
+        if (pluginConfig.length > 0) {
+            const currentConfig = pluginConfig[0];
+            clientIdInput.value = currentConfig.clientId;
+            clientSecretInput.value = currentConfig.clientSecret;
+            projectIdInput.value = currentConfig.projectId;
+            refreshTokenInput.value = currentConfig.refreshToken;
+            subscriptionInput.value = currentConfig.subscription;
+            gcpProjectIdInput.value = currentConfig.gcpProjectId;
+            vEncoderInput.value = currentConfig.vEncoder;
+        }
+
+        // make requests to your server.js script
+        //const result = await homebridge.request('/hello', { name: 'world' });
+    })();
+</script>
