@@ -4,7 +4,8 @@
     <div class="form-group">
         <label for="clientId">Client ID*</label>
         <input class="form-control" id="clientId" aria-describedby="clientIdHelp">
-        <small id="clientIdHelp" class="form-text text-muted">Should look something like "780816631155-gbvyo1o7r2pn95qc4ei9d61io4uh48hl.apps.googleusercontent.com".</small>
+        <small id="clientIdHelp" class="form-text text-muted">Should look something like
+            "780816631155-gbvyo1o7r2pn95qc4ei9d61io4uh48hl.apps.googleusercontent.com".</small>
     </div>
 
     <div class="form-group">
@@ -15,7 +16,8 @@
     <div class="form-group">
         <label for="projectId">Smart Device Management Project ID*</label>
         <input class="form-control" id="projectId" aria-describedby="projectIdHelp">
-        <small id="projectIdHelp" class="form-text text-muted">Should look something like "308jhd09-21ds-23kk-4d1j-98fskh309dk".</small>
+        <small id="projectIdHelp" class="form-text text-muted">Should look something like
+            "308jhd09-21ds-23kk-4d1j-98fskh309dk".</small>
     </div>
 
     <div class="form-group">
@@ -25,7 +27,7 @@
                 <input class="form-control" id="refreshToken">
             </div>
             <div class="col-2">
-                <button id="autofill" type="button" class="btn btn-primary">Autofill</button>
+                <button id="autofill" type="button" class="btn btn-primary" onClick="launchAutofill()">Autofill</button>
             </div>
         </div>
     </div>
@@ -33,47 +35,96 @@
     <div class="form-group">
         <label for="subscription">Subscription*</label>
         <input class="form-control" id="subscription" aria-describedby="subscriptionHelp">
-        <small id="subscriptionHelp" class="form-text text-muted">Should look something like "projects/your-gcp-project-id/subscriptions/your-subscription-id".</small>
+        <small id="subscriptionHelp" class="form-text text-muted">Should look something like
+            "projects/your-gcp-project-id/subscriptions/your-subscription-id".</small>
     </div>
 
     <div class="form-group">
         <label for="gcpProjectId">GCP Project ID</label>
         <input class="form-control" id="gcpProjectId" aria-describedby="gcpProjectIdHelp">
-        <small id="gcpProjectIdHelp" class="form-text text-muted">Optional, if you don't know what this means you can probably ignore it.</small>
+        <small id="gcpProjectIdHelp" class="form-text text-muted">Optional, if you don't know what this means you can
+            probably ignore it.</small>
     </div>
 
     <div class="form-group">
         <label for="vEncoder">Video Encoder</label>
         <input class="form-control" id="vEncoder" aria-describedby="vEncoderHelp">
-        <small id="vEncoderHelp" class="form-text text-muted">Optional, if you don't know what this means you can probably ignore it.</small>
+        <small id="vEncoderHelp" class="form-text text-muted">Optional, if you don't know what this means you can
+            probably ignore it.</small>
     </div>
 </div>
 
+<!-- Modules -->
+<script type="text/javascript" src="js/modules/jquery.min.js"></script>
+
 <script>
+
+    authorizationCode = null;
+
+    function getInputs() {
+        return {
+            clientId: $('#clientId'),
+            clientSecret: $('#clientSecret'),
+            projectId: $('#projectId'),
+            refreshToken: $('#refreshToken'),
+            subscription: $('#subscription'),
+            gcpProjectId: $('#gcpProjectId'),
+            vEncoder: $('#vEncoder')
+        }
+    }
+
     (async () => {
-        const clientIdInput = document.getElementById('clientId');
-        const clientSecretInput = document.getElementById('clientSecret');
-        const projectIdInput = document.getElementById('projectId');
-        const refreshTokenInput = document.getElementById('refreshToken');
-        const subscriptionInput = document.getElementById('subscription');
-        const gcpProjectIdInput = document.getElementById('gcpProjectId');
-        const vEncoderInput = document.getElementById('vEncoder');
+
 
         // get the current homebridge config
         const pluginConfig = await homebridge.getPluginConfig();
-        console.log(pluginConfig);
+        const inputs = getInputs();
+
         if (pluginConfig.length > 0) {
             const currentConfig = pluginConfig[0];
-            clientIdInput.value = currentConfig.clientId;
-            clientSecretInput.value = currentConfig.clientSecret;
-            projectIdInput.value = currentConfig.projectId;
-            refreshTokenInput.value = currentConfig.refreshToken;
-            subscriptionInput.value = currentConfig.subscription;
-            gcpProjectIdInput.value = currentConfig.gcpProjectId;
-            vEncoderInput.value = currentConfig.vEncoder;
+            inputs.clientId.val(currentConfig.clientId);
+            inputs.clientSecret.val(currentConfig.clientSecret);
+            inputs.projectId.val(currentConfig.projectId);
+            inputs.refreshToken.val(currentConfig.refreshToken);
+            inputs.subscription.val(currentConfig.subscription || currentConfig.subscriptionId);
+            if (currentConfig.gcpProjectId)
+                inputs.gcpProjectId.val(currentConfig.gcpProjectId);
+
+            if (currentConfig.vEncoder)
+                inputs.vEncoder.val(currentConfig.vEncoder);
         }
 
         // make requests to your server.js script
         //const result = await homebridge.request('/hello', { name: 'world' });
     })();
+
+    function launchAutofill() {
+        try {
+
+            homebridge.showSpinner();
+
+            const inputs = getInputs();
+
+            if (!inputs.clientId.val || !inputs.projectId.val)
+                throw new Error('Please provide client ID and project ID.');
+
+            const win = window.open(`https://nestservices.google.com/partnerconnections/${inputs.projectId.val()}/auth?redirect_uri=https://www.google.com&access_type=offline&prompt=consent&client_id=${inputs.clientId.val()}&response_type=code&scope=https://www.googleapis.com/auth/sdm.service+https://www.googleapis.com/auth/pubsub`, '_blank', 'height=600,width=450');
+            if (window.focus) {
+                win.focus();
+            }
+
+            const pollTimer = window.setInterval(() => {
+                if (win.document.URL.includes('?code=')) {
+                    window.clearInterval(pollTimer);
+                    const authorizationCode = win.document.URL.split('?code=')[1];
+                    win.close();
+                    $.post(`https://www.googleapis.com/oauth2/v4/token?client_id=${inputs.clientId.val()}&client_secret=${inputs.clientSecret.val()}&code=authorization-code&grant_type=authorization_code&redirect_uri=https://www.google.com`)
+                }
+            }, 1000);
+
+        } catch (err) {
+            homebridge.hideSpinner();
+            homebridge.toast.error(err.message, 'Error');
+        }
+    }
 </script>
