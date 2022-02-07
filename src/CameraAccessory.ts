@@ -1,7 +1,7 @@
 import {
     PlatformAccessory,
     PlatformAccessoryEvent,
-    Logger, API
+    Logger, API, Service, CameraRecordingConfiguration
 } from 'homebridge';
 import {Platform} from './Platform';
 import {Camera} from "./sdm/Camera";
@@ -9,6 +9,8 @@ import {CameraStreamingDelegate} from "./CameraStreamingDelegate";
 import {MotionAccessory} from "./MotionAccessory";
 
 export class CameraAccessory extends MotionAccessory<Camera> {
+    // protected cameraRecordingManagement: Service;
+    protected streamingDelegate: CameraStreamingDelegate;
 
     constructor(
         api: API,
@@ -22,7 +24,18 @@ export class CameraAccessory extends MotionAccessory<Camera> {
             this.log.info("%s identified!", this.accessory.displayName);
         });
 
-        const streamingDelegate = new CameraStreamingDelegate(log, api, this.platform, this.device);
-        this.accessory.configureController(streamingDelegate.getController());
+        // this.cameraRecordingManagement = <Service>accessory.getService(this.api.hap.Service.CameraRecordingManagement);
+        // if (!this.cameraRecordingManagement) {
+        //     this.cameraRecordingManagement = accessory.addService(this.api.hap.Service.CameraRecordingManagement);
+        // }
+
+        this.streamingDelegate = new CameraStreamingDelegate(log, api, this.platform, this.device, this.accessory);
+        this.accessory.configureController(this.streamingDelegate.getController());
+
+        // this.cameraRecordingManagement.getCharacteristic(this.platform.Characteristic.Active)
+        //     .onSet((active) => this.streamingDelegate.updateRecordingActive(!!active));
+        //
+        // this.cameraRecordingManagement.getCharacteristic(this.platform.Characteristic.SupportedCameraRecordingConfiguration)
+        //     .onSet((supportedCameraRecordingConfiguration) => this.streamingDelegate.updateRecordingConfiguration(<CameraRecordingConfiguration>supportedCameraRecordingConfiguration))
     }
 }

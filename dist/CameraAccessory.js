@@ -9,8 +9,17 @@ class CameraAccessory extends MotionAccessory_1.MotionAccessory {
         this.accessory.on("identify" /* IDENTIFY */, () => {
             this.log.info("%s identified!", this.accessory.displayName);
         });
-        const streamingDelegate = new CameraStreamingDelegate_1.CameraStreamingDelegate(log, api, this.platform, this.device);
-        this.accessory.configureController(streamingDelegate.getController());
+        //create a new Motion service
+        this.cameraRecordingManagement = accessory.getService(this.api.hap.Service.CameraRecordingManagement);
+        if (!this.cameraRecordingManagement) {
+            this.cameraRecordingManagement = accessory.addService(this.api.hap.Service.CameraRecordingManagement);
+        }
+        this.streamingDelegate = new CameraStreamingDelegate_1.CameraStreamingDelegate(log, api, this.platform, this.device, this.accessory);
+        this.accessory.configureController(this.streamingDelegate.getController());
+        this.cameraRecordingManagement.getCharacteristic(this.platform.Characteristic.Active)
+            .onSet((active) => this.streamingDelegate.updateRecordingActive(!!active));
+        this.cameraRecordingManagement.getCharacteristic(this.platform.Characteristic.SupportedCameraRecordingConfiguration)
+            .onSet((supportedCameraRecordingConfiguration) => this.streamingDelegate.updateRecordingConfiguration(supportedCameraRecordingConfiguration));
     }
 }
 exports.CameraAccessory = CameraAccessory;
