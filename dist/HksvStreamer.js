@@ -3,8 +3,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const events_1 = require("events");
 const child_process_1 = require("child_process");
 const net_1 = require("net");
-class MP4StreamingServer {
-    constructor(ffmpegPath, ffmpegInput, audioOutputArgs, videoOutputArgs) {
+class HksvStreamer {
+    constructor(ffmpegInput, audioOutputArgs, videoOutputArgs) {
         /**
          * This can be configured to output ffmpeg debug output!
          */
@@ -12,7 +12,9 @@ class MP4StreamingServer {
         this.destroyed = false;
         this.connectPromise = new Promise(resolve => this.connectResolve = resolve);
         this.server = (0, net_1.createServer)(this.handleConnection.bind(this));
-        this.ffmpegPath = ffmpegPath;
+        this.ffmpegPath = require('ffmpeg-for-homebridge');
+        if (!this.ffmpegPath)
+            this.ffmpegPath = 'ffmpeg';
         this.args = [];
         this.args.push(...ffmpegInput);
         this.args.push(...audioOutputArgs);
@@ -116,5 +118,5 @@ class MP4StreamingServer {
         });
     }
 }
-exports.default = MP4StreamingServer;
-//# sourceMappingURL=MP4StreamingServer.js.map
+exports.default = HksvStreamer;
+//# sourceMappingURL=HksvStreamer.js.map

@@ -69,4 +69,4 @@ class FfmpegProcess {
     }
 }
 exports.FfmpegProcess = FfmpegProcess;
-//# sourceMappingURL=FfMpeg.js.map
+//# sourceMappingURL=FfMpegProcess.js.map

@@ -9,7 +9,7 @@ interface MP4Atom {
     data: Buffer;
 }
 
-export default class MP4StreamingServer {
+export default class HksvStreamer {
     readonly server: Server;
 
     /**
@@ -27,11 +27,15 @@ export default class MP4StreamingServer {
     connectPromise: Promise<void>;
     connectResolve?: () => void;
 
-    constructor(ffmpegPath: string, ffmpegInput: Array<string>, audioOutputArgs: Array<string>, videoOutputArgs: Array<string>) {
+    constructor(ffmpegInput: Array<string>, audioOutputArgs: Array<string>, videoOutputArgs: Array<string>) {
         this.connectPromise = new Promise(resolve => this.connectResolve = resolve);
 
         this.server = createServer(this.handleConnection.bind(this));
-        this.ffmpegPath = ffmpegPath;
+
+        this.ffmpegPath = require('ffmpeg-for-homebridge');
+        if (!this.ffmpegPath)
+            this.ffmpegPath = 'ffmpeg';
+
         this.args = [];
 
         this.args.push(...ffmpegInput);

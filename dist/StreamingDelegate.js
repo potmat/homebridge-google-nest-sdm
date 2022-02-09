@@ -4,14 +4,13 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.StreamingDelegate = void 0;
-const homebridge_1 = require("homebridge");
 const dgram_1 = require("dgram");
 const get_port_1 = __importDefault(require("get-port"));
 const os_1 = __importDefault(require("os"));
 const systeminformation_1 = require("systeminformation");
-const FfMpeg_1 = require("./FfMpeg");
+const FfMpegProcess_1 = require("./FfMpegProcess");
 const NestStreamer_1 = require("./NestStreamer");
-const MP4StreamingServer_1 = __importDefault(require("./MP4StreamingServer"));
+const HksvStreamer_1 = __importDefault(require("./HksvStreamer"));
 class StreamingDelegate {
     constructor(log, api, platform, camera, accessory) {
         // keep track of sessions
@@ -61,7 +60,7 @@ class StreamingDelegate {
                         fragmentLength: 4000,
                     },
                     video: {
-                        type: homebridge_1.VideoCodecType.H264,
+                        type: 0 /* H264 */,
                         parameters: {
                             profiles: [2 /* HIGH */],
                             levels: [2 /* LEVEL4_0 */],
@@ -259,7 +258,7 @@ class StreamingDelegate {
             this.logThenCallback(callback, error);
             return;
         }
-        activeSession.mainProcess = new FfMpeg_1.FfmpegProcess(this.camera.getDisplayName(), request.sessionID, ffmpegArgs, this.log, this.platform.debugMode, this, callback);
+        activeSession.mainProcess = new FfMpegProcess_1.FfmpegProcess(this.camera.getDisplayName(), request.sessionID, ffmpegArgs, this.log, this.platform.debugMode, this, callback);
         this.ongoingSessions[request.sessionID] = activeSession;
         delete this.pendingSessions[request.sessionID];
     }
@@ -332,8 +331,7 @@ class StreamingDelegate {
      * * It would start to immediately record after a trigger event occurred and not just
      *   when the HomeKit Controller requests it (see the documentation of `CameraRecordingDelegate`).
      */
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    handleRecordingStreamRequest(streamId) {
+    async *handleRecordingStreamRequest(streamId) {
         var _a, _b, _c;
         if (!this.cameraRecordingConfiguration)
             throw new Error('No recording configuration for this camera.');
@@ -346,7 +344,8 @@ class StreamingDelegate {
          */
         const STOP_AFTER_MOTION_STOP = false;
         this.handlingRecordingStreamingRequest = true;
-        //assert(this.cameraRecordingConfiguration.videoCodec.type === VideoCodecType.H264);
+        if (this.cameraRecordingConfiguration.videoCodec.type !== 0 /* H264 */)
+            throw new Error('Unsupported recording codec type.');
         const profile = this.cameraRecordingConfiguration.videoCodec.parameters.profile === 2 /* HIGH */ ? "high"
             : this.cameraRecordingConfiguration.videoCodec.parameters.profile === 1 /* MAIN */ ? "main" : "baseline";
         const level = this.cameraRecordingConfiguration.videoCodec.parameters.level === 2 /* LEVEL4_0 */ ? "4.0"
@@ -386,7 +385,7 @@ class StreamingDelegate {
                 samplerate = "48";
                 break;
             default:
-                throw new Error("Unsupported audio samplerate: " + this.cameraRecordingConfiguration.audioCodec.samplerate);
+                throw new Error("Unsupported audio sample rate: " + this.cameraRecordingConfiguration.audioCodec.samplerate);
         }
         const audioArgs = ((_b = (_a = this.controller) === null || _a === void 0 ? void 0 : _a.recordingManagement) === null || _b === void 0 ? void 0 : _b.recordingManagementService.getCharacteristic(this.platform.Characteristic.RecordingAudioActive))
             ? [
@@ -399,33 +398,29 @@ class StreamingDelegate {
                 "-ac", `${this.cameraRecordingConfiguration.audioCodec.audioChannels}`,
             ]
             : [];
-        this.mp4StreamingServer = new MP4StreamingServer_1.default("ffmpeg", `-f lavfi -i \
+        this.mp4StreamingServer = new HksvStreamer_1.default(`-f lavfi -i \
       testsrc=s=${this.cameraRecordingConfiguration.videoCodec.resolution[0]}x${this.cameraRecordingConfiguration.videoCodec.resolution[1]}:r=${this.cameraRecordingConfiguration.videoCodec.resolution[2]}`
             .split(/ /g), audioArgs, videoArgs);
         await this.mp4StreamingServer.start();
         if (!this.mp4StreamingServer || this.mp4StreamingServer.destroyed) {
-            return; // early exit
+            throw new Error('Streaming server already closed.');
         }
         const pending = [];
         try {
             for await (const box of this.mp4StreamingServer.generator()) {
                 pending.push(box.header, box.data);
                 const motionDetected = (_c = this.accessory.getService(this.hap.Service.MotionSensor)) === null || _c === void 0 ? void 0 : _c.getCharacteristic(this.platform.Characteristic.MotionDetected).value;
-                console.log("mp4 box type " + box.type + " and length " + box.length);
+                this.log.debug("mp4 box type " + box.type + " and length " + box.length);
                 if (box.type === "moov" || box.type === "mdat") {
                     const fragment = Buffer.concat(pending);
                     pending.splice(0, pending.length);
                     const isLast = STOP_AFTER_MOTION_STOP && !motionDetected;
-                    yield;
-                    {
+                    yield {
                         data: fragment,
-                            isLast;
-                        isLast,
-                        ;
-                    }
-                    ;
+                        isLast: isLast,
+                    };
                     if (isLast) {
-                        console.log("Ending session due to motion stopped!");
+                        this.log.debug("Ending session due to motion stopped!");
                         break;
                     }
                 }
@@ -433,7 +428,7 @@ class StreamingDelegate {
         }
         catch (error) {
             if (!error.message.startsWith("FFMPEG")) { // cheap way of identifying our own emitted errors
-                console.error("Encountered unexpected error on generator " + error.stack);
+                this.log.error("Encountered unexpected error on generator " + error.stack);
             }
         }
     }

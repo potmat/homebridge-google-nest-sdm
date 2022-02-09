@@ -16,19 +16,19 @@ import {
   StartStreamRequest,
   StreamingRequest,
   StreamRequestCallback,
-  StreamRequestTypes, VideoInfo,
-  VideoCodecType
+  StreamRequestTypes, VideoInfo
 } from 'homebridge';
+import { VideoCodecType } from 'hap-nodejs'
 import {createSocket, Socket} from 'dgram';
 import getPort from 'get-port';
 import os from 'os';
 import {networkInterfaceDefault} from 'systeminformation';
 import {Config} from './Config'
-import {FfmpegProcess} from './FfMpeg';
+import {FfmpegProcess} from './FfMpegProcess';
 import {Camera} from "./sdm/Camera";
 import {getStreamer, NestStreamer} from "./NestStreamer";
 import {Platform} from "./Platform";
-import MP4StreamingServer from "./MP4StreamingServer";
+import HksvStreamer from "./HksvStreamer";
 
 type SessionInfo = {
   address: string; // address of the HAP controller
@@ -79,7 +79,7 @@ export abstract class StreamingDelegate<T extends CameraController> implements C
   // minimal secure video properties.
   protected cameraRecordingConfiguration?: CameraRecordingConfiguration;
   protected handlingRecordingStreamingRequest = false;
-  protected mp4StreamingServer?: MP4StreamingServer;
+  protected mp4StreamingServer?: HksvStreamer;
 
   constructor(log: Logger, api: API, platform: Platform, camera: Camera, accessory: PlatformAccessory) {
     this.platform = platform;
@@ -436,8 +436,7 @@ export abstract class StreamingDelegate<T extends CameraController> implements C
    * * It would start to immediately record after a trigger event occurred and not just
    *   when the HomeKit Controller requests it (see the documentation of `CameraRecordingDelegate`).
    */
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  handleRecordingStreamRequest(streamId: number): AsyncGenerator<RecordingPacket> {
+  async *handleRecordingStreamRequest(streamId: number): AsyncGenerator<RecordingPacket> {
 
     if (!this.cameraRecordingConfiguration)
       throw new Error('No recording configuration for this camera.');
@@ -453,7 +452,8 @@ export abstract class StreamingDelegate<T extends CameraController> implements C
 
     this.handlingRecordingStreamingRequest = true;
 
-    //assert(this.cameraRecordingConfiguration.videoCodec.type === VideoCodecType.H264);
+    if (this.cameraRecordingConfiguration.videoCodec.type !== VideoCodecType.H264)
+      throw new Error('Unsupported recording codec type.');
 
     const profile = this.cameraRecordingConfiguration!.videoCodec.parameters.profile === H264Profile.HIGH ? "high"
         : this.cameraRecordingConfiguration!.videoCodec.parameters.profile === H264Profile.MAIN ? "main" : "baseline";
@@ -498,7 +498,7 @@ export abstract class StreamingDelegate<T extends CameraController> implements C
         samplerate = "48";
         break;
       default:
-        throw new Error("Unsupported audio samplerate: " + this.cameraRecordingConfiguration!.audioCodec.samplerate);
+        throw new Error("Unsupported audio sample rate: " + this.cameraRecordingConfiguration!.audioCodec.samplerate);
     }
 
     const audioArgs: Array<string> = this.controller?.recordingManagement?.recordingManagementService.getCharacteristic(this.platform.Characteristic.RecordingAudioActive)
@@ -513,8 +513,7 @@ export abstract class StreamingDelegate<T extends CameraController> implements C
         ]
         : [];
 
-    this.mp4StreamingServer = new MP4StreamingServer(
-        "ffmpeg",
+    this.mp4StreamingServer = new HksvStreamer(
         `-f lavfi -i \
       testsrc=s=${this.cameraRecordingConfiguration!.videoCodec.resolution[0]}x${this.cameraRecordingConfiguration!.videoCodec.resolution[1]}:r=${this.cameraRecordingConfiguration!.videoCodec.resolution[2]}`
             .split(/ /g),
@@ -524,7 +523,7 @@ export abstract class StreamingDelegate<T extends CameraController> implements C
 
     await this.mp4StreamingServer.start();
     if (!this.mp4StreamingServer || this.mp4StreamingServer.destroyed) {
-      return; // early exit
+      throw new Error('Streaming server already closed.')
     }
 
     const pending: Array<Buffer> = [];
@@ -535,7 +534,7 @@ export abstract class StreamingDelegate<T extends CameraController> implements C
 
         const motionDetected = this.accessory.getService(this.hap.Service.MotionSensor)?.getCharacteristic(this.platform.Characteristic.MotionDetected).value;
 
-        console.log("mp4 box type " + box.type + " and length " + box.length);
+        this.log.debug("mp4 box type " + box.type + " and length " + box.length);
         if (box.type === "moov" || box.type === "mdat") {
           const fragment = Buffer.concat(pending);
           pending.splice(0, pending.length);
@@ -548,14 +547,14 @@ export abstract class StreamingDelegate<T extends CameraController> implements C
           };
 
           if (isLast) {
-            console.log("Ending session due to motion stopped!");
+            this.log.debug("Ending session due to motion stopped!");
             break;
           }
         }
       }
     } catch (error: any) {
       if (!error.message.startsWith("FFMPEG")) { // cheap way of identifying our own emitted errors
-        console.error("Encountered unexpected error on generator " + error.stack);
+        this.log.error("Encountered unexpected error on generator " + error.stack);
       }
     }
   }
