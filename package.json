@@ -38,6 +38,7 @@
     "googleapis": "^87.0.0",
     "ip": "^1.1.5",
     "lodash": "^4.17.21",
+    "portfinder": "^1.0.28",
     "systeminformation": "^5.9.3",
     "werift": "0.14.4"
   },

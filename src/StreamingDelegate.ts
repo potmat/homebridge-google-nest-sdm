@@ -26,7 +26,7 @@ import {networkInterfaceDefault} from 'systeminformation';
 import {Config} from './Config'
 import {FfmpegProcess} from './FfMpegProcess';
 import {Camera} from "./sdm/Camera";
-import {getStreamer, NestStreamer} from "./NestStreamer";
+import {getStreamer, NestStream, NestStreamer} from "./NestStreamer";
 import {Platform} from "./Platform";
 import HksvStreamer from "./HksvStreamer";
 
@@ -62,6 +62,11 @@ type ResolutionInfo = {
   videoFilter: string;
 };
 
+type RecordingSessionInfo = {
+  nestStreamer: NestStreamer,
+  hksvStreamer: HksvStreamer
+}
+
 export abstract class StreamingDelegate<T extends CameraController> implements CameraStreamingDelegate, CameraRecordingDelegate {
   protected hap: HAP;
   protected log: Logger;
@@ -79,7 +84,7 @@ export abstract class StreamingDelegate<T extends CameraController> implements C
   // minimal secure video properties.
   protected cameraRecordingConfiguration?: CameraRecordingConfiguration;
   protected handlingRecordingStreamingRequest = false;
-  protected mp4StreamingServer?: HksvStreamer;
+  protected recordingSessionInfo?: RecordingSessionInfo;
 
   constructor(log: Logger, api: API, platform: Platform, camera: Camera, accessory: PlatformAccessory) {
     this.platform = platform;
@@ -282,9 +287,11 @@ export abstract class StreamingDelegate<T extends CameraController> implements C
     const nestStreamer = await getStreamer(this.log, this.camera);
 
     let ffmpegArgs: string;
+    let nestStream: NestStream;
 
     try {
-      ffmpegArgs = await nestStreamer.initialize(); // '-analyzeduration 15000000 -probesize 100000000 -i ' + streamInfo.streamUrls.rtspUrl;
+      nestStream = await nestStreamer.initialize(); // '-analyzeduration 15000000 -probesize 100000000 -i ' + streamInfo.streamUrls.rtspUrl;
+      ffmpegArgs = nestStream.args;
     } catch (error: any) {
       this.logThenCallback(callback, error);
       return;
@@ -359,7 +366,7 @@ export abstract class StreamingDelegate<T extends CameraController> implements C
       return;
     }
 
-    activeSession.mainProcess = new FfmpegProcess(this.camera.getDisplayName(), request.sessionID, ffmpegArgs, this.log, this.platform.debugMode, this, callback);
+    activeSession.mainProcess = new FfmpegProcess(this.camera.getDisplayName(), request.sessionID, ffmpegArgs, nestStream.stdin, this.log, this.platform.debugMode, this, callback);
 
     this.ongoingSessions[request.sessionID] = activeSession;
     delete this.pendingSessions[request.sessionID];
@@ -415,9 +422,10 @@ export abstract class StreamingDelegate<T extends CameraController> implements C
   }
 
   closeRecordingStream(streamId: number, reason: HDSProtocolSpecificErrorReason | undefined): void {
-    if (this.mp4StreamingServer) {
-      this.mp4StreamingServer.destroy();
-      this.mp4StreamingServer = undefined;
+    if (this.recordingSessionInfo?.hksvStreamer) {
+      this.recordingSessionInfo?.hksvStreamer.destroy();
+      this.recordingSessionInfo.nestStreamer.teardown();
+      this.recordingSessionInfo = undefined;
     }
     this.handlingRecordingStreamingRequest = false;
   }
@@ -513,23 +521,30 @@ export abstract class StreamingDelegate<T extends CameraController> implements C
         ]
         : [];
 
-    this.mp4StreamingServer = new HksvStreamer(
-        `-f lavfi -i \
-      testsrc=s=${this.cameraRecordingConfiguration!.videoCodec.resolution[0]}x${this.cameraRecordingConfiguration!.videoCodec.resolution[1]}:r=${this.cameraRecordingConfiguration!.videoCodec.resolution[2]}`
-            .split(/ /g),
+    const nestStreamer = await getStreamer(this.log, this.camera);
+    const nestStream = await nestStreamer.initialize();
+    const hksvStreamer = new HksvStreamer(
+        this.log,
+        nestStream,
         audioArgs,
         videoArgs,
+        this.platform.debugMode
     );
 
-    await this.mp4StreamingServer.start();
-    if (!this.mp4StreamingServer || this.mp4StreamingServer.destroyed) {
+    this.recordingSessionInfo = {
+      hksvStreamer: hksvStreamer,
+      nestStreamer: nestStreamer
+    }
+
+    await hksvStreamer.start();
+    if (!hksvStreamer || hksvStreamer.destroyed) {
       throw new Error('Streaming server already closed.')
     }
 
     const pending: Array<Buffer> = [];
 
     try {
-      for await (const box of this.mp4StreamingServer.generator()) {
+      for await (const box of this.recordingSessionInfo.hksvStreamer.generator()) {
         pending.push(box.header, box.data);
 
         const motionDetected = this.accessory.getService(this.hap.Service.MotionSensor)?.getCharacteristic(this.platform.Characteristic.MotionDetected).value;

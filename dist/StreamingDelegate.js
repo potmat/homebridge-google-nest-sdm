@@ -190,8 +190,10 @@ class StreamingDelegate {
         this.log.debug(`Video stream requested: ${request.video.width} x ${request.video.height}, ${request.video.fps} fps, ${request.video.max_bit_rate} kbps`, this.camera.getDisplayName());
         const nestStreamer = await (0, NestStreamer_1.getStreamer)(this.log, this.camera);
         let ffmpegArgs;
+        let nestStream;
         try {
-            ffmpegArgs = await nestStreamer.initialize(); // '-analyzeduration 15000000 -probesize 100000000 -i ' + streamInfo.streamUrls.rtspUrl;
+            nestStream = await nestStreamer.initialize(); // '-analyzeduration 15000000 -probesize 100000000 -i ' + streamInfo.streamUrls.rtspUrl;
+            ffmpegArgs = nestStream.args;
         }
         catch (error) {
             this.logThenCallback(callback, error);
@@ -258,7 +260,7 @@ class StreamingDelegate {
             this.logThenCallback(callback, error);
             return;
         }
-        activeSession.mainProcess = new FfMpegProcess_1.FfmpegProcess(this.camera.getDisplayName(), request.sessionID, ffmpegArgs, this.log, this.platform.debugMode, this, callback);
+        activeSession.mainProcess = new FfMpegProcess_1.FfmpegProcess(this.camera.getDisplayName(), request.sessionID, ffmpegArgs, nestStream.stdin, this.log, this.platform.debugMode, this, callback);
         this.ongoingSessions[request.sessionID] = activeSession;
         delete this.pendingSessions[request.sessionID];
     }
@@ -313,9 +315,11 @@ class StreamingDelegate {
         this.log.debug('Stopped video stream.', this.camera.getDisplayName());
     }
     closeRecordingStream(streamId, reason) {
-        if (this.mp4StreamingServer) {
-            this.mp4StreamingServer.destroy();
-            this.mp4StreamingServer = undefined;
+        var _a, _b;
+        if ((_a = this.recordingSessionInfo) === null || _a === void 0 ? void 0 : _a.hksvStreamer) {
+            (_b = this.recordingSessionInfo) === null || _b === void 0 ? void 0 : _b.hksvStreamer.destroy();
+            this.recordingSessionInfo.nestStreamer.teardown();
+            this.recordingSessionInfo = undefined;
         }
         this.handlingRecordingStreamingRequest = false;
     }
@@ -398,16 +402,20 @@ class StreamingDelegate {
                 "-ac", `${this.cameraRecordingConfiguration.audioCodec.audioChannels}`,
             ]
             : [];
-        this.mp4StreamingServer = new HksvStreamer_1.default(`-f lavfi -i \
-      testsrc=s=${this.cameraRecordingConfiguration.videoCodec.resolution[0]}x${this.cameraRecordingConfiguration.videoCodec.resolution[1]}:r=${this.cameraRecordingConfiguration.videoCodec.resolution[2]}`
-            .split(/ /g), audioArgs, videoArgs);
-        await this.mp4StreamingServer.start();
-        if (!this.mp4StreamingServer || this.mp4StreamingServer.destroyed) {
+        const nestStreamer = await (0, NestStreamer_1.getStreamer)(this.log, this.camera);
+        const nestStream = await nestStreamer.initialize();
+        const hksvStreamer = new HksvStreamer_1.default(this.log, nestStream, audioArgs, videoArgs, this.platform.debugMode);
+        this.recordingSessionInfo = {
+            hksvStreamer: hksvStreamer,
+            nestStreamer: nestStreamer
+        };
+        await hksvStreamer.start();
+        if (!hksvStreamer || hksvStreamer.destroyed) {
             throw new Error('Streaming server already closed.');
         }
         const pending = [];
         try {
-            for await (const box of this.mp4StreamingServer.generator()) {
+            for await (const box of this.recordingSessionInfo.hksvStreamer.generator()) {
                 pending.push(box.header, box.data);
                 const motionDetected = (_c = this.accessory.getService(this.hap.Service.MotionSensor)) === null || _c === void 0 ? void 0 : _c.getCharacteristic(this.platform.Characteristic.MotionDetected).value;
                 this.log.debug("mp4 box type " + box.type + " and length " + box.length);

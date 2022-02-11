@@ -1,10 +1,15 @@
-import path from "path";
 import {Camera} from "./sdm/Camera";
 import {GenerateRtspStream, GenerateWebRtcStream} from "./sdm/Responses";
 import {createSocket, Socket} from "dgram";
 import {RTCPeerConnection, RTCRtpCodecParameters} from "werift";
 import * as Traits from "./sdm/Traits";
 import {Logger} from "homebridge";
+const portfinder = require('portfinder');
+
+export interface NestStream {
+    args: string,
+    stdin?: string
+}
 
 export abstract class NestStreamer {
     protected token: string | undefined;
@@ -16,15 +21,17 @@ export abstract class NestStreamer {
         this.camera = camera;
     }
 
-    abstract initialize(): Promise<string>;
+    abstract initialize(): Promise<NestStream>;
     abstract teardown(): void;
 }
 
 export class RtspNestStreamer extends NestStreamer {
-    async initialize(): Promise<string> {
+    async initialize(): Promise<NestStream> {
         const streamInfo = <GenerateRtspStream> await this.camera.generateStream();
         this.token = streamInfo.streamExtensionToken;
-        return '-analyzeduration 15000000 -probesize 100000000 -i ' + streamInfo.streamUrls.rtspUrl;
+        return {
+            args: '-analyzeduration 15000000 -probesize 100000000 -i ' + streamInfo.streamUrls.rtspUrl
+        };
     }
 
     async teardown(): Promise<void> {
@@ -36,7 +43,7 @@ export class WebRtcNestStreamer extends NestStreamer {
     private udp: Socket | undefined;
     private pc: RTCPeerConnection | undefined;
 
-    async initialize(): Promise<string> {
+    async initialize(): Promise<NestStream> {
 
         this.udp = createSocket("udp4");
 
@@ -66,19 +73,23 @@ export class WebRtcNestStreamer extends NestStreamer {
             }
         });
 
+        const audioPort = await portfinder.getPortPromise();
         const audioTransceiver = this.pc.addTransceiver("audio", {direction: "recvonly"});
         audioTransceiver.onTrack.subscribe((track) => {
             audioTransceiver.sender.replaceTrack(track);
             track.onReceiveRtp.subscribe((rtp) => {
-                this.udp!.send(rtp.serialize(), 33301, "127.0.0.1");
+                this.udp!.send(rtp.serialize(), audioPort, "127.0.0.1");
             });
         });
 
+        const videoPort = await portfinder.getPortPromise({
+            port: audioPort + 2
+        });
         const videoTransceiver = this.pc.addTransceiver("video", {direction: "recvonly"});
         videoTransceiver.onTrack.subscribe((track) => {
             videoTransceiver.sender.replaceTrack(track);
             track.onReceiveRtp.subscribe((rtp) => {
-                this.udp!.send(rtp.serialize(), 33305, "127.0.0.1");
+                this.udp!.send(rtp.serialize(), videoPort, "127.0.0.1");
             });
             track.onReceiveRtp.once(() => {
                 setInterval(() => videoTransceiver.receiver.sendRtcpPLI(track.ssrc!), 2000);
@@ -97,7 +108,27 @@ export class WebRtcNestStreamer extends NestStreamer {
             sdp: streamInfo.answerSdp
         });
 
-        return `-protocol_whitelist file,crypto,udp,rtp -i ${path.join(__dirname, "res", "ffmpeg.sdp")}`;
+        return {
+            args: `-protocol_whitelist pipe,crypto,udp,rtp -i -`,
+            stdin: `v=0
+o=- 0 0 IN IP4 127.0.0.1
+s=-
+c=IN IP4 127.0.0.1
+t=0 0
+m=audio ${audioPort} UDP 96
+a=rtpmap:96 opus/48000/2
+a=fmtp:96 minptime=10;useinbandfec=1
+a=rtcp-fb:96 transport-cc
+a=sendrecv
+m=video ${videoPort} UDP 97
+a=rtpmap:97 H264/90000
+a=rtcp-fb:97 ccm fir
+a=rtcp-fb:97 nack
+a=rtcp-fb:97 nack pli
+a=rtcp-fb:97 goog-remb
+a=fmtp:97 level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f
+a=sendrecv`
+        }
     }
 
     async teardown(): Promise<void> {

@@ -9,7 +9,7 @@ import {Accessory} from "./Accessory";
 export abstract class MotionAccessory<T extends Camera> extends Accessory<T> {
     private readonly motionService: Service;
     private lastMotion: number | undefined;
-    private readonly motionDecay: number = 10000;
+    private readonly motionDecay: number = 20000;
 
     constructor(
         api: API,

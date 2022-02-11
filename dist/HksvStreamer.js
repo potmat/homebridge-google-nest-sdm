@@ -3,25 +3,32 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const events_1 = require("events");
 const child_process_1 = require("child_process");
 const net_1 = require("net");
+const stream_1 = require("stream");
 class HksvStreamer {
-    constructor(ffmpegInput, audioOutputArgs, videoOutputArgs) {
-        /**
-         * This can be configured to output ffmpeg debug output!
-         */
-        this.debugMode = false;
+    constructor(log, nestStream, audioOutputArgs, videoOutputArgs, debugMode) {
         this.destroyed = false;
+        this.nestStream = nestStream;
+        this.debugMode = debugMode;
+        this.log = log;
         this.connectPromise = new Promise(resolve => this.connectResolve = resolve);
         this.server = (0, net_1.createServer)(this.handleConnection.bind(this));
         this.ffmpegPath = require('ffmpeg-for-homebridge');
         if (!this.ffmpegPath)
             this.ffmpegPath = 'ffmpeg';
         this.args = [];
-        this.args.push(...ffmpegInput);
+        this.args.push(...nestStream.args.split(/ /g));
         this.args.push(...audioOutputArgs);
         this.args.push("-f", "mp4");
         this.args.push(...videoOutputArgs);
         this.args.push("-fflags", "+genpts", "-reset_timestamps", "1");
         this.args.push("-movflags", "frag_keyframe+empty_moov+default_base_moof");
+    }
+    convertStringToStream(stringToConvert) {
+        const stream = new stream_1.Readable();
+        stream._read = () => { };
+        stream.push(stringToConvert);
+        stream.push(null);
+        return stream;
     }
     async start() {
         var _a, _b;
@@ -33,14 +40,21 @@ class HksvStreamer {
         }
         const port = this.server.address().port;
         this.args.push("tcp://127.0.0.1:" + port);
-        console.log(this.ffmpegPath + " " + this.args.join(" "));
+        this.log.debug(this.ffmpegPath + " " + this.args.join(" "));
         this.childProcess = (0, child_process_1.spawn)(this.ffmpegPath, this.args, { env: process.env, stdio: this.debugMode ? "pipe" : "ignore" });
-        if (!this.childProcess) {
-            console.error("ChildProcess is undefined directly after the init!");
+        if (!this.childProcess.stdin && this.nestStream.stdin) {
+            this.log.error('Failed to start stream: input to ffmpeg was provides as stdin, but the process does not support stdin.');
+        }
+        if (this.childProcess.stdin) {
+            if (this.nestStream.stdin) {
+                const sdpStream = this.convertStringToStream(this.nestStream.stdin);
+                sdpStream.resume();
+                sdpStream.pipe(this.childProcess.stdin);
+            }
         }
         if (this.debugMode) {
-            (_a = this.childProcess.stdout) === null || _a === void 0 ? void 0 : _a.on("data", data => console.log(data.toString()));
-            (_b = this.childProcess.stderr) === null || _b === void 0 ? void 0 : _b.on("data", data => console.log(data.toString()));
+            (_a = this.childProcess.stdout) === null || _a === void 0 ? void 0 : _a.on("data", data => this.log.debug(data.toString()));
+            (_b = this.childProcess.stderr) === null || _b === void 0 ? void 0 : _b.on("data", data => this.log.debug(data.toString()));
         }
     }
     destroy() {
@@ -64,7 +78,7 @@ class HksvStreamer {
     async *generator() {
         await this.connectPromise;
         if (!this.socket || !this.childProcess) {
-            console.log("Socket undefined " + !!this.socket + " childProcess undefined " + !!this.childProcess);
+            this.log.debug("Socket undefined " + !!this.socket + " childProcess undefined " + !!this.childProcess);
             throw new Error("Unexpected state!");
         }
         while (true) {
@@ -92,23 +106,21 @@ class HksvStreamer {
             return value;
         }
         return new Promise((resolve, reject) => {
+            const cleanup = () => {
+                var _a, _b;
+                (_a = this.socket) === null || _a === void 0 ? void 0 : _a.removeListener("readable", readHandler);
+                (_b = this.socket) === null || _b === void 0 ? void 0 : _b.removeListener("close", endHandler);
+            };
             const readHandler = () => {
                 const value = this.socket.read(length);
                 if (value) {
-                    // eslint-disable-next-line @typescript-eslint/no-use-before-define
                     cleanup();
                     resolve(value);
                 }
             };
             const endHandler = () => {
-                // eslint-disable-next-line @typescript-eslint/no-use-before-define
                 cleanup();
                 reject(new Error(`FFMPEG socket closed during read for ${length} bytes!`));
-            };
-            const cleanup = () => {
-                var _a, _b;
-                (_a = this.socket) === null || _a === void 0 ? void 0 : _a.removeListener("readable", readHandler);
-                (_b = this.socket) === null || _b === void 0 ? void 0 : _b.removeListener("close", endHandler);
             };
             if (!this.socket) {
                 throw new Error("FFMPEG socket is closed now!");
