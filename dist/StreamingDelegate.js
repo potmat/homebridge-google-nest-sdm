@@ -337,6 +337,7 @@ class StreamingDelegate {
      */
     async *handleRecordingStreamRequest(streamId) {
         var _a, _b, _c;
+        this.log.debug('Recording request received.');
         if (!this.cameraRecordingConfiguration)
             throw new Error('No recording configuration for this camera.');
         /**
@@ -359,11 +360,11 @@ class StreamingDelegate {
             "-sn",
             "-dn",
             "-codec:v",
-            "libx264",
+            this.config.vEncoder || "libx264",
             "-pix_fmt",
             "yuv420p",
-            "-profile:v", profile,
-            "-level:v", level,
+            //"-profile:v", profile,
+            //"-level:v", level,
             "-b:v", `${this.cameraRecordingConfiguration.videoCodec.parameters.bitRate}k`,
             "-force_key_frames", `expr:eq(t,n_forced*${this.cameraRecordingConfiguration.videoCodec.parameters.iFrameInterval / 1000})`,
             "-r", this.cameraRecordingConfiguration.videoCodec.resolution[2].toString(),
@@ -435,9 +436,7 @@ class StreamingDelegate {
             }
         }
         catch (error) {
-            if (!error.message.startsWith("FFMPEG")) { // cheap way of identifying our own emitted errors
-                this.log.error("Encountered unexpected error on generator " + error.stack);
-            }
+            this.log.error("Encountered unexpected error on generator " + error.stack);
         }
     }
     updateRecordingActive(active) {

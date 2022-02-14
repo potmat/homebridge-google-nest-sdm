@@ -42,6 +42,9 @@ class HksvStreamer {
         this.args.push("tcp://127.0.0.1:" + port);
         this.log.debug(this.ffmpegPath + " " + this.args.join(" "));
         this.childProcess = (0, child_process_1.spawn)(this.ffmpegPath, this.args, { env: process.env, stdio: this.debugMode ? "pipe" : "ignore" });
+        // this.childProcess.on('error', (error: Error) => {
+        //     delegate.stopStream(sessionId);
+        // });
         if (!this.childProcess.stdin && this.nestStream.stdin) {
             this.log.error('Failed to start stream: input to ffmpeg was provides as stdin, but the process does not support stdin.');
         }
@@ -59,8 +62,8 @@ class HksvStreamer {
     }
     destroy() {
         var _a, _b;
-        (_a = this.socket) === null || _a === void 0 ? void 0 : _a.destroy();
-        (_b = this.childProcess) === null || _b === void 0 ? void 0 : _b.kill();
+        (_a = this.childProcess) === null || _a === void 0 ? void 0 : _a.kill();
+        (_b = this.socket) === null || _b === void 0 ? void 0 : _b.destroy();
         this.socket = undefined;
         this.childProcess = undefined;
         this.destroyed = true;

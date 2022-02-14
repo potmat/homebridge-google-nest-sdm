@@ -30,7 +30,7 @@ export class RtspNestStreamer extends NestStreamer {
         const streamInfo = <GenerateRtspStream> await this.camera.generateStream();
         this.token = streamInfo.streamExtensionToken;
         return {
-            args: '-analyzeduration 15000000 -probesize 100000000 -i ' + streamInfo.streamUrls.rtspUrl
+            args: '-fflags +discardcorrupt+nobuffer -i ' + streamInfo.streamUrls.rtspUrl
         };
     }
 

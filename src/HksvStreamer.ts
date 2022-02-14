@@ -80,6 +80,9 @@ export default class HksvStreamer {
 
         this.childProcess = spawn(this.ffmpegPath, this.args, { env: process.env, stdio: this.debugMode? "pipe": "ignore" });
 
+        // this.childProcess.on('error', (error: Error) => {
+        //     delegate.stopStream(sessionId);
+        // });
 
         if (!this.childProcess.stdin && this.nestStream.stdin) {
             this.log.error('Failed to start stream: input to ffmpeg was provides as stdin, but the process does not support stdin.');
@@ -100,8 +103,8 @@ export default class HksvStreamer {
     }
 
     destroy() {
-        this.socket?.destroy();
         this.childProcess?.kill();
+        this.socket?.destroy();
 
         this.socket = undefined;
         this.childProcess = undefined;

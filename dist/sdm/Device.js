@@ -48,7 +48,7 @@ class Device {
             this.log.debug(`Last refresh for ${this.getDisplayName()} was ${howLongAgo / 1000}s, refreshing.`);
         }
         const value = ((_a = this.device) === null || _a === void 0 ? void 0 : _a.traits) ? (_b = this.device) === null || _b === void 0 ? void 0 : _b.traits[name] : null;
-        this.log.debug(`Request for trait ${name} had value ${JSON.stringify(value)}`, this.getDisplayName());
+        //this.log.debug(`Request for trait ${name} had value ${JSON.stringify(value)}`, this.getDisplayName());
         return value;
     }
     async executeCommand(name, params) {

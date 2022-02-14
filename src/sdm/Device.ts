@@ -57,7 +57,7 @@ export abstract class Device {
         }
 
         const value = this.device?.traits ? this.device?.traits[name] : null;
-        this.log.debug(`Request for trait ${name} had value ${JSON.stringify(value)}`, this.getDisplayName());
+        //this.log.debug(`Request for trait ${name} had value ${JSON.stringify(value)}`, this.getDisplayName());
         return value;
     }
 
