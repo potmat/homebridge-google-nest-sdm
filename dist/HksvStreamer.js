@@ -32,6 +32,7 @@ class HksvStreamer {
     }
     async start() {
         var _a, _b;
+        this.log.debug('HksvStreamer start command received.');
         const promise = (0, events_1.once)(this.server, "listening");
         this.server.listen(); // listen on random port
         await promise;
@@ -42,9 +43,11 @@ class HksvStreamer {
         this.args.push("tcp://127.0.0.1:" + port);
         this.log.debug(this.ffmpegPath + " " + this.args.join(" "));
         this.childProcess = (0, child_process_1.spawn)(this.ffmpegPath, this.args, { env: process.env, stdio: this.debugMode ? "pipe" : "ignore" });
-        // this.childProcess.on('error', (error: Error) => {
-        //     delegate.stopStream(sessionId);
-        // });
+        this.childProcess.on('error', (error) => {
+            this.log.error(error.message);
+            this.handleDisconnect();
+        });
+        this.childProcess.on('exit', this.handleDisconnect.bind(this));
         if (!this.childProcess.stdin && this.nestStream.stdin) {
             this.log.error('Failed to start stream: input to ffmpeg was provides as stdin, but the process does not support stdin.');
         }
@@ -61,12 +64,17 @@ class HksvStreamer {
         }
     }
     destroy() {
-        var _a, _b;
+        var _a;
+        this.log.debug('HksvStreamer destroy command received, ending process.');
         (_a = this.childProcess) === null || _a === void 0 ? void 0 : _a.kill();
-        (_b = this.socket) === null || _b === void 0 ? void 0 : _b.destroy();
-        this.socket = undefined;
         this.childProcess = undefined;
         this.destroyed = true;
+    }
+    handleDisconnect() {
+        var _a;
+        this.log.debug('Socket destroyed.');
+        (_a = this.socket) === null || _a === void 0 ? void 0 : _a.destroy();
+        this.socket = undefined;
     }
     handleConnection(socket) {
         var _a;
@@ -84,7 +92,7 @@ class HksvStreamer {
             this.log.debug("Socket undefined " + !!this.socket + " childProcess undefined " + !!this.childProcess);
             throw new Error("Unexpected state!");
         }
-        while (true) {
+        while (this.childProcess) {
             const header = await this.read(8);
             const length = header.readInt32BE(0) - 8;
             const type = header.slice(4).toString();

@@ -65,6 +65,9 @@ export default class HksvStreamer {
     }
 
     async start() {
+
+        this.log.debug('HksvStreamer start command received.');
+
         const promise = once(this.server, "listening");
         this.server.listen(); // listen on random port
         await promise;
@@ -80,9 +83,12 @@ export default class HksvStreamer {
 
         this.childProcess = spawn(this.ffmpegPath, this.args, { env: process.env, stdio: this.debugMode? "pipe": "ignore" });
 
-        // this.childProcess.on('error', (error: Error) => {
-        //     delegate.stopStream(sessionId);
-        // });
+        this.childProcess.on('error', (error: Error) => {
+            this.log.error(error.message);
+            this.handleDisconnect();
+        });
+
+        this.childProcess.on('exit', this.handleDisconnect.bind(this));
 
         if (!this.childProcess.stdin && this.nestStream.stdin) {
             this.log.error('Failed to start stream: input to ffmpeg was provides as stdin, but the process does not support stdin.');
@@ -103,12 +109,17 @@ export default class HksvStreamer {
     }
 
     destroy() {
-        this.childProcess?.kill();
-        this.socket?.destroy();
+        this.log.debug('HksvStreamer destroy command received, ending process.');
 
-        this.socket = undefined;
+        this.childProcess?.kill();
         this.childProcess = undefined;
         this.destroyed = true;
+    }
+
+    handleDisconnect() {
+        this.log.debug('Socket destroyed.')
+        this.socket?.destroy();
+        this.socket = undefined;
     }
 
     handleConnection(socket: Socket): void {
@@ -130,7 +141,7 @@ export default class HksvStreamer {
             throw new Error("Unexpected state!");
         }
 
-        while (true) {
+        while (this.childProcess) {
             const header = await this.read(8);
             const length = header.readInt32BE(0) - 8;
             const type = header.slice(4).toString();
