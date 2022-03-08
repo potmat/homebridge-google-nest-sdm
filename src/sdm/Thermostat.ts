@@ -1,7 +1,7 @@
 import _ from 'lodash';
 import {Device} from "./Device";
 import * as Traits from "./Traits";
-import {EcoModeType, ThermostatModeType, ThermostatTemperatureSetpoint} from "./Traits";
+import {EcoModeType, ThermostatModeType} from "./Traits";
 import {TemperatureRange} from './Types';
 import * as Commands from "./Commands";
 import * as Events from './Events';
@@ -175,8 +175,8 @@ export class Thermostat extends Device {
             case Traits.ThermostatModeType.HEATCOOL:
                 const currentRange = await this.getTargetTemperatureRange();
                 await this.executeCommand<Commands.ThermostatTemperatureSetpoint_SetRange, void>(Commands.Constants.ThermostatTemperatureSetpoint_SetRange, {
-                    heatCelsius: cool || currentRange?.cool!,
-                    coolCelsius: heat || currentRange?.heat!
+                    heatCelsius: heat || currentRange?.heat!,
+                    coolCelsius: cool || currentRange?.cool!
                 });
                 break;
             case Traits.ThermostatModeType.HEAT:

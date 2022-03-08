@@ -166,8 +166,8 @@ class Thermostat extends Device_1.Device {
             case Traits.ThermostatModeType.HEATCOOL:
                 const currentRange = await this.getTargetTemperatureRange();
                 await this.executeCommand(Commands.Constants.ThermostatTemperatureSetpoint_SetRange, {
-                    heatCelsius: cool || (currentRange === null || currentRange === void 0 ? void 0 : currentRange.cool),
-                    coolCelsius: heat || (currentRange === null || currentRange === void 0 ? void 0 : currentRange.heat)
+                    heatCelsius: heat || (currentRange === null || currentRange === void 0 ? void 0 : currentRange.heat),
+                    coolCelsius: cool || (currentRange === null || currentRange === void 0 ? void 0 : currentRange.cool)
                 });
                 break;
             case Traits.ThermostatModeType.HEAT:
