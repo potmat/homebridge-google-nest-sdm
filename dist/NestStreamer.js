@@ -99,7 +99,7 @@ class WebRtcNestStreamer extends NestStreamer {
             type: 'answer',
             sdp: streamInfo.answerSdp
         });
-        return `-protocol_whitelist file,crypto,udp,rtp -i ${path_1.default.join(__dirname, "res", "ffmpeg.sdp")}`;
+        return `-protocol_whitelist file,crypto,udp,rtp -analyzeduration 15000000 -probesize 100000000 -i ${path_1.default.join(__dirname, "res", "ffmpeg.sdp")}`;
     }
     async teardown() {
         var _a, _b;
