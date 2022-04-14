@@ -36,7 +36,7 @@ class RtspNestStreamer extends NestStreamer {
         const streamInfo = await this.camera.generateStream();
         this.token = streamInfo.streamExtensionToken;
         return {
-            args: '-fflags +discardcorrupt+nobuffer -i ' + streamInfo.streamUrls.rtspUrl
+            args: '-analyzeduration 15000000 -probesize 100000000  -i ' + streamInfo.streamUrls.rtspUrl
         };
     }
     async teardown() {
@@ -103,7 +103,7 @@ class WebRtcNestStreamer extends NestStreamer {
             sdp: streamInfo.answerSdp
         });
         return {
-            args: `-protocol_whitelist pipe,crypto,udp,rtp -i -`,
+            args: `-protocol_whitelist pipe,crypto,udp,rtp -analyzeduration 15000000 -probesize 100000000 -i -`,
             stdin: `v=0
 o=- 0 0 IN IP4 127.0.0.1
 s=-
