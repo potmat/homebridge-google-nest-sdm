@@ -3,7 +3,7 @@
 
 # homebridge-google-nest-sdm
 
-A Homebridge plugin for Google Nest devices that uses the [Google Smart Device Management API](https://developers.google.com/nest/device-access). Supports Cameras, Doorbells, Displays, and Thermostats.
+A Homebridge plugin for Google Nest devices that uses the [Google Smart Device Management API](https://developers.google.com/nest/device-access). Supports Cameras, Doorbells, Displays, and Thermostats.  Supports HomeKit Secure Video (please read the section on HKSV below).
 
 **Please read the [FAQ](https://github.com/potmat/homebridge-google-nest-sdm#faq) before creating an issue.**
 
@@ -62,16 +62,33 @@ https://nestservices.google.com/partnerconnections/project-id/auth?redirect_uri=
 
 Note the "+https://www.googleapis.com/auth/pubsub" on the end.  This is so you will have access to events.
 
+# HomeKit Secure Video
 
+This plugin does support HKSV.  Before creating and issue that HKSV isn't working for you, please take note of how HKSV works:
 
+1) The SDM API reports motion for a camera.
+2) This plugin reports a motion event to Homebridge.
+3) Homebridge reports that event to your home hub (e.g. HomePod, iPad).
+4) The hub requests a video stream from the camera from Homebridge.
+5) This plugin initiates a stream request to the SDM API, transcodes the video the format requested by the hub, and sends it to the hub via Homebridge.
+6) The hub analyzes the video for motion.
+7) If the hub sees motion it will log an event in the camera timeline with the clip.
+
+This means that even though there was a motion event, YOU MAY NOT SEE ANYTHING IN THE CAMERA TIMELINE.  This could be because your hub decided that it didn't really see any motion, or, more likely, by the time we reached step seven the motion has already ended.
+
+Continuous recording of all camera streams would likely mitigate this effect, but for a variety of reasons this is simply not practicable with the SDM API the way it's written.  To say nothing of the bandwidth and CPU requirements this would entail.
 
 # Hardware Requirements
 
 The minimum hardware requirement is something like a Raspberry Pi 4.  If you want multiple people viewing the camera streams at once then you'll probably need even more power.
 
-I tried very hard to avoid having to transcode the video, which would allow the plugin to run on something like a pi-zero.  Unfortunately this is simply not possible, the Apple Home App will not properly display the native stream.  In most cases the frame rate will be off, or it will fail to show at all (the iPhone will not show any video higher than 1080p, the Nest Doorbell produces video at a higher resolution).
+HomeKit Secure Video will require even more CPU power.  The clips need to be transcoded using the CPU.  Note that transcoding clips for even a single camera with a lot of activity can easily consume 100% of the CPU on a Rasberry Pi-4.  If you want HKSV on for many cameras you'll need a dedicated server of some kind.
 
 # FAQ
+
+**Q**: HomeKit Secure Video isn't working. Why?
+
+**A**: Please see the HKSV section above.
 
 **Q**: I don't see camera snapshots in the Home app, just the Nest/Google logo. Why?
 
