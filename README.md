@@ -70,7 +70,7 @@ This plugin does support HKSV.  Before creating and issue that HKSV isn't workin
 2) This plugin reports a motion event to Homebridge.
 3) Homebridge reports that event to your home hub (e.g. HomePod, iPad).
 4) The hub requests a video stream from the camera from Homebridge.
-5) This plugin initiates a stream request to the SDM API, transcodes the video the format requested by the hub, and sends it to the hub via Homebridge.
+5) This plugin initiates a stream request to the SDM API, transcodes the video to the format requested by the hub, and sends it to the hub via Homebridge.
 6) The hub analyzes the video for motion.
 7) If the hub sees motion it will log an event in the camera timeline with the clip.
 
