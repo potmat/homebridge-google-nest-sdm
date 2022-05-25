@@ -1,21 +1,26 @@
 import { ChildProcess, spawn } from 'child_process';
 import {CameraController, Logger, StreamRequestCallback} from 'homebridge';
-import { Writable } from 'stream';
+import {Readable, Writable} from 'stream';
 import { StreamingDelegate } from './StreamingDelegate';
 
 export class FfmpegProcess {
     private readonly process: ChildProcess;
 
-    constructor(cameraName: string, sessionId: string, ffmpegArgs: string, log: Logger,
+    constructor(cameraName: string, sessionId: string, ffmpegArgs: string, stdin: string | null | undefined, log: Logger,
                 debug: boolean, delegate: StreamingDelegate<CameraController>, callback?: StreamRequestCallback) {
         let pathToFfmpeg = require('ffmpeg-for-homebridge');
         if (!pathToFfmpeg)
             pathToFfmpeg = 'ffmpeg';
 
-        log.debug(`Stream command: ${pathToFfmpeg} ${ffmpegArgs}`, cameraName);
+        log.debug(`Stream command: ${pathToFfmpeg} ${ffmpegArgs} ${stdin}`, cameraName);
 
         let started = false;
         this.process = spawn(pathToFfmpeg, ffmpegArgs.split(/\s+/), { env: process.env });
+
+        if (!this.process.stdin && stdin) {
+            log.error('Failed to start stream: input to ffmpeg was provides as stdin, but the process does not support stdin.', cameraName);
+            delegate.stopStream(sessionId);
+        }
 
         if (this.process.stdin) {
             this.process.stdin.on('error', (error: Error) => {
@@ -23,6 +28,12 @@ export class FfmpegProcess {
                     log.error(error.message, cameraName);
                 }
             });
+
+            if (stdin) {
+                const sdpStream = this.convertStringToStream(stdin);
+                sdpStream.resume();
+                sdpStream.pipe(this.process.stdin);
+            }
         }
         if (this.process.stderr) {
             this.process.stderr.on('data', (data) => {
@@ -72,7 +83,15 @@ export class FfmpegProcess {
         this.process.kill('SIGKILL');
     }
 
-    public getStdin(): Writable | null {
+    getStdin(): Writable | null {
         return this.process.stdin;
+    }
+
+    convertStringToStream(stringToConvert: string) {
+        const stream = new Readable();
+        stream._read = () => { };
+        stream.push(stringToConvert);
+        stream.push(null);
+        return stream;
     }
 }

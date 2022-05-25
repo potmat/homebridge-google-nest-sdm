@@ -9,8 +9,8 @@ class CameraAccessory extends MotionAccessory_1.MotionAccessory {
         this.accessory.on("identify" /* IDENTIFY */, () => {
             this.log.info("%s identified!", this.accessory.displayName);
         });
-        const streamingDelegate = new CameraStreamingDelegate_1.CameraStreamingDelegate(log, api, this.platform, this.device);
-        this.accessory.configureController(streamingDelegate.getController());
+        this.streamingDelegate = new CameraStreamingDelegate_1.CameraStreamingDelegate(log, api, this.platform, this.device, this.accessory);
+        this.accessory.configureController(this.streamingDelegate.getController());
     }
 }
 exports.CameraAccessory = CameraAccessory;

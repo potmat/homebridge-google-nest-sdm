@@ -8,18 +8,21 @@ const dgram_1 = require("dgram");
 const get_port_1 = __importDefault(require("get-port"));
 const os_1 = __importDefault(require("os"));
 const systeminformation_1 = require("systeminformation");
-const FfMpeg_1 = require("./FfMpeg");
+const FfMpegProcess_1 = require("./FfMpegProcess");
 const NestStreamer_1 = require("./NestStreamer");
+const HksvStreamer_1 = __importDefault(require("./HksvStreamer"));
 class StreamingDelegate {
-    constructor(log, api, platform, camera) {
+    constructor(log, api, platform, camera, accessory) {
         // keep track of sessions
         this.pendingSessions = {};
         this.ongoingSessions = {};
+        this.handlingRecordingStreamingRequest = false;
         this.platform = platform;
         this.log = log;
         this.hap = api.hap;
         this.config = platform.config;
         this.camera = camera;
+        this.accessory = accessory;
         api.on("shutdown" /* SHUTDOWN */, () => {
             for (const session in this.ongoingSessions) {
                 this.stopStream(session);
@@ -46,6 +49,44 @@ class StreamingDelegate {
                             audioChannels: 1
                         }
                     ]
+                }
+            },
+            recording: {
+                delegate: this,
+                options: {
+                    prebufferLength: 4000,
+                    mediaContainerConfiguration: {
+                        type: 0 /* FRAGMENTED_MP4 */,
+                        fragmentLength: 4000,
+                    },
+                    video: {
+                        type: 0 /* H264 */,
+                        parameters: {
+                            profiles: [2 /* HIGH */],
+                            levels: [2 /* LEVEL4_0 */],
+                        },
+                        resolutions: [
+                            [320, 180, 30],
+                            [320, 240, 15],
+                            [320, 240, 30],
+                            [480, 270, 30],
+                            [480, 360, 30],
+                            [640, 360, 30],
+                            [640, 480, 30],
+                            [1280, 720, 30],
+                            [1280, 960, 30],
+                            [1920, 1080, 30],
+                            [1600, 1200, 30],
+                        ],
+                    },
+                    audio: {
+                        codecs: {
+                            type: 1 /* AAC_ELD */,
+                            audioChannels: 1,
+                            samplerate: 5 /* KHZ_48 */,
+                            bitrateMode: 0 /* VARIABLE */,
+                        },
+                    },
                 }
             }
         };
@@ -149,8 +190,10 @@ class StreamingDelegate {
         this.log.debug(`Video stream requested: ${request.video.width} x ${request.video.height}, ${request.video.fps} fps, ${request.video.max_bit_rate} kbps`, this.camera.getDisplayName());
         const nestStreamer = await (0, NestStreamer_1.getStreamer)(this.log, this.camera);
         let ffmpegArgs;
+        let nestStream;
         try {
-            ffmpegArgs = await nestStreamer.initialize(); // '-analyzeduration 15000000 -probesize 100000000 -i ' + streamInfo.streamUrls.rtspUrl;
+            nestStream = await nestStreamer.initialize(); // '-analyzeduration 15000000 -probesize 100000000 -i ' + streamInfo.streamUrls.rtspUrl;
+            ffmpegArgs = nestStream.args;
         }
         catch (error) {
             this.logThenCallback(callback, error);
@@ -217,7 +260,7 @@ class StreamingDelegate {
             this.logThenCallback(callback, error);
             return;
         }
-        activeSession.mainProcess = new FfMpeg_1.FfmpegProcess(this.camera.getDisplayName(), request.sessionID, ffmpegArgs, this.log, this.platform.debugMode, this, callback);
+        activeSession.mainProcess = new FfMpegProcess_1.FfmpegProcess(this.camera.getDisplayName(), request.sessionID, ffmpegArgs, nestStream.stdin, this.log, this.platform.debugMode, this, callback);
         this.ongoingSessions[request.sessionID] = activeSession;
         delete this.pendingSessions[request.sessionID];
     }
@@ -270,6 +313,138 @@ class StreamingDelegate {
         }
         delete this.ongoingSessions[sessionId];
         this.log.debug('Stopped video stream.', this.camera.getDisplayName());
+    }
+    closeRecordingStream(streamId, reason) {
+        var _a, _b;
+        if ((_a = this.recordingSessionInfo) === null || _a === void 0 ? void 0 : _a.hksvStreamer) {
+            (_b = this.recordingSessionInfo) === null || _b === void 0 ? void 0 : _b.hksvStreamer.destroy();
+            this.recordingSessionInfo.nestStreamer.teardown();
+            this.recordingSessionInfo = undefined;
+        }
+        this.handlingRecordingStreamingRequest = false;
+    }
+    acknowledgeStream(streamId) {
+        this.closeRecordingStream(streamId, undefined);
+    }
+    /**
+     * This is a very minimal, very experimental example on how to implement fmp4 streaming with a
+     * CameraController supporting HomeKit Secure Video.
+     *
+     * An ideal implementation would diverge from this in the following ways:
+     * * It would implement a prebuffer and respect the recording `active` characteristic for that.
+     * * It would start to immediately record after a trigger event occurred and not just
+     *   when the HomeKit Controller requests it (see the documentation of `CameraRecordingDelegate`).
+     */
+    async *handleRecordingStreamRequest(streamId) {
+        var _a, _b, _c;
+        this.log.debug('Recording request received.');
+        if (!this.cameraRecordingConfiguration)
+            throw new Error('No recording configuration for this camera.');
+        /**
+         * With this flag you can control how the generator reacts to a reset to the motion trigger.
+         * If set to true, the generator will send a proper endOfStream if the motion stops.
+         * If set to false, the generator will run till the HomeKit Controller closes the stream.
+         *
+         * Note: In a real implementation you would most likely introduce a bit of a delay.
+         */
+        const STOP_AFTER_MOTION_STOP = false;
+        this.handlingRecordingStreamingRequest = true;
+        if (this.cameraRecordingConfiguration.videoCodec.type !== 0 /* H264 */)
+            throw new Error('Unsupported recording codec type.');
+        const profile = this.cameraRecordingConfiguration.videoCodec.parameters.profile === 2 /* HIGH */ ? "high"
+            : this.cameraRecordingConfiguration.videoCodec.parameters.profile === 1 /* MAIN */ ? "main" : "baseline";
+        const level = this.cameraRecordingConfiguration.videoCodec.parameters.level === 2 /* LEVEL4_0 */ ? "4.0"
+            : this.cameraRecordingConfiguration.videoCodec.parameters.level === 1 /* LEVEL3_2 */ ? "3.2" : "3.1";
+        const videoArgs = [
+            "-an",
+            "-sn",
+            "-dn",
+            "-codec:v",
+            "libx264",
+            "-pix_fmt",
+            "yuv420p",
+            "-profile:v", profile,
+            "-level:v", level,
+            "-b:v", `${this.cameraRecordingConfiguration.videoCodec.parameters.bitRate}k`,
+            "-force_key_frames", `expr:eq(t,n_forced*${this.cameraRecordingConfiguration.videoCodec.parameters.iFrameInterval / 1000})`,
+            "-r", this.cameraRecordingConfiguration.videoCodec.resolution[2].toString(),
+        ];
+        let samplerate;
+        switch (this.cameraRecordingConfiguration.audioCodec.samplerate) {
+            case 0 /* KHZ_8 */:
+                samplerate = "8";
+                break;
+            case 1 /* KHZ_16 */:
+                samplerate = "16";
+                break;
+            case 2 /* KHZ_24 */:
+                samplerate = "24";
+                break;
+            case 3 /* KHZ_32 */:
+                samplerate = "32";
+                break;
+            case 4 /* KHZ_44_1 */:
+                samplerate = "44.1";
+                break;
+            case 5 /* KHZ_48 */:
+                samplerate = "48";
+                break;
+            default:
+                throw new Error("Unsupported audio sample rate: " + this.cameraRecordingConfiguration.audioCodec.samplerate);
+        }
+        const audioArgs = ((_b = (_a = this.controller) === null || _a === void 0 ? void 0 : _a.recordingManagement) === null || _b === void 0 ? void 0 : _b.recordingManagementService.getCharacteristic(this.platform.Characteristic.RecordingAudioActive))
+            ? [
+                "-acodec", "libfdk_aac",
+                ...(this.cameraRecordingConfiguration.audioCodec.type === 0 /* AAC_LC */ ?
+                    ["-profile:a", "aac_low"] :
+                    ["-profile:a", "aac_eld"]),
+                "-ar", `${samplerate}k`,
+                "-b:a", `${this.cameraRecordingConfiguration.audioCodec.bitrate}k`,
+                "-ac", `${this.cameraRecordingConfiguration.audioCodec.audioChannels}`,
+            ]
+            : [];
+        const nestStreamer = await (0, NestStreamer_1.getStreamer)(this.log, this.camera);
+        const nestStream = await nestStreamer.initialize();
+        const hksvStreamer = new HksvStreamer_1.default(this.log, nestStream, audioArgs, videoArgs, this.platform.debugMode);
+        this.recordingSessionInfo = {
+            hksvStreamer: hksvStreamer,
+            nestStreamer: nestStreamer
+        };
+        await hksvStreamer.start();
+        if (!hksvStreamer || hksvStreamer.destroyed) {
+            throw new Error('Streaming server already closed.');
+        }
+        const pending = [];
+        try {
+            for await (const box of this.recordingSessionInfo.hksvStreamer.generator()) {
+                pending.push(box.header, box.data);
+                const motionDetected = (_c = this.accessory.getService(this.hap.Service.MotionSensor)) === null || _c === void 0 ? void 0 : _c.getCharacteristic(this.platform.Characteristic.MotionDetected).value;
+                this.log.debug("mp4 box type " + box.type + " and length " + box.length);
+                if (box.type === "moov" || box.type === "mdat") {
+                    const fragment = Buffer.concat(pending);
+                    pending.splice(0, pending.length);
+                    const isLast = STOP_AFTER_MOTION_STOP && !motionDetected;
+                    yield {
+                        data: fragment,
+                        isLast: isLast,
+                    };
+                    if (isLast) {
+                        this.log.debug("Ending session due to motion stopped!");
+                        break;
+                    }
+                }
+            }
+        }
+        catch (error) {
+            this.log.error("Encountered unexpected error on generator " + error.stack);
+        }
+    }
+    updateRecordingActive(active) {
+        // we haven't implemented a prebuffer
+        this.log.debug("Recording active set to " + active);
+    }
+    updateRecordingConfiguration(configuration) {
+        this.cameraRecordingConfiguration = configuration;
     }
 }
 exports.StreamingDelegate = StreamingDelegate;

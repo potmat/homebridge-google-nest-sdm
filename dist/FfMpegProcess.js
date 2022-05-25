@@ -2,20 +2,30 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.FfmpegProcess = void 0;
 const child_process_1 = require("child_process");
+const stream_1 = require("stream");
 class FfmpegProcess {
-    constructor(cameraName, sessionId, ffmpegArgs, log, debug, delegate, callback) {
+    constructor(cameraName, sessionId, ffmpegArgs, stdin, log, debug, delegate, callback) {
         let pathToFfmpeg = require('ffmpeg-for-homebridge');
         if (!pathToFfmpeg)
             pathToFfmpeg = 'ffmpeg';
-        log.debug(`Stream command: ${pathToFfmpeg} ${ffmpegArgs}`, cameraName);
+        log.debug(`Stream command: ${pathToFfmpeg} ${ffmpegArgs} ${stdin}`, cameraName);
         let started = false;
         this.process = (0, child_process_1.spawn)(pathToFfmpeg, ffmpegArgs.split(/\s+/), { env: process.env });
+        if (!this.process.stdin && stdin) {
+            log.error('Failed to start stream: input to ffmpeg was provides as stdin, but the process does not support stdin.', cameraName);
+            delegate.stopStream(sessionId);
+        }
         if (this.process.stdin) {
             this.process.stdin.on('error', (error) => {
                 if (!error.message.includes('EPIPE')) {
                     log.error(error.message, cameraName);
                 }
             });
+            if (stdin) {
+                const sdpStream = this.convertStringToStream(stdin);
+                sdpStream.resume();
+                sdpStream.pipe(this.process.stdin);
+            }
         }
         if (this.process.stderr) {
             this.process.stderr.on('data', (data) => {
@@ -67,6 +77,13 @@ class FfmpegProcess {
     getStdin() {
         return this.process.stdin;
     }
+    convertStringToStream(stringToConvert) {
+        const stream = new stream_1.Readable();
+        stream._read = () => { };
+        stream.push(stringToConvert);
+        stream.push(null);
+        return stream;
+    }
 }
 exports.FfmpegProcess = FfmpegProcess;
-//# sourceMappingURL=FfMpeg.js.map
+//# sourceMappingURL=FfMpegProcess.js.map

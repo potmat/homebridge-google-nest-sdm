@@ -9,6 +9,7 @@ import {CameraStreamingDelegate} from "./CameraStreamingDelegate";
 import {MotionAccessory} from "./MotionAccessory";
 
 export class CameraAccessory extends MotionAccessory<Camera> {
+    protected streamingDelegate: CameraStreamingDelegate;
 
     constructor(
         api: API,
@@ -22,7 +23,7 @@ export class CameraAccessory extends MotionAccessory<Camera> {
             this.log.info("%s identified!", this.accessory.displayName);
         });
 
-        const streamingDelegate = new CameraStreamingDelegate(log, api, this.platform, this.device);
-        this.accessory.configureController(streamingDelegate.getController());
+        this.streamingDelegate = new CameraStreamingDelegate(log, api, this.platform, this.device, this.accessory);
+        this.accessory.configureController(this.streamingDelegate.getController());
     }
 }
