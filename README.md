@@ -9,7 +9,7 @@ A Homebridge plugin for Google Nest devices that uses the [Google Smart Device M
 
 # Disclaimer
 
-This package is not provided, endorsed, affiliated with, or supported by Google in any way.  It is intended for personal, non-commercial use only.  Please review the [Google Smart Device Management Terms of Service](https://developers.google.com/nest/device-access/tos) to ensure that your usage of this package is not in violation.
+This package is not affiliated with, provided, endorsed, or supported by Google in any way.  It is intended for personal, non-commercial use only.  Please review the [Google Smart Device Management Terms of Service](https://developers.google.com/nest/device-access/tos) to ensure that your usage of this package is not in violation.
 
 # Installation
 
@@ -64,7 +64,7 @@ Note the "+https://www.googleapis.com/auth/pubsub" on the end.  This is so you w
 
 # HomeKit Secure Video
 
-This plugin does support HKSV.  Before creating and issue that HKSV isn't working for you, please take note of how HKSV works:
+This plugin does support HKSV.  Before creating an issue that HKSV isn't working for you, please take note of how HKSV works:
 
 1) The SDM API reports motion for a camera.
 2) This plugin reports a motion event to Homebridge.
@@ -74,7 +74,7 @@ This plugin does support HKSV.  Before creating and issue that HKSV isn't workin
 6) The hub analyzes the video for motion.
 7) If the hub sees motion it will log an event in the camera timeline with the clip.
 
-This means that even though there was a motion event, YOU MAY NOT SEE ANYTHING IN THE CAMERA TIMELINE.  This could be because your hub decided that it didn't really see any motion, or, more likely, by the time we reached step seven the motion has already ended.
+This means that even though there was a motion event, YOU MAY NOT SEE ANYTHING IN THE CAMERA TIMELINE.  This could be because your hub decided that it didn't really see any motion, or, more likely, by the time we reached step six the motion has already ended.
 
 Continuous recording of all camera streams would likely mitigate this effect, but for a variety of reasons this is simply not practicable with the SDM API the way it's written.  To say nothing of the bandwidth and CPU requirements this would entail.
 
@@ -131,12 +131,12 @@ HomeKit Secure Video will require even more CPU power.  The clips need to be tra
 
 **A**: Yup.
 
-Q: So why this plugin?  
+**Q**: So why this plugin?  
 
-A: Well, the "official" Homebridge Nest plugin(s) use undocumented APIs.  That is, the authors reverse engineered the APIs the Nest app itself uses.  Don't get me wrong, I have no problem with that. But the SDM API is a documented API for precisely this use case.  The more important reason for making this plugin is the same as the reason for climbing a mountain, because you can.
+**A**: Well, the "official" Homebridge Nest plugin(s) use undocumented APIs.  That is, the authors reverse engineered the APIs the Nest app itself uses.  Don't get me wrong, I have no problem with that. But the SDM API is a documented API for precisely this use case.  The more important reason for making this plugin is the same as the reason for climbing a mountain, because you can.
 
-Q: I just added a Nest device to my account, but it's not showing up in Home. Why?
+**Q**: I just added a Nest device to my account, but it's not showing up in Home. Why?
 
-A: You need to visit the ["ONE IMPORTANT DIFFERENCE"](https://github.com/potmat/homebridge-google-nest-sdm#where-do-the-config-values-come-from) URL again.  Here you will choose which Nest devices to authorize, you should see your new device here.  After you finish the process and get a new refresh token restart Homebridge, your device should now be visible.
+**A**: You need to visit the ["ONE IMPORTANT DIFFERENCE"](https://github.com/potmat/homebridge-google-nest-sdm#where-do-the-config-values-come-from) URL again.  Here you will choose which Nest devices to authorize, you should see your new device here.  After you finish the process and get a new refresh token restart Homebridge, your device should now be visible.
 
 
