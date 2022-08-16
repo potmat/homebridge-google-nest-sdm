@@ -20,7 +20,6 @@ import {
 } from 'homebridge';
 import { VideoCodecType } from 'hap-nodejs'
 import {createSocket, Socket} from 'dgram';
-import getPort from 'get-port';
 import os from 'os';
 import {networkInterfaceDefault} from 'systeminformation';
 import {Config} from './Config'
@@ -29,6 +28,7 @@ import {Camera} from "./sdm/Camera";
 import {getStreamer, NestStream, NestStreamer} from "./NestStreamer";
 import {Platform} from "./Platform";
 import HksvStreamer from "./HksvStreamer";
+const portfinder = require('portfinder');
 
 type SessionInfo = {
   address: string; // address of the HAP controller
@@ -227,9 +227,9 @@ export abstract class StreamingDelegate<T extends CameraController> implements C
       return;
     }
 
-    const videoReturnPort = await getPort();
+    const videoReturnPort = await portfinder.getPortPromise();
     const videoSSRC = this.hap.CameraController.generateSynchronisationSource();
-    const audioReturnPort = await getPort();
+    const audioReturnPort = await portfinder.getPortPromise();
     const audioSSRC = this.hap.CameraController.generateSynchronisationSource();
 
     const ipv6 = request.addressVersion === 'ipv6';

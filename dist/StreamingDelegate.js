@@ -5,12 +5,12 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.StreamingDelegate = void 0;
 const dgram_1 = require("dgram");
-const get_port_1 = __importDefault(require("get-port"));
 const os_1 = __importDefault(require("os"));
 const systeminformation_1 = require("systeminformation");
 const FfMpegProcess_1 = require("./FfMpegProcess");
 const NestStreamer_1 = require("./NestStreamer");
 const HksvStreamer_1 = __importDefault(require("./HksvStreamer"));
+const portfinder = require('portfinder');
 class StreamingDelegate {
     constructor(log, api, platform, camera, accessory) {
         // keep track of sessions
@@ -143,9 +143,9 @@ class StreamingDelegate {
             this.logThenCallback(callback, 'Unable to start stream! Camera info was not received');
             return;
         }
-        const videoReturnPort = await (0, get_port_1.default)();
+        const videoReturnPort = await portfinder.getPortPromise();
         const videoSSRC = this.hap.CameraController.generateSynchronisationSource();
-        const audioReturnPort = await (0, get_port_1.default)();
+        const audioReturnPort = await portfinder.getPortPromise();
         const audioSSRC = this.hap.CameraController.generateSynchronisationSource();
         const ipv6 = request.addressVersion === 'ipv6';
         const currentAddress = await this.getIpAddress(ipv6);
