@@ -28,7 +28,7 @@ import {Camera} from "./sdm/Camera";
 import {getStreamer, NestStream, NestStreamer} from "./NestStreamer";
 import {Platform} from "./Platform";
 import HksvStreamer from "./HksvStreamer";
-const portfinder = require('portfinder');
+import pickPort, { pickPortOptions } from 'pick-port';
 
 type SessionInfo = {
   address: string; // address of the HAP controller
@@ -227,12 +227,19 @@ export abstract class StreamingDelegate<T extends CameraController> implements C
       return;
     }
 
-    const videoReturnPort = await portfinder.getPortPromise();
+    const ipv6 = request.addressVersion === 'ipv6';
+
+    const options: pickPortOptions = {
+      type: 'udp',
+      ip: ipv6 ? '::' : '0.0.0.0',
+      reserveTimeout: 15
+    };
+    const videoReturnPort = await pickPort(options);
     const videoSSRC = this.hap.CameraController.generateSynchronisationSource();
-    const audioReturnPort = await portfinder.getPortPromise();
+    const audioReturnPort = await pickPort(options);
     const audioSSRC = this.hap.CameraController.generateSynchronisationSource();
 
-    const ipv6 = request.addressVersion === 'ipv6';
+
     const currentAddress = await this.getIpAddress(ipv6);
 
     const sessionInfo: SessionInfo = {

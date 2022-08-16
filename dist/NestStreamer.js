@@ -18,12 +18,15 @@ var __importStar = (this && this.__importStar) || function (mod) {
     __setModuleDefault(result, mod);
     return result;
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getStreamer = exports.WebRtcNestStreamer = exports.RtspNestStreamer = exports.NestStreamer = void 0;
 const dgram_1 = require("dgram");
 const werift_1 = require("werift");
 const Traits = __importStar(require("./sdm/Traits"));
-const portfinder = require('portfinder');
+const pick_port_1 = __importDefault(require("pick-port"));
 class NestStreamer {
     constructor(log, camera) {
         this.log = log;
@@ -72,7 +75,12 @@ class WebRtcNestStreamer extends NestStreamer {
                 ],
             }
         });
-        const audioPort = await portfinder.getPortPromise();
+        const options = {
+            type: 'udp',
+            ip: '0.0.0.0',
+            reserveTimeout: 15
+        };
+        const audioPort = await (0, pick_port_1.default)(options);
         const audioTransceiver = this.pc.addTransceiver("audio", { direction: "recvonly" });
         audioTransceiver.onTrack.subscribe((track) => {
             audioTransceiver.sender.replaceTrack(track);
@@ -80,9 +88,7 @@ class WebRtcNestStreamer extends NestStreamer {
                 this.udp.send(rtp.serialize(), audioPort, "127.0.0.1");
             });
         });
-        const videoPort = await portfinder.getPortPromise({
-            port: audioPort + 2
-        });
+        const videoPort = await (0, pick_port_1.default)(options);
         const videoTransceiver = this.pc.addTransceiver("video", { direction: "recvonly" });
         videoTransceiver.onTrack.subscribe((track) => {
             videoTransceiver.sender.replaceTrack(track);

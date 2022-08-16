@@ -10,7 +10,7 @@ const systeminformation_1 = require("systeminformation");
 const FfMpegProcess_1 = require("./FfMpegProcess");
 const NestStreamer_1 = require("./NestStreamer");
 const HksvStreamer_1 = __importDefault(require("./HksvStreamer"));
-const portfinder = require('portfinder');
+const pick_port_1 = __importDefault(require("pick-port"));
 class StreamingDelegate {
     constructor(log, api, platform, camera, accessory) {
         // keep track of sessions
@@ -143,11 +143,16 @@ class StreamingDelegate {
             this.logThenCallback(callback, 'Unable to start stream! Camera info was not received');
             return;
         }
-        const videoReturnPort = await portfinder.getPortPromise();
-        const videoSSRC = this.hap.CameraController.generateSynchronisationSource();
-        const audioReturnPort = await portfinder.getPortPromise();
-        const audioSSRC = this.hap.CameraController.generateSynchronisationSource();
         const ipv6 = request.addressVersion === 'ipv6';
+        const options = {
+            type: 'udp',
+            ip: ipv6 ? '::' : '0.0.0.0',
+            reserveTimeout: 15
+        };
+        const videoReturnPort = await (0, pick_port_1.default)(options);
+        const videoSSRC = this.hap.CameraController.generateSynchronisationSource();
+        const audioReturnPort = await (0, pick_port_1.default)(options);
+        const audioSSRC = this.hap.CameraController.generateSynchronisationSource();
         const currentAddress = await this.getIpAddress(ipv6);
         const sessionInfo = {
             address: request.targetAddress,

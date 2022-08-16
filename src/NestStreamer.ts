@@ -4,7 +4,7 @@ import {createSocket, Socket} from "dgram";
 import {RTCPeerConnection, RTCRtpCodecParameters} from "werift";
 import * as Traits from "./sdm/Traits";
 import {Logger} from "homebridge";
-const portfinder = require('portfinder');
+import pickPort, { pickPortOptions } from 'pick-port';
 
 export interface NestStream {
     args: string,
@@ -73,7 +73,12 @@ export class WebRtcNestStreamer extends NestStreamer {
             }
         });
 
-        const audioPort = await portfinder.getPortPromise();
+        const options: pickPortOptions = {
+          type: 'udp',
+          ip: '0.0.0.0',
+          reserveTimeout: 15
+        };
+        const audioPort = await pickPort(options);
         const audioTransceiver = this.pc.addTransceiver("audio", {direction: "recvonly"});
         audioTransceiver.onTrack.subscribe((track) => {
             audioTransceiver.sender.replaceTrack(track);
@@ -82,9 +87,7 @@ export class WebRtcNestStreamer extends NestStreamer {
             });
         });
 
-        const videoPort = await portfinder.getPortPromise({
-            port: audioPort + 2
-        });
+        const videoPort = await pickPort(options);
         const videoTransceiver = this.pc.addTransceiver("video", {direction: "recvonly"});
         videoTransceiver.onTrack.subscribe((track) => {
             videoTransceiver.sender.replaceTrack(track);
