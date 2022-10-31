@@ -96,6 +96,7 @@ class SmartDeviceManagement {
             return this.devices;
         try {
             const response = await this.smartdevicemanagement.enterprises.devices.list({ parent: `enterprises/${this.projectId}` });
+            this.log.debug('Receieved list of devices: ', response.data.devices);
             this.devices = (0, lodash_1.default)(response.data.devices)
                 .filter(device => device.name !== null)
                 .map(device => {
