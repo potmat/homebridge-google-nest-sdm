@@ -136,7 +136,7 @@ export class ThermostatAccessory extends Accessory<Thermostat> {
     private handleTemperatureScaleUpdate(unit: Traits.TemperatureScale) {
         this.log.debug('Update TemperatureUnits:' + unit, this.accessory.displayName);
         let converted = this.convertTemperatureDisplayUnits(unit);
-        if (converted)
+        if (converted !== null)
             this.service.updateCharacteristic(this.platform.Characteristic.TemperatureDisplayUnits, converted);
     }
 
@@ -159,7 +159,7 @@ export class ThermostatAccessory extends Accessory<Thermostat> {
     private handleCurrentHeatingCoolingStateUpdate(status: Traits.HvacStatusType) {
         this.log.debug('Update CurrentHeatingCoolingState:' + status, this.accessory.displayName);
         let converted = this.convertHvacStatusType(status);
-        if (converted)
+        if (converted !== null)
             this.service.updateCharacteristic(this.platform.Characteristic.CurrentHeatingCoolingState, converted);
     }
 
@@ -167,7 +167,7 @@ export class ThermostatAccessory extends Accessory<Thermostat> {
         this.log.debug(`Update TargetHeatingCoolingState:${status}`, this.accessory.displayName);
         this.setupEvents();
         let converted = this.convertThermostatModeType(status);
-        if (converted)
+        if (converted !== null)
             this.service.updateCharacteristic(this.platform.Characteristic.TargetHeatingCoolingState, converted);
     }
 
