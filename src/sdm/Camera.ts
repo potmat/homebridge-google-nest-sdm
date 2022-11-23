@@ -51,8 +51,9 @@ export class Camera extends Device {
 
     async getEventImage(eventId: string, date: Date): Promise<void> {
 
-        if (Date.now() - date.getTime() > 30 * 1000) {
-            this.log.debug('Camera event image is too old, ignoring.', this.getDisplayName());
+        const dateDiff = (Date.now() - date.getTime())/1000;
+        if (dateDiff > 30) {
+            this.log.debug(`Camera event image is too old (${dateDiff} sec), ignoring.`, this.getDisplayName());
             return;
         }
 

@@ -148,7 +148,7 @@ class Thermostat extends Device_1.Device {
                 });
                 break;
             case Traits.ThermostatModeType.HEATCOOL:
-                throw new Error('Cannot set a target temperature when the thermostat is not in auto mode.');
+                throw new Error('Cannot set a target temperature when the thermostat is in auto mode.');
             case Traits.ThermostatModeType.OFF:
                 throw new Error('Cannot set a target temperature when the thermostat is off.');
         }
@@ -171,8 +171,17 @@ class Thermostat extends Device_1.Device {
                 });
                 break;
             case Traits.ThermostatModeType.HEAT:
+                if (!heat)
+                    throw new Error('Cannot set a target temperature range (heat only) when the thermostat is not in heat mode.');
+                await this.executeCommand(Commands.Constants.ThermostatTemperatureSetpoint_SetRange, {
+                    heatCelsius: heat
+                });
             case Traits.ThermostatModeType.COOL:
-                throw new Error('Cannot set a target temperature range when the thermostat is not in auto mode.');
+                if (!cool)
+                    throw new Error('Cannot set a target temperature range (cool only) when the thermostat is not in cool mode.');
+                await this.executeCommand(Commands.Constants.ThermostatTemperatureSetpoint_SetRange, {
+                    coolCelsius: cool
+                });
             case Traits.ThermostatModeType.OFF:
                 throw new Error('Cannot set a target temperature when the thermostat is off.');
         }
@@ -191,7 +200,6 @@ class Thermostat extends Device_1.Device {
                 throw new Error('Cannot get a target temperature range when the thermostat is in off.');
             case Traits.ThermostatModeType.HEAT:
             case Traits.ThermostatModeType.COOL:
-                throw new Error('Cannot get a target temperature range when the thermostat is not in auto mode.');
             case Traits.ThermostatModeType.HEATCOOL:
                 const trait = await this.getTrait(Traits.Constants.ThermostatTemperatureSetpoint);
                 return {

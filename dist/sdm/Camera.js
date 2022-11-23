@@ -66,8 +66,9 @@ class Camera extends Device_1.Device {
         ];
     }
     async getEventImage(eventId, date) {
-        if (Date.now() - date.getTime() > 30 * 1000) {
-            this.log.debug('Camera event image is too old, ignoring.', this.getDisplayName());
+        const dateDiff = (Date.now() - date.getTime()) / 1000;
+        if (dateDiff > 30) {
+            this.log.debug(`Camera event image is too old (${dateDiff} sec), ignoring.`, this.getDisplayName());
             return;
         }
         try {

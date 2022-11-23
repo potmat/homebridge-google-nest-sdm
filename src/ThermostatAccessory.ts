@@ -1,5 +1,6 @@
 import {
-    API, CharacteristicValue,
+    API,
+    CharacteristicValue,
     Logger,
     Nullable,
     PlatformAccessory,
@@ -61,6 +62,17 @@ export class ThermostatAccessory extends Accessory<Thermostat> {
 
         this.setupEvents();
 
+        const tempStep = 0.5;
+        const minSetTemp = 9;
+        const maxSetTemp = 32;
+        const minGetTemp = -20;
+        const maxGetTemp = 60;
+
+        this.service.getCharacteristic(this.platform.Characteristic.CurrentTemperature).setProps({ minStep: tempStep, minValue: minGetTemp, maxValue: maxGetTemp });
+        this.service.getCharacteristic(this.platform.Characteristic.TargetTemperature).setProps({ minStep: tempStep, minValue: minSetTemp, maxValue: maxSetTemp });
+        this.service.getCharacteristic(this.platform.Characteristic.CoolingThresholdTemperature).setProps({ minStep: tempStep, minValue: minSetTemp, maxValue: maxSetTemp });
+        this.service.getCharacteristic(this.platform.Characteristic.HeatingThresholdTemperature).setProps({ minStep: tempStep, minValue: minSetTemp, maxValue: maxSetTemp });
+
         this.device.onTemperatureChanged = this.handleCurrentTemperatureUpdate.bind(this);
         this.device.onTemperatureUnitsChanged = this.handleTemperatureScaleUpdate.bind(this);
         this.device.onTargetTemperatureChanged = this.handleTargetTemperatureUpdate.bind(this);
@@ -108,6 +120,10 @@ export class ThermostatAccessory extends Accessory<Thermostat> {
                 break;
             case ThermostatModeType.HEAT:
             case ThermostatModeType.COOL:
+                this.service.getCharacteristic(this.platform.Characteristic.HeatingThresholdTemperature)
+                    .onGet(this.handleHeatingThresholdTemperatureGet.bind(this));
+                this.service.getCharacteristic(this.platform.Characteristic.CoolingThresholdTemperature)
+                    .onGet(this.handleCoolingThresholdTemperatureGet.bind(this));
                 this.service.getCharacteristic(this.platform.Characteristic.TargetTemperature)
                     .onGet(this.handleTargetTemperatureGet.bind(this))
                     .onSet(this.handleTargetTemperatureSet.bind(this));
@@ -147,8 +163,10 @@ export class ThermostatAccessory extends Accessory<Thermostat> {
 
     private handleTargetTemperatureRangeUpdate(range: TemperatureRange) {
         this.log.debug('Update TargetTemperatureRange:' + range, this.accessory.displayName);
-        this.service.updateCharacteristic(this.platform.Characteristic.HeatingThresholdTemperature, range.heat);
-        this.service.updateCharacteristic(this.platform.Characteristic.CoolingThresholdTemperature, range.cool);
+        if (range.heat)
+            this.service.updateCharacteristic(this.platform.Characteristic.HeatingThresholdTemperature, range.heat);
+        if (range.cool)
+            this.service.updateCharacteristic(this.platform.Characteristic.CoolingThresholdTemperature, range.cool);
     }
 
     private handleCurrentRelativeHumidityUpdate(humidity: number) {
@@ -295,9 +313,21 @@ export class ThermostatAccessory extends Accessory<Thermostat> {
     /**
      * Handle requests to get the current value of the "Cooling Threshold Temperature" characteristic
      */
-    private async handleCoolingThresholdTemperatureGet(): Promise<Nullable<CharacteristicValue>> {
+    private async handleCoolingThresholdTemperatureGet(): Promise<CharacteristicValue> {
         this.log.debug('Triggered GET CoolingThresholdTemperature', this.accessory.displayName);
-        return await this.convertToNullable(this.device.getTargetTemperatureRange().then(range => range?.cool));
+
+        const targetTemperatureRange = await this.device.getTargetTemperatureRange();
+        const mode = await this.device.getMode();
+
+        switch (mode?.mode) {
+            case ThermostatModeType.COOL:
+            case ThermostatModeType.HEATCOOL:
+                return targetTemperatureRange?.cool!;
+            case ThermostatModeType.HEAT:
+                return targetTemperatureRange?.heat! - 0.5;
+            default:
+                throw new Error('Cannot get "Cooling Threshold Temperature" when thermostat is off.')
+        }
     }
 
     /**
@@ -313,15 +343,27 @@ export class ThermostatAccessory extends Accessory<Thermostat> {
     }
 
     /**
-     * Handle requests to get the current value of the "Cooling Threshold Temperature" characteristic
+     * Handle requests to get the current value of the "Heating Threshold Temperature" characteristic
      */
-    private async handleHeatingThresholdTemperatureGet(): Promise<Nullable<CharacteristicValue>> {
+    private async handleHeatingThresholdTemperatureGet(): Promise<CharacteristicValue> {
         this.log.debug('Triggered GET HeatingThresholdTemperatureGet', this.accessory.displayName);
-        return await this.convertToNullable(this.device.getTargetTemperatureRange().then(range => range?.heat));
+
+        const targetTemperatureRange = await this.device.getTargetTemperatureRange();
+        const mode = await this.device.getMode();
+
+        switch (mode?.mode) {
+            case ThermostatModeType.HEAT:
+            case ThermostatModeType.HEATCOOL:
+                return targetTemperatureRange?.heat!;
+            case ThermostatModeType.COOL:
+                return targetTemperatureRange?.cool! + 0.5;
+            default:
+                throw new Error('Cannot get "Heating Threshold Temperature" when thermostat is off.')
+        }
     }
 
     /**
-     * Handle requests to set the "Cooling Threshold Temperature" characteristic
+     * Handle requests to set the "Heating Threshold Temperature" characteristic
      */
     private async handleHeatingThresholdTemperatureSet(value:CharacteristicValue) {
         this.log.debug('Triggered SET HeatingThresholdTemperatureSet:' + value, this.accessory.displayName);
