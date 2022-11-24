@@ -62,17 +62,6 @@ export class ThermostatAccessory extends Accessory<Thermostat> {
 
         this.setupEvents();
 
-        const tempStep = 0.5;
-        const minSetTemp = 9;
-        const maxSetTemp = 32;
-        const minGetTemp = -20;
-        const maxGetTemp = 60;
-
-        this.service.getCharacteristic(this.platform.Characteristic.CurrentTemperature).setProps({ minStep: tempStep, minValue: minGetTemp, maxValue: maxGetTemp });
-        this.service.getCharacteristic(this.platform.Characteristic.TargetTemperature).setProps({ minStep: tempStep, minValue: minSetTemp, maxValue: maxSetTemp });
-        this.service.getCharacteristic(this.platform.Characteristic.CoolingThresholdTemperature).setProps({ minStep: tempStep, minValue: minSetTemp, maxValue: maxSetTemp });
-        this.service.getCharacteristic(this.platform.Characteristic.HeatingThresholdTemperature).setProps({ minStep: tempStep, minValue: minSetTemp, maxValue: maxSetTemp });
-
         this.device.onTemperatureChanged = this.handleCurrentTemperatureUpdate.bind(this);
         this.device.onTemperatureUnitsChanged = this.handleTemperatureScaleUpdate.bind(this);
         this.device.onTargetTemperatureChanged = this.handleTargetTemperatureUpdate.bind(this);
@@ -91,12 +80,39 @@ export class ThermostatAccessory extends Accessory<Thermostat> {
         this.service.getCharacteristic(this.platform.Characteristic.TargetTemperature).removeOnGet();
         this.service.getCharacteristic(this.platform.Characteristic.TargetTemperature).removeOnSet();
 
+        let tempUnits = await this.device.getTemperatureUnits();
+
+        let tempStep, minSetTemp, maxSetTemp, minGetTemp, maxGetTemp;
+        if (tempUnits == TemperatureScale.FAHRENHEIT) {
+            tempStep = 1;
+            minSetTemp = this.fahrenheitToCelsius(50);
+            maxSetTemp = this.fahrenheitToCelsius(90);
+            minGetTemp = this.fahrenheitToCelsius(0);
+            maxGetTemp = this.fahrenheitToCelsius(160);
+        } else {
+            tempStep = 0.5;
+            minSetTemp = 9;
+            maxSetTemp = 32;
+            minGetTemp = -20;
+            maxGetTemp = 60;
+        }
+
         if ((await this.device.getEco())?.mode !== EcoModeType.OFF) {
+
+            if (tempUnits == TemperatureScale.FAHRENHEIT) {
+                minSetTemp = this.fahrenheitToCelsius(40);
+            } else {
+                minSetTemp = 4.5;
+            }
+
             this.service.getCharacteristic(this.platform.Characteristic.CoolingThresholdTemperature)
                 .onGet(this.handleCoolingThresholdTemperatureGet.bind(this));
 
             this.service.getCharacteristic(this.platform.Characteristic.HeatingThresholdTemperature)
                 .onGet(this.handleHeatingThresholdTemperatureGet.bind(this));
+
+            this.setCharactersticProps(tempStep, minGetTemp, maxGetTemp, minSetTemp, maxSetTemp);
+
             this.log.debug('Events reset.', this.accessory.displayName);
             return;
         }
@@ -130,8 +146,36 @@ export class ThermostatAccessory extends Accessory<Thermostat> {
                 break;
         }
 
+        this.setCharactersticProps(tempStep, minGetTemp, maxGetTemp, minSetTemp, maxSetTemp);
         this.log.debug('Events reset.', this.accessory.displayName);
     }
+
+    private setCharactersticProps(tempStep: number, minGetTemp: number, maxGetTemp: number, minSetTemp: number, maxSetTemp: number) {
+        this.service.getCharacteristic(this.platform.Characteristic.CurrentTemperature).setProps({
+            minStep: tempStep,
+            minValue: minGetTemp,
+            maxValue: maxGetTemp
+        });
+        this.service.getCharacteristic(this.platform.Characteristic.TargetTemperature).setProps({
+            minStep: tempStep,
+            minValue: minSetTemp,
+            maxValue: maxSetTemp
+        });
+        this.service.getCharacteristic(this.platform.Characteristic.CoolingThresholdTemperature).setProps({
+            minStep: tempStep,
+            minValue: minSetTemp,
+            maxValue: maxSetTemp
+        });
+        this.service.getCharacteristic(this.platform.Characteristic.HeatingThresholdTemperature).setProps({
+            minStep: tempStep,
+            minValue: minSetTemp,
+            maxValue: maxSetTemp
+        });
+    }
+
+    private fahrenheitToCelsius(temperature: number): number {
+        return (temperature - 32) / 1.8;
+    };
 
     private handleCurrentTemperatureUpdate(temperature: number) {
         this.log.debug('Update CurrentTemperature:' + temperature, this.accessory.displayName);
