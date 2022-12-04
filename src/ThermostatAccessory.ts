@@ -36,13 +36,27 @@ export class ThermostatAccessory extends Accessory<Thermostat> {
             this.service = accessory.addService(this.api.hap.Service.Thermostat);
         }
 
-        let ecoMode = this.service.getCharacteristic(this.platform.Characteristic.EcoMode);
-        if (!ecoMode)
-            ecoMode = this.service.addCharacteristic(this.platform.Characteristic.EcoMode);
+        let ecoModeSwitchService = accessory.getService('Eco Mode');
+        let ecoModeCharacteristic = this.service.getCharacteristic(this.platform.Characteristic.EcoMode);
+        if (platform.options.isEcoSwitchEnabled) {
+            ecoModeCharacteristic && this.service.removeCharacteristic(ecoModeCharacteristic);
 
-        ecoMode
-            .onGet(this.handleEcoModeGet.bind(this))
-            .onSet(this.handleEcoModeSet.bind(this));
+            ecoModeSwitchService ||= this.accessory.addService(this.api.hap.Service.Switch, 'Eco Mode', 'eco_mode_switch')
+                .setCharacteristic(this.platform.Characteristic.Name, 'Eco Mode');
+
+            ecoModeSwitchService.getCharacteristic(this.platform.Characteristic.On)
+                .onGet(this.handleEcoModeGet.bind(this))
+                .onSet(this.handleEcoModeSet.bind(this));
+        } else {
+            // Clean up the switch if it was previously enabled
+            ecoModeSwitchService && accessory.removeService(ecoModeSwitchService);
+
+            ecoModeCharacteristic ||= this.service.addCharacteristic(this.platform.Characteristic.EcoMode);
+            ecoModeCharacteristic
+                .onGet(this.handleEcoModeGet.bind(this))
+                .onSet(this.handleEcoModeSet.bind(this));
+        }
+
 
         this.service.getCharacteristic(this.platform.Characteristic.CurrentHeatingCoolingState)
             .onGet(this.handleCurrentHeatingCoolingStateGet.bind(this));
@@ -242,7 +256,8 @@ export class ThermostatAccessory extends Accessory<Thermostat> {
             this.service.updateCharacteristic(this.platform.Characteristic.TargetHeatingCoolingState, this.platform.Characteristic.TargetHeatingCoolingState.OFF);
         }
 
-        this.service.updateCharacteristic(this.platform.Characteristic.EcoMode, mode.mode === Traits.EcoModeType.MANUAL_ECO);
+        this.service.getCharacteristic(this.platform.Characteristic.EcoMode)?.updateValue(mode.mode === Traits.EcoModeType.MANUAL_ECO);
+        this.accessory.getService('Eco Mode')?.updateCharacteristic(this.platform.Characteristic.On, mode.mode === Traits.EcoModeType.MANUAL_ECO)
     }
 
     /**
@@ -429,9 +444,9 @@ export class ThermostatAccessory extends Accessory<Thermostat> {
     /**
      * Handle requests to get the current value of the "Eco" characteristic
      */
-    private async handleEcoModeGet(): Promise<Nullable<CharacteristicValue>> {
+    private async handleEcoModeGet(): Promise<CharacteristicValue> {
         this.log.debug('Triggered GET EcoMode', this.accessory.displayName);
-        return await this.convertToNullable(this.device.getEco().then(eco => eco?.mode === EcoModeType.MANUAL_ECO));
+        return await this.device.getEco().then(eco => eco?.mode === EcoModeType.MANUAL_ECO);
     }
 
     /**

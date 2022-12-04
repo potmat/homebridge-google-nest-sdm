@@ -40,6 +40,11 @@
         "title": "Video Encoder",
         "type": "string",
         "required": false
+      },
+      "isEcoSwitchEnabled": {
+        "title": "Create a Switch instead of a custom characteristic to indicate and control Eco Mode for each thermostat",
+        "type": "boolean",
+        "required": false
       }
     }
   }

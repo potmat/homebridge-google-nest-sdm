@@ -21,6 +21,8 @@ let IEcoMode: any;
 export class Platform implements DynamicPlatformPlugin {
     public readonly Characteristic: typeof Characteristic & typeof IEcoMode;
     public readonly debugMode: boolean;
+    public readonly options: Config;
+
     private readonly smartDeviceManagement: SmartDeviceManagement | undefined;
     private readonly accessories: PlatformAccessory[] = [];
     private readonly EcoMode;
@@ -34,14 +36,14 @@ export class Platform implements DynamicPlatformPlugin {
         this.EcoMode = EcoMode(api);
         IEcoMode = this.EcoMode;
 
-        const options = config as unknown as Config;
+        this.options = config as unknown as Config;
 
-        if (!options || !options.projectId || !options.clientId || !options.clientSecret || !options.refreshToken || !options.subscriptionId) {
-            log.error(`${config.platform} is not configured correctly. The configuration provided was: ${JSON.stringify(options)}`)
+        if (!this.options || !this.options.projectId || !this.options.clientId || !this.options.clientSecret || !this.options.refreshToken || !this.options.subscriptionId) {
+            log.error(`${config.platform} is not configured correctly. The configuration provided was: ${JSON.stringify(this.options)}`)
             return;
         }
 
-        this.smartDeviceManagement = new SmartDeviceManagement(options, log);
+        this.smartDeviceManagement = new SmartDeviceManagement(this.options, log);
         // When this event is fired it means Homebridge has restored all cached accessories from disk.
         // Dynamic Platform plugins should only register new accessories after this event was fired,
         // in order to ensure they weren't added to homebridge already. This event can also be used
