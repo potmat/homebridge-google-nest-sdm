@@ -256,7 +256,7 @@ export class ThermostatAccessory extends Accessory<Thermostat> {
             this.service.updateCharacteristic(this.platform.Characteristic.TargetHeatingCoolingState, this.platform.Characteristic.TargetHeatingCoolingState.OFF);
         }
 
-        this.service.getCharacteristic(this.platform.Characteristic.EcoMode)?.updateValue(mode.mode === Traits.EcoModeType.MANUAL_ECO);
+        this.service.testCharacteristic(this.platform.Characteristic.EcoMode) && this.service.updateCharacteristic(this.platform.Characteristic.EcoMode, mode.mode === Traits.EcoModeType.MANUAL_ECO);
         this.accessory.getService('Eco Mode')?.updateCharacteristic(this.platform.Characteristic.On, mode.mode === Traits.EcoModeType.MANUAL_ECO)
     }
 
