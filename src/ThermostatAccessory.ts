@@ -82,15 +82,13 @@ export class ThermostatAccessory extends Accessory<Thermostat> {
 
         let tempUnits = await this.device.getTemperatureUnits();
 
-        let tempStep, minSetTemp, maxSetTemp, minGetTemp, maxGetTemp;
+        let tempStep = 0.1, minSetTemp, maxSetTemp, minGetTemp, maxGetTemp;
         if (tempUnits == TemperatureScale.FAHRENHEIT) {
-            tempStep = 1;
             minSetTemp = this.fahrenheitToCelsius(50);
             maxSetTemp = this.fahrenheitToCelsius(90);
             minGetTemp = this.fahrenheitToCelsius(0);
             maxGetTemp = this.fahrenheitToCelsius(160);
         } else {
-            tempStep = 0.5;
             minSetTemp = 9;
             maxSetTemp = 32;
             minGetTemp = -20;
