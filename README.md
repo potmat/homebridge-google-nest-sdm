@@ -121,7 +121,7 @@ HomeKit Secure Video will require even more CPU power.  The clips need to be tra
 
 **Q**: I'm having problems getting through the getting started guide and getting the config values. Can you help?
 
-**A**: Probably not.  Having a day job and family I don't have much time to help with this.  The Nest plugin for Home Assistant uses much the same process (don't forget the ["ONE IMPORTANT DIFFERENCE"](https://github.com/potmat/homebridge-google-nest-sdm#where-do-the-config-values-come-from) section above).  It has an [illustrated guide](https://www.home-assistant.io/integrations/nest/) that you may find helpful. You can also try reaching out to others on [Discord](https://discord.gg/kqNCe2D) or [Reddit](https://www.reddit.com/r/homebridge/), some people there may be able to help.
+**A**: Probably not.  Having a day job and family I don't have much time to help with this.  The Nest plugin for Home Assistant uses much the same process (don't forget the ["ONE IMPORTANT DIFFERENCE"](https://github.com/potmat/homebridge-google-nest-sdm#where-do-the-config-values-come-from) section above).  It has an [illustrated guide](https://www.home-assistant.io/integrations/nest/) that you may find helpful. You can also try reaching out to others in [Discussions](https://github.com/potmat/homebridge-google-nest-sdm/discussions), on [Discord](https://discord.gg/kqNCe2D), or [Reddit](https://www.reddit.com/r/homebridge/), some people there may be able to help.
 
 **Q**: Do I really have to pay $5 to use the API?
 
