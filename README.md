@@ -101,9 +101,10 @@ HomeKit Secure Video will require even more CPU power.  The clips need to be tra
 **A**: There are a couple possible reasons for this:
 
 1. Is the microphone/audio disabled on your camera?  If so you will need to enable it.
-2. Do you see something like `[homebridge-google-nest-sdm] Failed to start stream: spawn ffmpeg ENOENT` in your logs? The plugin requires ffmpeg and tries to auto-install it, but if it can't, you'll have to install it manually. For Windows go [here](https://www.ffmpeg.org/download.html). If you have a Mac, especially an Apple Silicon Mac, you should probably use [brew](https://formulae.brew.sh/formula/ffmpeg). On Linux use the package manager of your choice. 
-3. Is your Apple device connected to a VPN? If so, disconnect.
-4. Wait a while, occasionally the API will refuse all requests for short periods.
+2. Do you see something like `[homebridge-google-nest-sdm] Failed to start stream: spawn ffmpeg ENOENT` in your logs? The plugin requires ffmpeg and tries to auto-install it, but if it can't, you'll have to install it manually. For Windows go [here](https://www.ffmpeg.org/download.html). If you have a Mac, especially an Apple Silicon Mac, you should probably use [brew](https://formulae.brew.sh/formula/ffmpeg). On Linux use the package manager of your choice.
+3. Are you running Homebridge inside a Docker container?  Possibly on something like Unraid? This setup seems to cause problems with ffmpeg being able to accept input, and with WebRTC streams being able to transfer data to the container. Try running Homebridge natively on your network instead of in a Docker container.
+4. Is your Apple device connected to a VPN? If so, disconnect.
+5. Wait a while, occasionally the API will refuse all requests for short periods.
 
 **Q**: My cameras only respond some of the time. Why?
 
