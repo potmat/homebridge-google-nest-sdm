@@ -10,6 +10,7 @@ import path from "path";
 import _ from "lodash";
 import * as Traits from "./Traits";
 import {CameraLiveStream_GenerateWebRtcStream} from "./Commands";
+import {OAuth2Client} from "google-auth-library";
 
 export class Camera extends Device {
 
@@ -77,6 +78,28 @@ export class Camera extends Device {
         }
     }
 
+    async getEventClipImage(eventId: string, previewUrl: string, date: Date): Promise<void> {
+        const dateDiff = (Date.now() - date.getTime())/1000;
+        if (dateDiff > 30) {
+            this.log.debug(`Camera event clip is too old (${dateDiff} sec), ignoring.`, this.getDisplayName());
+            return;
+        }
+
+        try {
+            const imageResponse = await axios.get(previewUrl, {
+                headers: {
+                    'Authorization': 'Basic ' + (this.smartdevicemanagement.context.google?._options?.auth as OAuth2Client).getAccessToken()
+                },
+                responseType: 'arraybuffer'
+            });
+            const clip = Buffer.from(imageResponse.data, 'binary');
+
+            setTimeout(() => this.image = null, 10000);
+        } catch (error: any) {
+            this.log.error('Could not execute event image GET request: ', JSON.stringify(error), this.getDisplayName());
+        }
+    }
+
     async getCameraLiveStream(): Promise<Traits.CameraLiveStream | null> {
         return await this.getTrait<Traits.CameraLiveStream>(Traits.Constants.CameraLiveStream);
     }
@@ -122,8 +145,11 @@ export class Camera extends Device {
                     this.getVideoProtocol()
                         .then(protocol => {
                             if (protocol === Traits.ProtocolType.WEB_RTC) {
-                                if (this.onMotion)
-                                    this.onMotion();
+                                this.getEventClipImage((value as Events.CameraClipPreview).eventSessionId, (value as Events.CameraClipPreview).previewUrl, new Date(event.timestamp))
+                                    .then(() => {
+                                        if (this.onMotion)
+                                            this.onMotion();
+                                    });
                             } else {
                                 this.getEventImage((value as Events.CameraMotion).eventId, new Date(event.timestamp))
                                     .then(() => {
