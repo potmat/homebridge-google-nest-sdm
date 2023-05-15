@@ -1,4 +1,12 @@
-import { API, DynamicPlatformPlugin, Logger, PlatformAccessory, PlatformConfig, Characteristic } from 'homebridge';
+import {
+    API,
+    DynamicPlatformPlugin,
+    Logger,
+    PlatformAccessory,
+    PlatformConfig,
+    Characteristic,
+    Categories
+} from 'homebridge';
 
 import { PLATFORM_NAME, PLUGIN_NAME } from './Settings';
 import { CameraAccessory } from './CameraAccessory';
@@ -10,6 +18,9 @@ import {Thermostat} from "./sdm/Thermostat";
 import {Doorbell} from "./sdm/Doorbell";
 import {DoorbellAccessory} from "./DoorbellAccessory";
 import EcoMode = require('./EcoMode');
+import {FanAccessory} from "./FanAccessory";
+import {Device} from "./sdm/Device";
+import {UnknownDevice} from "./sdm/UnknownDevice";
 
 let IEcoMode: any;
 
@@ -24,24 +35,24 @@ export class Platform implements DynamicPlatformPlugin {
     private readonly smartDeviceManagement: SmartDeviceManagement | undefined;
     private readonly accessories: PlatformAccessory[] = [];
     private readonly EcoMode;
+    private readonly config: Config;
 
     constructor(
         public readonly log: Logger,
-        public readonly config: PlatformConfig,
+        public readonly platformConfig: PlatformConfig,
         public readonly api: API,
     ) {
         this.debugMode = process.argv.includes('-D') || process.argv.includes('--debug');
         this.EcoMode = EcoMode(api);
         IEcoMode = this.EcoMode;
 
-        const options = config as unknown as Config;
-
-        if (!options || !options.projectId || !options.clientId || !options.clientSecret || !options.refreshToken || !options.subscriptionId) {
-            log.error(`${config.platform} is not configured correctly. The configuration provided was: ${JSON.stringify(options)}`)
+        this.config = platformConfig as unknown as Config;
+        if (!this.config || !this.config.projectId || !this.config.clientId || !this.config.clientSecret || !this.config.refreshToken || !this.config.subscriptionId) {
+            log.error(`${platformConfig.platform} is not configured correctly. The configuration provided was: ${JSON.stringify(this.config)}`)
             return;
         }
 
-        this.smartDeviceManagement = new SmartDeviceManagement(options, log);
+        this.smartDeviceManagement = new SmartDeviceManagement(this.config, log);
         // When this event is fired it means Homebridge has restored all cached accessories from disk.
         // Dynamic Platform plugins should only register new accessories after this event was fired,
         // in order to ensure they weren't added to homebridge already. This event can also be used
@@ -81,72 +92,100 @@ export class Platform implements DynamicPlatformPlugin {
         if (!devices)
             return;
 
-        // loop over the discovered devices and register each one if it has not already been registered
-        for (const device of devices) {
-
-            // generate a unique id for the accessory this should be generated from
-            // something globally unique, but constant, for example, the device serial
-            // number or MAC address
-            const uuid = this.api.hap.uuid.generate(device.getName());
-
-            // see if an accessory with the same uuid has already been registered and restored from
-            // the cached devices we stored in the `configureAccessory` method above
-            const existingAccessory = this.accessories.find(accessory => accessory.UUID === uuid);
-
-            if (existingAccessory) {
-                // the accessory already exists
-                if (device) {
-                    this.log.info('Restoring existing accessory from cache:', existingAccessory.displayName);
-
-                    // if you need to update the accessory.context then you should run `api.updatePlatformAccessories`. eg.:
-                    existingAccessory.context.device = device;
-                    this.api.updatePlatformAccessories([existingAccessory]);
-
+        const deviceInfos = devices
+            .map(device => {
+                const uuid = this.api.hap.uuid.generate(device.getName());
+                const category = (() => {
                     if (device instanceof Doorbell)
-                        new DoorbellAccessory(this.api, this.log, this, existingAccessory, device);
+                        return this.api.hap.Categories.VIDEO_DOORBELL;
                     else if (device instanceof Camera)
-                        new CameraAccessory(this.api, this.log, this, existingAccessory, device);
+                        return this.api.hap.Categories.CAMERA;
                     else if (device instanceof Thermostat)
-                        new ThermostatAccessory(this.api, this.log, this, existingAccessory, device);
+                        return this.api.hap.Categories.THERMOSTAT;
+                    else if (device instanceof UnknownDevice)
+                        return this.api.hap.Categories.OTHER;
+                })();
 
-                    // update accessory cache with any changes to the accessory details and information
-                    this.api.updatePlatformAccessories([existingAccessory]);
-                } else if (!device) {
-                    // it is possible to remove platform accessories at any time using `api.unregisterPlatformAccessories`, eg.:
-                    // remove platform accessories when no longer present
-                    this.api.unregisterPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [existingAccessory]);
-                    this.log.info('Removing existing accessory from cache:', existingAccessory.displayName);
+                return {
+                    device: device,
+                    uuid: uuid,
+                    category: category,
+                    existingAccessory: this.accessories.find(accessory => accessory.UUID === uuid)
                 }
+            });
+
+        const thermostatDevice = devices.find(device => device instanceof Thermostat);
+        if (thermostatDevice && this.config.showFan) {
+            const uuid = this.api.hap.uuid.generate(thermostatDevice + ' Fan');
+            deviceInfos.push({
+                device: thermostatDevice,
+                uuid: uuid,
+                category: this.api.hap.Categories.FAN,
+                existingAccessory: this.accessories.find(accessory => accessory.UUID === uuid)
+            })
+        }
+
+        // loop over the discovered devices and register each one if it has not already been registered
+        for (const deviceInfo of deviceInfos) {
+
+            if (deviceInfo.category === this.api.hap.Categories.OTHER)
+                continue;
+
+            if (deviceInfo.existingAccessory) {
+                this.log.info('Restoring existing accessory from cache:', deviceInfo.existingAccessory.displayName);
+
+                // if you need to update the accessory.context then you should run `api.updatePlatformAccessories`. eg.:
+                deviceInfo.existingAccessory.context.device = deviceInfo.device;
+                this.api.updatePlatformAccessories([deviceInfo.existingAccessory]);
+
+                switch (deviceInfo.category) {
+                    case this.api.hap.Categories.VIDEO_DOORBELL:
+                        new DoorbellAccessory(this.api, this.log, this, deviceInfo.existingAccessory, deviceInfo.device as Doorbell);
+                        break;
+                    case this.api.hap.Categories.CAMERA:
+                        new CameraAccessory(this.api, this.log, this, deviceInfo.existingAccessory, deviceInfo.device as Camera);
+                        break;
+                    case this.api.hap.Categories.THERMOSTAT:
+                        new ThermostatAccessory(this.api, this.log, this, deviceInfo.existingAccessory, deviceInfo.device as Thermostat);
+                        break;
+                    case this.api.hap.Categories.FAN:
+                        new FanAccessory(this.api, this.log, this, deviceInfo.existingAccessory, deviceInfo.device as Thermostat);
+                        break;
+                }
+
+                // update accessory cache with any changes to the accessory details and information
+                this.api.updatePlatformAccessories([deviceInfo.existingAccessory]);
             } else {
-                // the accessory does not yet exist, so we need to create it
-                this.log.info('Adding new accessory:', device.getDisplayName());
-
-                let category;
-
-                if (device instanceof Doorbell)
-                    category = this.api.hap.Categories.VIDEO_DOORBELL;
-                else if (device instanceof Camera)
-                    category = this.api.hap.Categories.CAMERA;
-                else if (device instanceof Thermostat)
-                    category = this.api.hap.Categories.THERMOSTAT;
-
-                // create a new accessory
-                const accessory = new this.api.platformAccessory(device.getDisplayName() || "Unknown Name", uuid, category);
-                // store a copy of the device object in the `accessory.context`
-                // the `context` property can be used to store any data about the accessory you may need
-                accessory.context.device = device;
-
-                if (device instanceof Doorbell)
-                    new DoorbellAccessory(this.api, this.log, this, accessory, device);
-                else if (device instanceof Camera)
-                    new CameraAccessory(this.api, this.log, this, accessory, device);
-                else if (device instanceof Thermostat)
-                    new ThermostatAccessory(this.api, this.log, this, accessory, device);
-
-
-                // link the accessory to your platform
-                this.api.registerPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory]);
+                switch (deviceInfo.category) {
+                    case this.api.hap.Categories.VIDEO_DOORBELL:
+                        const doorbellPlatformAccessory = this.getPlatformAccessory(deviceInfo.device, deviceInfo.device.getDisplayName(), deviceInfo.uuid, this.api.hap.Categories.VIDEO_DOORBELL);
+                        new DoorbellAccessory(this.api, this.log, this, doorbellPlatformAccessory, deviceInfo.device as Doorbell);
+                        this.api.registerPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [doorbellPlatformAccessory]);
+                        break;
+                    case this.api.hap.Categories.CAMERA:
+                        const cameraPlatformAccessory = this.getPlatformAccessory(deviceInfo.device, deviceInfo.device.getDisplayName(), deviceInfo.uuid, this.api.hap.Categories.CAMERA);
+                        new CameraAccessory(this.api, this.log, this, cameraPlatformAccessory, deviceInfo.device as Camera);
+                        this.api.registerPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [cameraPlatformAccessory]);
+                        break;
+                    case this.api.hap.Categories.THERMOSTAT:
+                        let thermostatPlatformAccessory = this.getPlatformAccessory(deviceInfo.device, deviceInfo.device.getDisplayName(), deviceInfo.uuid, this.api.hap.Categories.THERMOSTAT);
+                        new ThermostatAccessory(this.api, this.log, this, thermostatPlatformAccessory, deviceInfo.device as Thermostat);
+                        this.api.registerPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [thermostatPlatformAccessory]);
+                        break;
+                    case this.api.hap.Categories.FAN:
+                        let fanPlatformAccessory = this.getPlatformAccessory(deviceInfo.device, deviceInfo.device.getDisplayName() + ' Fan', deviceInfo.uuid, this.api.hap.Categories.FAN);
+                        new FanAccessory(this.api, this.log, this, fanPlatformAccessory, deviceInfo.device as Thermostat);
+                        this.api.registerPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [fanPlatformAccessory]);
+                        break;
+                }
             }
         }
+    }
+
+    private getPlatformAccessory(device: Device, name: string, uuid: string, category: Categories) {
+        this.log.info('Adding new accessory:', name);
+        const accessory = new this.api.platformAccessory(name || "Unknown Name", uuid, category);
+        accessory.context.device = device;
+        return accessory;
     }
 }

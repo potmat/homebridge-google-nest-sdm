@@ -1,6 +1,6 @@
 {
   "name": "homebridge-google-nest-sdm",
-  "version": "1.1.10",
+  "version": "1.1.11",
   "description": "A homebridge plugin that uses the Google Smart Device Management API.",
   "main": "dist/index.js",
   "scripts": {
@@ -32,7 +32,7 @@
   "license": "ISC",
   "dependencies": {
     "@google-cloud/pubsub": "^2.18.1",
-    "axios": "^0.24.0",
+    "axios": "^1.3.5",
     "ffmpeg-for-homebridge": "0.1.0",
     "googleapis": "^87.0.0",
     "ip": "^1.1.5",

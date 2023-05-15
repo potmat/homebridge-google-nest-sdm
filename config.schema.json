@@ -40,6 +40,22 @@
         "title": "Video Encoder",
         "type": "string",
         "required": false
+      },
+      "showFan": {
+        "title": "Show Fan Switch",
+        "type": "boolean",
+        "required": false
+      },
+      "fanDuration": {
+        "title": "Fan duration (in seconds) when turning on the fan.",
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 43200,
+        "default": 900,
+        "required": false,
+        "condition": {
+          "functionBody": "return model.showFan"
+        }
       }
     }
   }

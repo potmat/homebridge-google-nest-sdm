@@ -90,7 +90,7 @@ export abstract class StreamingDelegate<T extends CameraController> implements C
     this.platform = platform;
     this.log = log;
     this.hap = api.hap;
-    this.config = platform.config as unknown as Config
+    this.config = platform.platformConfig as unknown as Config
     this.camera = camera;
     this.accessory = accessory;
 

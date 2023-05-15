@@ -64,6 +64,11 @@ class Thermostat extends Device_1.Device {
                         this.onEcoChanged(traitValue);
                     }
                     break;
+                case Traits.Constants.Fan:
+                    if (this.onFanChanged) {
+                        const traitValue = value;
+                        this.onFanChanged(traitValue);
+                    }
                 case Traits.Constants.ThermostatHvac:
                     if (this.onHvacChanged) {
                         const traitValue = value;
@@ -101,6 +106,9 @@ class Thermostat extends Device_1.Device {
     }
     async getEco() {
         return await this.getTrait(Traits.Constants.ThermostatEco);
+    }
+    async getFan() {
+        return await this.getTrait(Traits.Constants.Fan);
     }
     async getMode() {
         return await this.getTrait(Traits.Constants.ThermostatMode);
@@ -228,6 +236,12 @@ class Thermostat extends Device_1.Device {
     async setEco(mode) {
         await this.executeCommand(Commands.Constants.ThermostatEco_SetMode, {
             mode: mode
+        });
+    }
+    async setFan(timerMode, duration) {
+        await this.executeCommand(Commands.Constants.ThermostatFan_SetTimer, {
+            timerMode: timerMode,
+            duration: duration + 's'
         });
     }
 }

@@ -8,6 +8,7 @@ var Constants;
     Constants["ThermostatTemperatureSetpoint_SetRange"] = "sdm.devices.commands.ThermostatTemperatureSetpoint.SetRange";
     Constants["ThermostatMode_SetMode"] = "sdm.devices.commands.ThermostatMode.SetMode";
     Constants["ThermostatEco_SetMode"] = "sdm.devices.commands.ThermostatEco.SetMode";
+    Constants["ThermostatFan_SetTimer"] = "sdm.devices.commands.Fan.SetTimer";
     Constants["CameraLiveStream_GenerateRtspStream"] = "sdm.devices.commands.CameraLiveStream.GenerateRtspStream";
     Constants["CameraLiveStream_StopRtspStream"] = "sdm.devices.commands.CameraLiveStream.StopRtspStream";
     Constants["CameraLiveStream_GenerateWebRtcStream"] = "sdm.devices.commands.CameraLiveStream.GenerateWebRtcStream";

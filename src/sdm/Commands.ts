@@ -6,6 +6,7 @@ export enum Constants {
     ThermostatTemperatureSetpoint_SetRange = 'sdm.devices.commands.ThermostatTemperatureSetpoint.SetRange',
     ThermostatMode_SetMode = 'sdm.devices.commands.ThermostatMode.SetMode',
     ThermostatEco_SetMode = 'sdm.devices.commands.ThermostatEco.SetMode',
+    ThermostatFan_SetTimer = 'sdm.devices.commands.Fan.SetTimer',
     CameraLiveStream_GenerateRtspStream = 'sdm.devices.commands.CameraLiveStream.GenerateRtspStream',
     CameraLiveStream_StopRtspStream = 'sdm.devices.commands.CameraLiveStream.StopRtspStream',
     CameraLiveStream_GenerateWebRtcStream = 'sdm.devices.commands.CameraLiveStream.GenerateWebRtcStream',
@@ -32,6 +33,11 @@ export interface ThermostatMode_SetMode {
 
 export interface ThermostatEco_SetMode {
     mode: Traits.EcoModeType;
+}
+
+export interface ThermostatFan_SetTimer {
+    timerMode: Traits.FanTimerModeType,
+    duration?: string;
 }
 
 export interface CameraEventImage_GenerateImage {

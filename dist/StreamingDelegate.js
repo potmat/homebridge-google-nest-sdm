@@ -20,7 +20,7 @@ class StreamingDelegate {
         this.platform = platform;
         this.log = log;
         this.hap = api.hap;
-        this.config = platform.config;
+        this.config = platform.platformConfig;
         this.camera = camera;
         this.accessory = accessory;
         api.on("shutdown" /* SHUTDOWN */, () => {

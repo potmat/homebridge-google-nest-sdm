@@ -1,7 +1,7 @@
 import _ from 'lodash';
 import {Device} from "./Device";
 import * as Traits from "./Traits";
-import {EcoModeType, ThermostatModeType} from "./Traits";
+import {EcoModeType, FanTimerModeType, ThermostatModeType} from "./Traits";
 import {TemperatureRange} from './Types';
 import * as Commands from "./Commands";
 import * as Events from './Events';
@@ -16,6 +16,7 @@ export class Thermostat extends Device {
     onTemperatureUnitsChanged: ((scale: Traits.TemperatureScale) => void) | undefined;
     onModeChanged: ((mode: Traits.ThermostatModeType) => void) | undefined;
     onEcoChanged: ((mode: Traits.ThermostatEco) => void) | undefined;
+    onFanChanged: ((mode: Traits.Fan) => void) | undefined;
     onTargetTemperatureChanged: ((temperature: number) => void) | undefined;
     onTargetTemperatureRangeChanged: ((range: TemperatureRange) => void) | undefined;
     onHvacChanged: ((status: Traits.HvacStatusType) => void) | undefined;
@@ -55,6 +56,11 @@ export class Thermostat extends Device {
                         this.onEcoChanged(traitValue);
                     }
                     break;
+                case Traits.Constants.Fan:
+                    if (this.onFanChanged) {
+                        const traitValue = value as Traits.Fan;
+                        this.onFanChanged(traitValue);
+                    }
                 case Traits.Constants.ThermostatHvac:
                     if (this.onHvacChanged) {
                         const traitValue = value as Traits.ThermostatHvac;
@@ -93,6 +99,10 @@ export class Thermostat extends Device {
 
     async getEco(): Promise<Traits.ThermostatEco | null> {
         return await this.getTrait<Traits.ThermostatEco>(Traits.Constants.ThermostatEco);
+    }
+
+    async getFan(): Promise<Traits.Fan | null> {
+        return await this.getTrait<Traits.Fan>(Traits.Constants.Fan);
     }
 
     async getMode(): Promise<Traits.ThermostatMode | null> {
@@ -249,5 +259,12 @@ export class Thermostat extends Device {
         await this.executeCommand<Commands.ThermostatEco_SetMode, void>(Commands.Constants.ThermostatEco_SetMode, {
             mode: mode
         });
+    }
+
+    async setFan(timerMode: FanTimerModeType, duration?: number) {
+        await this.executeCommand<Commands.ThermostatFan_SetTimer, void>(Commands.Constants.ThermostatFan_SetTimer, {
+            timerMode: timerMode,
+            duration: duration + 's'
+        })
     }
 }
