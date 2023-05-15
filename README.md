@@ -30,6 +30,8 @@ Don't forget the ``--unsafe-perm`` part!
         "subscriptionId": "...",
         "gcpProjectId": "<optional>",
         "vEncoder": "<optional>"
+        "showFan": "<optional>"
+        "fanDuration": "<optional>"
     }
 
 I recommend you use the plugin config UI to enter these values.
