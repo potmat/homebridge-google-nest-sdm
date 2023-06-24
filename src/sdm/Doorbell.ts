@@ -2,6 +2,7 @@ import {Camera} from "./Camera";
 import * as Events from "./Events";
 import _ from "lodash";
 import * as Traits from "./Traits";
+import {ThreadStateType} from "./Events";
 
 export class Doorbell extends Camera {
 
@@ -18,6 +19,10 @@ export class Doorbell extends Camera {
             switch (key) {
                 case Events.Constants.DoorbellChime:
                     const eventValue = value as Events.DoorbellChime;
+
+                    if (event.eventThreadState && event.eventThreadState != ThreadStateType.STARTED)
+                        return;
+
                     this.getVideoProtocol()
                         .then(protocol => {
                             if (protocol === Traits.ProtocolType.WEB_RTC) {

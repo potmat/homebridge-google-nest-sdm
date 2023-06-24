@@ -14,6 +14,12 @@ export enum RelationUpdateType {
     DELETED
 }
 
+export enum ThreadStateType {
+    STARTED = 'STARTED',
+    UPDATED = 'UPDATED',
+    ENDED = 'ENDED'
+}
+
 export interface RelationUpdate {
     type: RelationUpdateType,
     subject: string;
@@ -59,7 +65,7 @@ export interface ResourceRelationEvent extends Event {
 export interface ResourceEventEvent extends Event {
     resourceUpdate: ResourceEventUpdate;
     eventThreadId: string;
-    eventThreadState: string;
+    eventThreadState: ThreadStateType;
     resourceGroup?: string[];
 }
 

@@ -2,14 +2,14 @@ import {Device} from './Device';
 import * as Responses from './Responses';
 import {GenerateRtspStream, GenerateWebRtcStream} from './Responses';
 import * as Events from './Events';
-import {ResourceEventEvent} from './Events';
+import {ResourceEventEvent, ThreadStateType} from './Events';
 import * as Commands from './Commands';
+import {CameraLiveStream_GenerateWebRtcStream} from './Commands';
 import axios from 'axios';
 import fs from "fs";
 import path from "path";
 import _ from "lodash";
 import * as Traits from "./Traits";
-import {CameraLiveStream_GenerateWebRtcStream} from "./Commands";
 
 export class Camera extends Device {
 
@@ -119,6 +119,10 @@ export class Camera extends Device {
             switch (key) {
                 case Events.Constants.CameraMotion:
                 case Events.Constants.CameraPerson:
+
+                    if (event.eventThreadState && event.eventThreadState != ThreadStateType.STARTED)
+                        return;
+
                     this.getVideoProtocol()
                         .then(protocol => {
                             if (protocol === Traits.ProtocolType.WEB_RTC) {
@@ -134,6 +138,10 @@ export class Camera extends Device {
                         });
                     break;
                 case Events.Constants.CameraSound:
+
+                    if (event.eventThreadState && event.eventThreadState != ThreadStateType.STARTED)
+                        return;
+
                     this.getVideoProtocol()
                         .then(protocol => {
                             if (protocol === Traits.ProtocolType.RTSP) {

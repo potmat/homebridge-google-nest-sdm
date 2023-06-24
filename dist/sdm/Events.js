@@ -19,7 +19,7 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.RelationUpdateType = exports.Constants = void 0;
+exports.ThreadStateType = exports.RelationUpdateType = exports.Constants = void 0;
 const Traits = __importStar(require("./Traits"));
 var Constants;
 (function (Constants) {
@@ -35,4 +35,10 @@ var RelationUpdateType;
     RelationUpdateType[RelationUpdateType["UPDATED"] = 1] = "UPDATED";
     RelationUpdateType[RelationUpdateType["DELETED"] = 2] = "DELETED";
 })(RelationUpdateType = exports.RelationUpdateType || (exports.RelationUpdateType = {}));
+var ThreadStateType;
+(function (ThreadStateType) {
+    ThreadStateType["STARTED"] = "STARTED";
+    ThreadStateType["UPDATED"] = "UPDATED";
+    ThreadStateType["ENDED"] = "ENDED";
+})(ThreadStateType = exports.ThreadStateType || (exports.ThreadStateType = {}));
 //# sourceMappingURL=Events.js.map

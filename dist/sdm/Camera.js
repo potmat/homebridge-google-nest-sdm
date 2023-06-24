@@ -25,6 +25,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.Camera = void 0;
 const Device_1 = require("./Device");
 const Events = __importStar(require("./Events"));
+const Events_1 = require("./Events");
 const Commands = __importStar(require("./Commands"));
 const axios_1 = __importDefault(require("axios"));
 const fs_1 = __importDefault(require("fs"));
@@ -132,6 +133,8 @@ class Camera extends Device_1.Device {
             switch (key) {
                 case Events.Constants.CameraMotion:
                 case Events.Constants.CameraPerson:
+                    if (event.eventThreadState && event.eventThreadState != Events_1.ThreadStateType.STARTED)
+                        return;
                     this.getVideoProtocol()
                         .then(protocol => {
                         if (protocol === Traits.ProtocolType.WEB_RTC) {
@@ -148,6 +151,8 @@ class Camera extends Device_1.Device {
                     });
                     break;
                 case Events.Constants.CameraSound:
+                    if (event.eventThreadState && event.eventThreadState != Events_1.ThreadStateType.STARTED)
+                        return;
                     this.getVideoProtocol()
                         .then(protocol => {
                         if (protocol === Traits.ProtocolType.RTSP) {

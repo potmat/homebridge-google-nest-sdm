@@ -27,6 +27,7 @@ const Camera_1 = require("./Camera");
 const Events = __importStar(require("./Events"));
 const lodash_1 = __importDefault(require("lodash"));
 const Traits = __importStar(require("./Traits"));
+const Events_1 = require("./Events");
 class Doorbell extends Camera_1.Camera {
     getDisplayName() {
         return this.displayName ? this.displayName + ' Doorbell' : 'Unknown';
@@ -37,6 +38,8 @@ class Doorbell extends Camera_1.Camera {
             switch (key) {
                 case Events.Constants.DoorbellChime:
                     const eventValue = value;
+                    if (event.eventThreadState && event.eventThreadState != Events_1.ThreadStateType.STARTED)
+                        return;
                     this.getVideoProtocol()
                         .then(protocol => {
                         if (protocol === Traits.ProtocolType.WEB_RTC) {
