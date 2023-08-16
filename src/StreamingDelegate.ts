@@ -416,12 +416,11 @@ export abstract class StreamingDelegate<T extends CameraController> implements C
       } catch (err) {
         this.log.error('Error occurred terminating two-way FFmpeg process: ' + err, this.camera.getDisplayName());
       }
-    }
-
-    try {
-      await session.streamer.teardown();
-    } catch (err) {
-      this.log.error('Error terminating SDM stream: ' + err, this.camera.getDisplayName());
+      try {
+        await session.streamer.teardown();
+      } catch (err) {
+        this.log.error('Error terminating SDM stream: ' + err, this.camera.getDisplayName());
+      }
     }
 
     delete this.ongoingSessions[sessionId];
