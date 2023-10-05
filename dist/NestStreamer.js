@@ -51,6 +51,7 @@ class WebRtcNestStreamer extends NestStreamer {
     async initialize() {
         this.udp = (0, dgram_1.createSocket)("udp4");
         this.pc = new werift_1.RTCPeerConnection({
+            bundlePolicy: "max-bundle",
             codecs: {
                 audio: [
                     new werift_1.RTCRtpCodecParameters({

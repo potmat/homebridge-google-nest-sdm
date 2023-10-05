@@ -48,6 +48,7 @@ export class WebRtcNestStreamer extends NestStreamer {
         this.udp = createSocket("udp4");
 
         this.pc = new RTCPeerConnection({
+            bundlePolicy: "max-bundle",
             codecs: {
                 audio: [
                     new RTCRtpCodecParameters({
