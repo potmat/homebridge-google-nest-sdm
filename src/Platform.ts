@@ -116,7 +116,7 @@ export class Platform implements DynamicPlatformPlugin {
 
         devices.filter(device => device instanceof Thermostat).forEach(thermostatDevice => {
             if (this.config.showFan) {
-                const uuid = this.api.hap.uuid.generate(thermostatDevice + ' Fan');
+                const uuid = this.api.hap.uuid.generate(thermostatDevice.getName() + ' Fan');
                 deviceInfos.push({
                     device: thermostatDevice,
                     uuid: uuid,
