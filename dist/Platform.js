@@ -86,7 +86,7 @@ class Platform {
         });
         devices.filter(device => device instanceof Thermostat_1.Thermostat).forEach(thermostatDevice => {
             if (this.config.showFan) {
-                const uuid = this.api.hap.uuid.generate(thermostatDevice + ' Fan');
+                const uuid = this.api.hap.uuid.generate(thermostatDevice.getName() + ' Fan');
                 deviceInfos.push({
                     device: thermostatDevice,
                     uuid: uuid,
