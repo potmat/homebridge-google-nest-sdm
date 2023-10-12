@@ -114,16 +114,17 @@ export class Platform implements DynamicPlatformPlugin {
                 }
             });
 
-        const thermostatDevice = devices.find(device => device instanceof Thermostat);
-        if (thermostatDevice && this.config.showFan) {
-            const uuid = this.api.hap.uuid.generate(thermostatDevice + ' Fan');
-            deviceInfos.push({
-                device: thermostatDevice,
-                uuid: uuid,
-                category: this.api.hap.Categories.FAN,
-                existingAccessory: this.accessories.find(accessory => accessory.UUID === uuid)
-            })
-        }
+        devices.filter(device => device instanceof Thermostat).forEach(thermostatDevice => {
+            if (this.config.showFan) {
+                const uuid = this.api.hap.uuid.generate(thermostatDevice + ' Fan');
+                deviceInfos.push({
+                    device: thermostatDevice,
+                    uuid: uuid,
+                    category: this.api.hap.Categories.FAN,
+                    existingAccessory: this.accessories.find(accessory => accessory.UUID === uuid)
+                })
+            }
+        });
 
         // loop over the discovered devices and register each one if it has not already been registered
         for (const deviceInfo of deviceInfos) {
