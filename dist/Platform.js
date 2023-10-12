@@ -84,16 +84,17 @@ class Platform {
                 existingAccessory: this.accessories.find(accessory => accessory.UUID === uuid)
             };
         });
-        const thermostatDevice = devices.find(device => device instanceof Thermostat_1.Thermostat);
-        if (thermostatDevice && this.config.showFan) {
-            const uuid = this.api.hap.uuid.generate(thermostatDevice + ' Fan');
-            deviceInfos.push({
-                device: thermostatDevice,
-                uuid: uuid,
-                category: 3 /* FAN */,
-                existingAccessory: this.accessories.find(accessory => accessory.UUID === uuid)
-            });
-        }
+        devices.filter(device => device instanceof Thermostat_1.Thermostat).forEach(thermostatDevice => {
+            if (this.config.showFan) {
+                const uuid = this.api.hap.uuid.generate(thermostatDevice + ' Fan');
+                deviceInfos.push({
+                    device: thermostatDevice,
+                    uuid: uuid,
+                    category: 3 /* FAN */,
+                    existingAccessory: this.accessories.find(accessory => accessory.UUID === uuid)
+                });
+            }
+        });
         // loop over the discovered devices and register each one if it has not already been registered
         for (const deviceInfo of deviceInfos) {
             if (deviceInfo.category === 1 /* OTHER */)
