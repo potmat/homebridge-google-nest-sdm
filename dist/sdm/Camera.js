@@ -38,7 +38,7 @@ class Camera extends Device_1.Device {
         this.image = null;
     }
     getDisplayName() {
-        return this.displayName ? this.displayName + ' Camera' : 'Unknown';
+        return this.displayName ? this.displayName + " Camera" : "Unknown";
     }
     async getSnapshot() {
         if (this.image)
@@ -80,15 +80,16 @@ class Camera extends Device_1.Device {
                 return;
             const imageResponse = await axios_1.default.get(generateResponse.url, {
                 headers: {
-                    'Authorization': 'Basic ' + generateResponse.token
+                    Authorization: "Basic " + generateResponse.token
                 },
-                responseType: 'arraybuffer'
+                responseType: "text",
+                responseEncoding: "base64"
             });
-            this.image = Buffer.from(imageResponse.data, 'binary');
-            setTimeout(() => this.image = null, 10000);
+            this.image = Buffer.from(imageResponse.data, "base64");
+            setTimeout(() => (this.image = null), 10000);
         }
         catch (error) {
-            this.log.error('Could not execute event image GET request: ', JSON.stringify(error), this.getDisplayName());
+            this.log.error("Could not execute event image GET request: ", JSON.stringify(error), this.getDisplayName());
         }
     }
     async getCameraLiveStream() {
@@ -106,7 +107,7 @@ class Camera extends Device_1.Device {
     async generateStream(params) {
         if ((await this.getVideoProtocol()) === Traits.ProtocolType.WEB_RTC) {
             if (!params)
-                throw new Error('Must specify params for WebRTC streams.');
+                throw new Error("Must specify params for WebRTC streams.");
             return this.executeCommand(Commands.Constants.CameraLiveStream_GenerateWebRtcStream, {
                 offerSdp: params
             });
@@ -133,17 +134,16 @@ class Camera extends Device_1.Device {
             switch (key) {
                 case Events.Constants.CameraMotion:
                 case Events.Constants.CameraPerson:
-                    if (event.eventThreadState && event.eventThreadState != Events_1.ThreadStateType.STARTED)
+                    if (event.eventThreadState &&
+                        event.eventThreadState != Events_1.ThreadStateType.STARTED)
                         return;
-                    this.getVideoProtocol()
-                        .then(protocol => {
+                    this.getVideoProtocol().then((protocol) => {
                         if (protocol === Traits.ProtocolType.WEB_RTC) {
                             if (this.onMotion)
                                 this.onMotion();
                         }
                         else {
-                            this.getEventImage(value.eventId, new Date(event.timestamp))
-                                .then(() => {
+                            this.getEventImage(value.eventId, new Date(event.timestamp)).then(() => {
                                 if (this.onMotion)
                                     this.onMotion();
                             });
@@ -151,10 +151,10 @@ class Camera extends Device_1.Device {
                     });
                     break;
                 case Events.Constants.CameraSound:
-                    if (event.eventThreadState && event.eventThreadState != Events_1.ThreadStateType.STARTED)
+                    if (event.eventThreadState &&
+                        event.eventThreadState != Events_1.ThreadStateType.STARTED)
                         return;
-                    this.getVideoProtocol()
-                        .then(protocol => {
+                    this.getVideoProtocol().then((protocol) => {
                         if (protocol === Traits.ProtocolType.RTSP) {
                             this.getEventImage(value.eventId, new Date(event.timestamp));
                         }
