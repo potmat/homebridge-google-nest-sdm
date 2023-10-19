@@ -50,30 +50,31 @@ export class Camera extends Device {
     }
 
     async getEventImage(eventId: string, date: Date): Promise<void> {
-
+        
         const dateDiff = (Date.now() - date.getTime())/1000;
         if (dateDiff > 30) {
-            this.log.debug(`Camera event image is too old (${dateDiff} sec), ignoring.`, this.getDisplayName());
-            return;
+          this.log.debug(`Camera event image is too old (${dateDiff} sec), ignoring.`, this.getDisplayName());
+          return;
         }
-
+    
         try {
-            const generateResponse = await this.executeCommand<Commands.CameraEventImage_GenerateImage, Responses.GenerateImage>(Commands.Constants.CameraEventImage_GenerateImage, {
-                eventId: eventId
-            });
-
-            if (!generateResponse) return;
-
-            const imageResponse = await axios.get(generateResponse.url, {
-                headers: {
-                    'Authorization': 'Basic ' + generateResponse.token
-                },
-                responseType: 'arraybuffer'
-            });
-            this.image = Buffer.from(imageResponse.data, 'binary');
-            setTimeout(() => this.image = null, 10000);
+          const generateResponse = await this.executeCommand<Commands.CameraEventImage_GenerateImage, Responses.GenerateImage>(Commands.Constants.CameraEventImage_GenerateImage, {
+            eventId: eventId
+          });
+    
+          if (!generateResponse) return;
+    
+          const imageResponse = await axios.get(generateResponse.url, {
+            headers: {
+              'Authorization': 'Basic ' + generateResponse.token
+            },
+            responseType: "text",
+            responseEncoding: "base64"
+          });
+          this.image = Buffer.from(imageResponse.data, "base64");
+          setTimeout(() => (this.image = null), 10000);
         } catch (error: any) {
-            this.log.error('Could not execute event image GET request: ', JSON.stringify(error), this.getDisplayName());
+          this.log.error('Could not execute event image GET request: ', JSON.stringify(error), this.getDisplayName());
         }
     }
 
