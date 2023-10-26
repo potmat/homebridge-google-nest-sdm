@@ -82,9 +82,10 @@ class Camera extends Device_1.Device {
                 headers: {
                     'Authorization': 'Basic ' + generateResponse.token
                 },
-                responseType: 'arraybuffer'
+                responseType: 'text',
+                responseEncoding: 'base64'
             });
-            this.image = Buffer.from(imageResponse.data, 'binary');
+            this.image = Buffer.from(imageResponse.data, 'base64');
             setTimeout(() => this.image = null, 10000);
         }
         catch (error) {

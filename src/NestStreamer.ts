@@ -113,7 +113,7 @@ export class WebRtcNestStreamer extends NestStreamer {
         });
 
         return {
-            args: `-protocol_whitelist pipe,crypto,udp,rtp -analyzeduration 15000000 -probesize 100000000 -i -`,
+            args: `-protocol_whitelist pipe,crypto,udp,rtp,fd -analyzeduration 15000000 -probesize 100000000 -i -`,
             stdin: `v=0
 o=- 0 0 IN IP4 127.0.0.1
 s=-
