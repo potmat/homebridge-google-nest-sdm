@@ -10,6 +10,7 @@ import fs from "fs";
 import path from "path";
 import _ from "lodash";
 import * as Traits from "./Traits";
+import { createCanvas, loadImage, registerFont } from 'canvas';
 
 export class Camera extends Device {
 
@@ -27,10 +28,22 @@ export class Camera extends Device {
         //Nest cams do not have any method to get a current snapshot,
         //starting streams up just to retrieve one is slow and will cause
         //the SDM API to hit a rate limit of creating too many streams
+        const imageCanvas = createCanvas(1920, 1080);
+        const context = imageCanvas.getContext('2d');
+        let img;
+
         if ((await this.getVideoProtocol()) === Traits.ProtocolType.RTSP)
-            return await fs.promises.readFile(path.join(__dirname, "..", "res", "nest-logo.jpg"));
+            img = await loadImage(path.join(__dirname, "..", "res", "nest-logo.jpg")) 
+            // return await fs.promises.readFile(path.join(__dirname, "..", "res", "nest-logo.jpg"));
         else
-            return await fs.promises.readFile(path.join(__dirname, "..", "res", "google-logo.jpg"));
+            // return await fs.promises.readFile(path.join(__dirname, "..", "res", "google-logo.jpg"));
+            img = await loadImage(path.join(__dirname, "..", "res", "google-logo.jpg"))
+
+        context.drawImage(img, 0, 0, imageCanvas.width, imageCanvas.height)
+        context.fillStyle = '#000'
+        context.fillText(this.getDisplayName(), 5, 5)
+
+        return imageCanvas.toBuffer('image/jpeg')
     }
 
     getResolutions(): [number, number, number][] {
