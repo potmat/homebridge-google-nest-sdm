@@ -1,0 +1,77 @@
+<style>
+    .header-divider {
+        margin-top: .25rem;
+    }
+
+    #authButton:disabled {
+        cursor: not-allowed;
+        pointer-events: all !important;
+    }
+
+    #authUrlInput:disabled {
+        cursor: not-allowed;
+        pointer-events: all !important;
+    }
+</style>
+
+<div>
+    <h5>Getting Started</h5>
+    <hr class="header-divider"/>
+    <div class="card card-body">
+        <ol>
+            <li>
+                Follow the steps on the Google SDM
+                <a target="_blank" href="https://developers.google.com/nest/device-access/get-started">Getting Started</a>
+                page to obtain a client ID, client secret, SDM project ID, & PubSub Subscription. Once these values are entered into the config form below,
+                the 'Initiate Google Login' button will be enabled.
+            </li>
+            <li>
+                After initiating Google login, enable all permissions and continue through any warnings about an
+                unverified app. Once you get through all the prompts, you will be redirected to <code>google.com</code>.
+            </li>
+            <li>
+                Copy the <code>google.com</code> URL (it will contain a <code>code=</code> segment) into the 'Auth URL' text box below.
+            </li>
+            <li>
+                A refresh token will then be generated and auto-populated into the config form below.
+            </li>
+        </ol>
+    </div>
+
+    <h5 style="margin-top: 40px">Generate Refresh Token</h5>
+    <hr class="header-divider"/>
+
+    <p>
+        <small><em>Enter the client ID, client secret, SDM project ID, & PubSub subscription config values to enable this form.</em></small>
+    </p>
+    <div class="card card-body">
+        <button id="authButton" type="button" class="btn btn-primary" style="margin-top: 10px">
+            Initiate Google Login
+        </button>
+
+        <div id="auth-form-group" style="margin: 10px 0 10px 3px">
+            <label for="authUrlInput" class="form-label">Auth URL</label>
+            <div style="display: flex">
+                <input type="url" class="form-control" id="authUrlInput" placeholder="Paste auth URL here" style="width: 80%; margin-right: 15px">
+                <div id="tokenLoadingSpinner" class="spinner-border text-primary" role="status" style="visibility: hidden">
+                    <span class="sr-only">Loading...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <h5 style="margin-top: 40px">Config</h5>
+    <hr class="header-divider"/>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/lodash.debounce@4.0.8/index.min.js"></script>
+<script>
+    // Create a script tag to load the JS onto the page
+    const script = document.createElement('script')
+
+    // Use the installed version of homebridge to bust the cache for the script
+    script.src = `nest-sdm-ui.js?v=${homebridge.plugin.installedVersion}`
+
+    // Append the script to the head of the page to load it
+    document.head.appendChild(script)
+</script>
