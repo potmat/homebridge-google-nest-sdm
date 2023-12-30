@@ -3,7 +3,7 @@ const {homebridge} = window
 
 const authButton = document.getElementById('authButton')! as HTMLButtonElement
 const authUrlInput = document.getElementById('authUrlInput')! as HTMLInputElement
-const tokenLoadingSpinner = document.getElementById('tokenLoadingSpinner')!
+const tokenLoadingSpinner = document.getElementById('tokenLoadingSpinner')! as HTMLDivElement
 
 // Initialize UI
 ;(async () => {
@@ -19,7 +19,7 @@ const tokenLoadingSpinner = document.getElementById('tokenLoadingSpinner')!
 
         // Setup UI listeners
         // @ts-ignore
-        authUrlInput.addEventListener('input', debounce(onAuthUrlInput, 500))
+        authUrlInput.addEventListener('input', _.debounce(onAuthUrlInput, 500))
         authButton.addEventListener('click', initiateAuthFlow)
 
         // Update UI state & show form

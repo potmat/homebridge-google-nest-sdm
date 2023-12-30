@@ -15,7 +15,7 @@ const tokenLoadingSpinner = document.getElementById('tokenLoadingSpinner');
         }
         // Setup UI listeners
         // @ts-ignore
-        authUrlInput.addEventListener('input', debounce(onAuthUrlInput, 500));
+        authUrlInput.addEventListener('input', _.debounce(onAuthUrlInput, 500));
         authButton.addEventListener('click', initiateAuthFlow);
         // Update UI state & show form
         updateAuthUiState(initialConfig);
