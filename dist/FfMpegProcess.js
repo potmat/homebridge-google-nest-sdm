@@ -10,9 +10,9 @@ class FfmpegProcess {
             pathToFfmpeg = 'ffmpeg';
         log.debug(`Stream command: ${pathToFfmpeg} ${ffmpegArgs} ${stdin}`, cameraName);
         let started = false;
-        this.process = (0, child_process_1.spawn)(pathToFfmpeg, ffmpegArgs.split(/\s+/), { env: process.env });
+        this.process = (0, child_process_1.spawn)(pathToFfmpeg, ffmpegArgs.split(/\s+/), { env: process.env, stdio: 'pipe' });
         if (!this.process.stdin && stdin) {
-            log.error('Failed to start stream: input to ffmpeg was provides as stdin, but the process does not support stdin.', cameraName);
+            log.error('FFmpegProcess failed to start stream: input to ffmpeg was provided as stdin, but the process does not support stdin.', cameraName);
             delegate.stopStream(sessionId);
         }
         if (this.process.stdin) {
