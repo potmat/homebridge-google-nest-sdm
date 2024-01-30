@@ -42,14 +42,14 @@ class HksvStreamer {
         const port = this.server.address().port;
         this.args.push("tcp://127.0.0.1:" + port);
         this.log.debug(this.ffmpegPath + " " + this.args.join(" "));
-        this.childProcess = (0, child_process_1.spawn)(this.ffmpegPath, this.args, { env: process.env, stdio: this.debugMode ? "pipe" : "ignore" });
+        this.childProcess = (0, child_process_1.spawn)(this.ffmpegPath, this.args, { env: process.env, stdio: 'pipe' });
         this.childProcess.on('error', (error) => {
             this.log.error(error.message);
             this.handleDisconnect();
         });
         this.childProcess.on('exit', this.handleDisconnect.bind(this));
         if (!this.childProcess.stdin && this.nestStream.stdin) {
-            this.log.error('Failed to start stream: input to ffmpeg was provides as stdin, but the process does not support stdin.');
+            this.log.error('HksvStreamer failed to start stream: input to ffmpeg was provided as stdin, but the process does not support stdin.');
         }
         if (this.childProcess.stdin) {
             if (this.nestStream.stdin) {
