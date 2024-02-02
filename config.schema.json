@@ -41,6 +41,11 @@
         "type": "string",
         "required": false
       },
+      "disableAudio": {
+        "title": "Disable Camera Audio",
+        "type": "boolean",
+        "required": false
+      },
       "showFan": {
         "title": "Show Fan Switch",
         "type": "boolean",
