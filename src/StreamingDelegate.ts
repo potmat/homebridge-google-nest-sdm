@@ -307,15 +307,19 @@ export abstract class StreamingDelegate<T extends CameraController> implements C
     ffmpegArgs += // Video
         ' -an -sn -dn' +
         ` -codec:v ${vEncoder}` +
+        ' -f rawvideo' +
         ' -pix_fmt yuv420p' +
-        ' -color_range mpeg' +
-        ' -bf 0' +
-        ` -r ${request.video.fps}` +
-        ` -b:v ${bitrate}k` +
-        ` -bufsize ${bitrate}k` +
-        ` -maxrate ${2 * bitrate}k` +
-        ' -filter:v ' + resolution.videoFilter +
-        ' -payload_type ' + request.video.pt;
+        ' -color_range mpeg';
+    if (vEncoder !== 'copy') {
+        ffmpegArgs +=
+            ' -bf 0' +
+            ` -r ${request.video.fps}` +
+            ` -b:v ${bitrate}k` +
+            ` -bufsize ${bitrate}k` +
+            ` -maxrate ${2 * bitrate}k` +
+            ' -filter:v ' + resolution.videoFilter;
+    }
+    ffmpegArgs += ' -payload_type ' + request.video.pt;
 
     ffmpegArgs += // Video Stream
         ' -ssrc ' + sessionInfo.videoSSRC +

@@ -81,7 +81,7 @@ export default class HksvStreamer {
 
         this.log.debug(this.ffmpegPath + " " + this.args.join(" "));
 
-        this.childProcess = spawn(this.ffmpegPath, this.args, { env: process.env, stdio: this.debugMode? "pipe": "ignore" });
+        this.childProcess = spawn(this.ffmpegPath, this.args, { env: process.env, stdio: 'pipe' });
 
         this.childProcess.on('error', (error: Error) => {
             this.log.error(error.message);
@@ -91,7 +91,7 @@ export default class HksvStreamer {
         this.childProcess.on('exit', this.handleDisconnect.bind(this));
 
         if (!this.childProcess.stdin && this.nestStream.stdin) {
-            this.log.error('Failed to start stream: input to ffmpeg was provides as stdin, but the process does not support stdin.');
+            this.log.error('HksvStreamer failed to start stream: input to ffmpeg was provided as stdin, but the process does not support stdin.');
         }
 
         if (this.childProcess.stdin) {
