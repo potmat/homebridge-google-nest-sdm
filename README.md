@@ -50,7 +50,7 @@ Follow the getting started guide here: https://developers.google.com/nest/device
 
 **gcpProjectId** is optional. It is the ID of the Google Cloud Platform project you created when getting the **clientId** and **clientSecret**. If you are having trouble subsribing to events try populating this field.
 
-**vEncoder** is optional.  It is the encoder the plugin will use for camera streams. If vEncoder is not specified it will default to "libx264 -preset ultrafast -tune zerolatency". On a Raspberry Pi 4 you can try something like "h264_v4l2m2m". On other platforms you are free to use the encoder of your choice.  If you don't know what this means you can probably ignore it.
+**vEncoder** is optional.  It is the encoder the plugin will use for camera streams. If vEncoder is not specified it will default to "libx264 -preset ultrafast -tune zerolatency". You can use "copy" to not transcode streams at all, this will require almost no CPU, and seems to work fine on most devices, however it's not guaranteed to work in all scenarios. On a Raspberry Pi 4 you can try something like "h264_v4l2m2m".  On other platforms you are free to use the encoder of your choice.  If you don't know what this means you can probably ignore it.
 
 **showFan** is optional.  If true, a fan accessory will be added.
 
@@ -88,7 +88,7 @@ Continuous recording of all camera streams would likely mitigate this effect, bu
 
 # Hardware Requirements
 
-The minimum hardware requirement is something like a Raspberry Pi 4.  If you want multiple people viewing the camera streams at once then you'll probably need even more power.
+If are are not using the "copy" vEncoder the minimum hardware requirement is something like a Raspberry Pi 4.  If you want multiple people viewing the camera streams at once then you'll probably need even more power. If you are using the "copy" vEncoder you may be able to use a very low power device, but results are not guaranteed.
 
 HomeKit Secure Video will require even more CPU power.  The clips need to be transcoded using the CPU.  Note that transcoding clips for even a single camera with a lot of activity can easily consume 100% of the CPU on a Rasberry Pi-4.  If you want HKSV on for many cameras you'll need a dedicated server of some kind.
 
