@@ -192,6 +192,7 @@ class StreamingDelegate {
         const resolution = StreamingDelegate.determineResolution(request.video);
         const bitrate = request.video.max_bit_rate * 4;
         const vEncoder = this.config.vEncoder || 'libx264 -preset ultrafast -tune zerolatency';
+        const disableAudio = this.config.disableAudio || false;
         this.log.debug(`Video stream requested: ${request.video.width} x ${request.video.height}, ${request.video.fps} fps, ${request.video.max_bit_rate} kbps`, this.camera.getDisplayName());
         const nestStreamer = await (0, NestStreamer_1.getStreamer)(this.log, this.camera);
         let ffmpegArgs;
@@ -227,22 +228,24 @@ class StreamingDelegate {
                 ' -srtp_out_params ' + sessionInfo.videoSRTP.toString('base64') +
                 ' srtp://' + sessionInfo.address + ':' + sessionInfo.videoPort +
                 '?rtcpport=' + sessionInfo.videoPort + '&pkt_size=' + request.video.mtu;
-        ffmpegArgs += // Audio
-            ' -vn -sn -dn' +
-                ' -codec:a libfdk_aac' +
-                ' -profile:a aac_eld' +
-                ' -flags +global_header' +
-                ' -ar ' + request.audio.sample_rate + 'k' +
-                ' -b:a ' + request.audio.max_bit_rate + 'k' +
-                ' -ac ' + request.audio.channel +
-                ' -payload_type ' + request.audio.pt;
-        ffmpegArgs += // Audio Stream
-            ' -ssrc ' + sessionInfo.audioSSRC +
-                ' -f rtp' +
-                ' -srtp_out_suite AES_CM_128_HMAC_SHA1_80' +
-                ' -srtp_out_params ' + sessionInfo.audioSRTP.toString('base64') +
-                ' srtp://' + sessionInfo.address + ':' + sessionInfo.audioPort +
-                '?rtcpport=' + sessionInfo.audioPort + '&pkt_size=188';
+        if (!disableAudio) {
+            ffmpegArgs += // Audio
+                ' -vn -sn -dn' +
+                    ' -codec:a libfdk_aac' +
+                    ' -profile:a aac_eld' +
+                    ' -flags +global_header' +
+                    ' -ar ' + request.audio.sample_rate + 'k' +
+                    ' -b:a ' + request.audio.max_bit_rate + 'k' +
+                    ' -ac ' + request.audio.channel +
+                    ' -payload_type ' + request.audio.pt;
+            ffmpegArgs += // Audio Stream
+                ' -ssrc ' + sessionInfo.audioSSRC +
+                    ' -f rtp' +
+                    ' -srtp_out_suite AES_CM_128_HMAC_SHA1_80' +
+                    ' -srtp_out_params ' + sessionInfo.audioSRTP.toString('base64') +
+                    ' srtp://' + sessionInfo.address + ':' + sessionInfo.audioPort +
+                    '?rtcpport=' + sessionInfo.audioPort + '&pkt_size=188';
+        }
         if (this.platform.debugMode) {
             ffmpegArgs += ' -loglevel level+verbose';
         }

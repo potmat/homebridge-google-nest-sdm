@@ -52,6 +52,8 @@ Follow the getting started guide here: https://developers.google.com/nest/device
 
 **vEncoder** is optional.  It is the encoder the plugin will use for camera streams. If vEncoder is not specified it will default to "libx264 -preset ultrafast -tune zerolatency". You can use "copy" to not transcode streams at all, this will require almost no CPU, and seems to work fine on most devices, however it's not guaranteed to work in all scenarios. On a Raspberry Pi 4 you can try something like "h264_v4l2m2m".  On other platforms you are free to use the encoder of your choice.  If you don't know what this means you can probably ignore it.
 
+**disableAudio** is optional. If true, the audio from camera streams will be disabled.
+
 **showFan** is optional.  If true, a fan accessory will be added.
 
 **fanDuration** is optional. You only need to use this if **showFan** is set to true. It controls the fan duration (in seconds) when turning on the fan.  Must be between 1 and 43200.  Defaults to 900 if not set.

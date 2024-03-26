@@ -6,6 +6,7 @@ export type Config = {
     subscriptionId: string,
     gcpProjectId?: string,
     vEncoder?: string,
+    disableAudio?: boolean,
     showFan?: boolean,
     fanDuration?: number
 }
