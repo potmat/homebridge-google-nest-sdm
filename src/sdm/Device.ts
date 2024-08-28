@@ -1,4 +1,5 @@
 import * as google from "googleapis";
+import * as Timers from "node:timers/promises";
 import * as Events from './Events';
 import {Logger} from "homebridge";
 import _ from "lodash";
@@ -9,6 +10,7 @@ export abstract class Device {
     protected lastRefresh: number;
     protected displayName: string|null|undefined;
     protected log: Logger;
+    protected idempotentCommands = new Map<string, IdempotentCommand<unknown>>();
     constructor(smartdevicemanagement: google.smartdevicemanagement_v1.Smartdevicemanagement,
                 device: google.smartdevicemanagement_v1.Schema$GoogleHomeEnterpriseSdmV1Device,
                 log: Logger) {
@@ -71,12 +73,49 @@ export abstract class Device {
                     params: params
                 }
             });
-            this.log.debug(`Execution of command ${name} returned ${JSON.stringify(response.data.results)}`, this.getDisplayName());
+            this.log.info(`Execution of command ${name} returned ${JSON.stringify(response.data.results)}`, this.getDisplayName());
             return <U>response.data.results;
         } catch (error: any) {
             this.log.error('Could not execute device command: ', JSON.stringify(error), this.getDisplayName());
         }
 
         return undefined;
+    }
+
+    executeIdempotentCommand<T, U>(name: string, params?: T): void {
+        let command = this.idempotentCommands.get(name);
+        if (!command) {
+            command = new IdempotentCommand();
+            this.idempotentCommands.set(name, command);
+        }
+        command.execute(() => this.executeCommand(name, params));
+
+    }
+}
+
+class IdempotentCommand<Type> {
+    private operation?: (() => Promise<Type>) | undefined;
+    private result?: Promise<Type>;
+    private timer?: Promise<void>;
+
+    execute(operation: () => Promise<Type>): void {
+        this.operation = operation;
+        this.timer = Timers.setTimeout(500);
+        const result = (async () => {
+            let timer;
+            while (timer !== this.timer) {
+                timer = this.timer;
+                await timer;
+            }
+            const nextOperation = this.operation;
+            if (nextOperation) {
+                this.operation = undefined;
+                this.result = nextOperation();
+            }
+            return this.result;
+        })();
+        // Return immediately. Make sure to catch potential promises which would otherwise halt the
+        // service.
+        result.catch(() => {});
     }
 }

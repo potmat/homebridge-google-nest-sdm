@@ -146,12 +146,12 @@ class Thermostat extends Device_1.Device {
         const mode = await this.getMode();
         switch (mode === null || mode === void 0 ? void 0 : mode.mode) {
             case Traits.ThermostatModeType.HEAT:
-                await this.executeCommand(Commands.Constants.ThermostatTemperatureSetpoint_SetHeat, {
+                await this.executeIdempotentCommand(Commands.Constants.ThermostatTemperatureSetpoint_SetHeat, {
                     heatCelsius: temperature
                 });
                 break;
             case Traits.ThermostatModeType.COOL:
-                await this.executeCommand(Commands.Constants.ThermostatTemperatureSetpoint_SetCool, {
+                await this.executeIdempotentCommand(Commands.Constants.ThermostatTemperatureSetpoint_SetCool, {
                     coolCelsius: temperature
                 });
                 break;
@@ -173,7 +173,7 @@ class Thermostat extends Device_1.Device {
         switch (mode === null || mode === void 0 ? void 0 : mode.mode) {
             case Traits.ThermostatModeType.HEATCOOL:
                 const currentRange = await this.getTargetTemperatureRange();
-                await this.executeCommand(Commands.Constants.ThermostatTemperatureSetpoint_SetRange, {
+                await this.executeIdempotentCommand(Commands.Constants.ThermostatTemperatureSetpoint_SetRange, {
                     heatCelsius: heat || (currentRange === null || currentRange === void 0 ? void 0 : currentRange.heat),
                     coolCelsius: cool || (currentRange === null || currentRange === void 0 ? void 0 : currentRange.cool)
                 });
@@ -181,13 +181,13 @@ class Thermostat extends Device_1.Device {
             case Traits.ThermostatModeType.HEAT:
                 if (!heat)
                     throw new Error('Cannot set a target temperature range (heat only) when the thermostat is not in heat mode.');
-                await this.executeCommand(Commands.Constants.ThermostatTemperatureSetpoint_SetRange, {
+                await this.executeIdempotentCommand(Commands.Constants.ThermostatTemperatureSetpoint_SetRange, {
                     heatCelsius: heat
                 });
             case Traits.ThermostatModeType.COOL:
                 if (!cool)
                     throw new Error('Cannot set a target temperature range (cool only) when the thermostat is not in cool mode.');
-                await this.executeCommand(Commands.Constants.ThermostatTemperatureSetpoint_SetRange, {
+                await this.executeIdempotentCommand(Commands.Constants.ThermostatTemperatureSetpoint_SetRange, {
                     coolCelsius: cool
                 });
             case Traits.ThermostatModeType.OFF:

@@ -1,12 +1,33 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Device = void 0;
+const Timers = __importStar(require("node:timers/promises"));
 const lodash_1 = __importDefault(require("lodash"));
 class Device {
     constructor(smartdevicemanagement, device, log) {
+        this.idempotentCommands = new Map();
         this.smartdevicemanagement = smartdevicemanagement;
         this.device = device;
         this.lastRefresh = Date.now();
@@ -62,7 +83,7 @@ class Device {
                     params: params
                 }
             });
-            this.log.debug(`Execution of command ${name} returned ${JSON.stringify(response.data.results)}`, this.getDisplayName());
+            this.log.info(`Execution of command ${name} returned ${JSON.stringify(response.data.results)}`, this.getDisplayName());
             return response.data.results;
         }
         catch (error) {
@@ -70,6 +91,36 @@ class Device {
         }
         return undefined;
     }
+    executeIdempotentCommand(name, params) {
+        let command = this.idempotentCommands.get(name);
+        if (!command) {
+            command = new IdempotentCommand();
+            this.idempotentCommands.set(name, command);
+        }
+        command.execute(() => this.executeCommand(name, params));
+    }
 }
 exports.Device = Device;
+class IdempotentCommand {
+    execute(operation) {
+        this.operation = operation;
+        this.timer = Timers.setTimeout(500);
+        const result = (async () => {
+            let timer;
+            while (timer !== this.timer) {
+                timer = this.timer;
+                await timer;
+            }
+            const nextOperation = this.operation;
+            if (nextOperation) {
+                this.operation = undefined;
+                this.result = nextOperation();
+            }
+            return this.result;
+        })();
+        // Return immediately. Make sure to catch potential promises which would otherwise halt the
+        // service.
+        result.catch(() => { });
+    }
+}
 //# sourceMappingURL=Device.js.map

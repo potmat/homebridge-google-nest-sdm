@@ -17,6 +17,7 @@ export class SmartDeviceManagement {
     private pubSubClient: pubsub.PubSub | undefined;
     private subscription: pubsub.Subscription | undefined;
     private projectId: string;
+    private structureId: string | undefined;
     private log: Logger;
     private devices: Device[] | undefined;
     private subscribed = true;
@@ -29,6 +30,7 @@ export class SmartDeviceManagement {
             config.clientSecret
         );
         this.projectId = config.projectId;
+        this.structureId = config.structureId;
         this.oauth2Client.setCredentials({
             refresh_token: config.refreshToken
         });
@@ -96,8 +98,26 @@ export class SmartDeviceManagement {
             const response = await this.smartdevicemanagement.enterprises.devices.list({parent: `enterprises/${this.projectId}`})
 
             this.log.debug('Receieved list of devices: ', response.data.devices)
+            const structures = new Set(response.data.devices
+                ?.map(device =>
+                    device.parentRelations
+                        ?.map(relation => relation.parent)
+                        .filter(parent => parent != null)
+                        .map(parent => /structures\/([^/]+)/.exec(parent!)?.[1])
+                        .filter(structure => structure != null))
+                .flat()
+            )
+            if (structures.size > 1 && this.structureId == null) {
+                this.log.info('More than one structure found, consider setting `structureId`:', structures)
+                return;
+            }
 
             this.devices = _(response.data.devices)
+                .filter(
+                    this.structureId === undefined ?
+                        () => true :
+                        device => (device.parentRelations?.some(relation => relation.parent?.includes(`structures/${this.structureId}`)) ?? false)
+                )
                 .filter(device => device.name !== null)
                 .map(device => {
                     switch (device.type) {

@@ -37,6 +37,7 @@ class SmartDeviceManagement {
         this.log = log;
         this.oauth2Client = new google.Auth.OAuth2Client(config.clientId, config.clientSecret);
         this.projectId = config.projectId;
+        this.structureId = config.structureId;
         this.oauth2Client.setCredentials({
             refresh_token: config.refreshToken
         });
@@ -92,12 +93,24 @@ class SmartDeviceManagement {
         }
     }
     async list_devices() {
+        var _a;
         if (!this.subscribed)
             return this.devices;
         try {
             const response = await this.smartdevicemanagement.enterprises.devices.list({ parent: `enterprises/${this.projectId}` });
             this.log.debug('Receieved list of devices: ', response.data.devices);
+            const structures = new Set((_a = response.data.devices) === null || _a === void 0 ? void 0 : _a.map(device => {
+                var _a;
+                return (_a = device.parentRelations) === null || _a === void 0 ? void 0 : _a.map(relation => relation.parent).filter(parent => parent != null).map(parent => { var _a; return (_a = /structures\/([^/]+)/.exec(parent)) === null || _a === void 0 ? void 0 : _a[1]; }).filter(structure => structure != null);
+            }).flat());
+            if (structures.size > 1 && this.structureId == null) {
+                this.log.info('More than one structure found, consider setting `structureId`:', structures);
+                return;
+            }
             this.devices = (0, lodash_1.default)(response.data.devices)
+                .filter(this.structureId === undefined ?
+                () => true :
+                device => { var _a, _b; return ((_b = (_a = device.parentRelations) === null || _a === void 0 ? void 0 : _a.some(relation => { var _a; return (_a = relation.parent) === null || _a === void 0 ? void 0 : _a.includes(`structures/${this.structureId}`); })) !== null && _b !== void 0 ? _b : false); })
                 .filter(device => device.name !== null)
                 .map(device => {
                 switch (device.type) {

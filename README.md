@@ -29,9 +29,10 @@ Don't forget the ``--unsafe-perm`` part!
         "refreshToken": "...",
         "subscriptionId": "...",
         "gcpProjectId": "<optional>",
-        "vEncoder": "<optional>"
-        "showFan": "<optional>"
-        "fanDuration": "<optional>"
+        "vEncoder": "<optional>",
+        "showFan": "<optional>",
+        "fanDuration": "<optional>",
+        "structureId": "<optional>",
     }
 
 I recommend you use the plugin config UI to enter these values.
@@ -46,7 +47,7 @@ Follow the getting started guide here: https://developers.google.com/nest/device
 
 **refreshToken** comes from this step: https://developers.google.com/nest/device-access/authorize#get_an_access_token
 
-**subscriptionID** comes from this step: https://developers.google.com/nest/device-access/subscribe-to-events#create_a_pull_subscription. It should look like "projects/your-gcp-project-id/subscriptions/your-subscription-id".
+**subscriptionId** comes from this step: https://developers.google.com/nest/device-access/subscribe-to-events#create_a_pull_subscription. It should look like "projects/your-gcp-project-id/subscriptions/your-subscription-id".
 
 **gcpProjectId** is optional. It is the ID of the Google Cloud Platform project you created when getting the **clientId** and **clientSecret**. If you are having trouble subsribing to events try populating this field.
 
@@ -55,6 +56,10 @@ Follow the getting started guide here: https://developers.google.com/nest/device
 **showFan** is optional.  If true, a fan accessory will be added.
 
 **fanDuration** is optional. You only need to use this if **showFan** is set to true. It controls the fan duration (in seconds) when turning on the fan.  Must be between 1 and 43200.  Defaults to 900 if not set.
+
+**structureId** is optional. If you have more than one home or "structure" on your account then you
+might want to set this. There will be information in the console about which structures are
+available. You may want to create a unique `subscriptionId` for each Homebridge instance.
 
 ONE IMPORTANT DIFFERENCE!
 
@@ -140,7 +145,7 @@ HomeKit Secure Video will require even more CPU power.  The clips need to be tra
 
 **A**: Yup.
 
-**Q**: So why this plugin?  
+**Q**: So why this plugin?
 
 **A**: Well, the "official" Homebridge Nest plugin(s) use undocumented APIs.  That is, the authors reverse engineered the APIs the Nest app itself uses.  Don't get me wrong, I have no problem with that. But the SDM API is a documented API for precisely this use case.  The more important reason for making this plugin is the same as the reason for climbing a mountain, because you can.
 
