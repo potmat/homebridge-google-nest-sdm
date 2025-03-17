@@ -24,6 +24,7 @@ class Platform {
         this.platformConfig = platformConfig;
         this.api = api;
         this.accessories = [];
+        // Constructor code remains unchanged
         this.debugMode = process.argv.includes('-D') || process.argv.includes('--debug');
         this.EcoMode = EcoMode(api);
         IEcoMode = this.EcoMode;
@@ -64,29 +65,38 @@ class Platform {
         const devices = await this.smartDeviceManagement.list_devices();
         if (!devices)
             return;
-        const deviceInfos = devices
-            .map(device => {
+        // Filter out devices that should be excluded based on configuration
+        const deviceInfos = [];
+        devices.forEach(device => {
             const uuid = this.api.hap.uuid.generate(device.getName());
-            const category = (() => {
-                if (device instanceof Doorbell_1.Doorbell)
-                    return 18 /* VIDEO_DOORBELL */;
-                else if (device instanceof Camera_1.Camera)
-                    return 17 /* CAMERA */;
-                else if (device instanceof Thermostat_1.Thermostat && this.config.showThermostats !== false) // Add condition here
-                    return 9 /* THERMOSTAT */;
-                else if (device instanceof UnknownDevice_1.UnknownDevice)
-                    return 1 /* OTHER */;
-            })();
-            return {
-                device: device,
-                uuid: uuid,
-                category: category,
-                existingAccessory: this.accessories.find(accessory => accessory.UUID === uuid)
-            };
+            let category;
+            if (device instanceof Doorbell_1.Doorbell) {
+                category = 18 /* VIDEO_DOORBELL */;
+            }
+            else if (device instanceof Camera_1.Camera) {
+                category = 17 /* CAMERA */;
+            }
+            else if (device instanceof Thermostat_1.Thermostat && this.config.showThermostats !== false) {
+                category = 9 /* THERMOSTAT */;
+            }
+            else if (device instanceof UnknownDevice_1.UnknownDevice) {
+                category = 1 /* OTHER */;
+            }
+            // If category is undefined, this device should be excluded
+            if (category !== undefined) {
+                deviceInfos.push({
+                    device: device,
+                    uuid: uuid,
+                    category: category,
+                    existingAccessory: this.accessories.find(accessory => accessory.UUID === uuid)
+                });
+            }
         });
         // Only add fan accessories if both the thermostat is enabled and showFan is enabled
-        devices.filter(device => device instanceof Thermostat_1.Thermostat && this.config.showThermostats !== false).forEach(thermostatDevice => {
-            if (this.config.showFan) {
+        if (this.config.showThermostats !== false && this.config.showFan) {
+            devices
+                .filter(device => device instanceof Thermostat_1.Thermostat)
+                .forEach(thermostatDevice => {
                 const uuid = this.api.hap.uuid.generate(thermostatDevice.getName() + ' Fan');
                 deviceInfos.push({
                     device: thermostatDevice,
@@ -94,12 +104,10 @@ class Platform {
                     category: 3 /* FAN */,
                     existingAccessory: this.accessories.find(accessory => accessory.UUID === uuid)
                 });
-            }
-        });
+            });
+        }
         // loop over the discovered devices and register each one if it has not already been registered
         for (const deviceInfo of deviceInfos) {
-            if (deviceInfo.category === 1 /* OTHER */)
-                continue;
             if (deviceInfo.existingAccessory) {
                 this.log.info('Restoring existing accessory from cache:', deviceInfo.existingAccessory.displayName);
                 // if you need to update the accessory.context then you should run `api.updatePlatformAccessories`. eg.:
