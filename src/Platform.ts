@@ -24,6 +24,14 @@ import { UnknownDevice } from "./sdm/UnknownDevice";
 
 let IEcoMode: any;
 
+// Define a type for the device info to handle nullable filtering
+interface DeviceInfo {
+    device: Device;
+    uuid: string;
+    category: Categories;
+    existingAccessory: PlatformAccessory | undefined;
+}
+
 /**
  * HomebridgePlatform
  * This class is the main constructor for your plugin, this is where you should
@@ -42,6 +50,7 @@ export class Platform implements DynamicPlatformPlugin {
         public readonly platformConfig: PlatformConfig,
         public readonly api: API,
     ) {
+        // Constructor code remains unchanged
         this.debugMode = process.argv.includes('-D') || process.argv.includes('--debug');
         this.EcoMode = EcoMode(api);
         IEcoMode = this.EcoMode;
@@ -83,7 +92,6 @@ export class Platform implements DynamicPlatformPlugin {
      * must not be registered again to prevent "duplicate UUID" errors.
      */
     async discoverDevices() {
-
         if (!this.smartDeviceManagement)
             return;
 
@@ -93,34 +101,32 @@ export class Platform implements DynamicPlatformPlugin {
             return;
 
         // Filter out devices that should be excluded based on configuration
-        const deviceInfos = devices
-            .map(device => {
-                const uuid = this.api.hap.uuid.generate(device.getName());
-                let category = undefined;
+        const deviceInfos: DeviceInfo[] = [];
 
-                if (device instanceof Doorbell) {
-                    category = this.api.hap.Categories.VIDEO_DOORBELL;
-                } else if (device instanceof Camera) {
-                    category = this.api.hap.Categories.CAMERA;
-                } else if (device instanceof Thermostat && this.config.showThermostats !== false) {
-                    category = this.api.hap.Categories.THERMOSTAT;
-                } else if (device instanceof UnknownDevice) {
-                    category = this.api.hap.Categories.OTHER;
-                }
+        devices.forEach(device => {
+            const uuid = this.api.hap.uuid.generate(device.getName());
+            let category: Categories | undefined;
 
-                // If category is undefined, this device should be excluded
-                if (category === undefined) {
-                    return null;
-                }
+            if (device instanceof Doorbell) {
+                category = this.api.hap.Categories.VIDEO_DOORBELL;
+            } else if (device instanceof Camera) {
+                category = this.api.hap.Categories.CAMERA;
+            } else if (device instanceof Thermostat && this.config.showThermostats !== false) {
+                category = this.api.hap.Categories.THERMOSTAT;
+            } else if (device instanceof UnknownDevice) {
+                category = this.api.hap.Categories.OTHER;
+            }
 
-                return {
+            // If category is undefined, this device should be excluded
+            if (category !== undefined) {
+                deviceInfos.push({
                     device: device,
                     uuid: uuid,
                     category: category,
                     existingAccessory: this.accessories.find(accessory => accessory.UUID === uuid)
-                };
-            })
-            .filter(item => item !== null); // Remove null entries (excluded devices)
+                });
+            }
+        });
 
         // Only add fan accessories if both the thermostat is enabled and showFan is enabled
         if (this.config.showThermostats !== false && this.config.showFan) {
