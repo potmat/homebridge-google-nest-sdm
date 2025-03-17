@@ -72,7 +72,7 @@ class Platform {
                     return 18 /* VIDEO_DOORBELL */;
                 else if (device instanceof Camera_1.Camera)
                     return 17 /* CAMERA */;
-                else if (device instanceof Thermostat_1.Thermostat)
+                else if (device instanceof Thermostat_1.Thermostat && this.config.showThermostats !== false) // Add condition here
                     return 9 /* THERMOSTAT */;
                 else if (device instanceof UnknownDevice_1.UnknownDevice)
                     return 1 /* OTHER */;
@@ -84,7 +84,8 @@ class Platform {
                 existingAccessory: this.accessories.find(accessory => accessory.UUID === uuid)
             };
         });
-        devices.filter(device => device instanceof Thermostat_1.Thermostat).forEach(thermostatDevice => {
+        // Only add fan accessories if both the thermostat is enabled and showFan is enabled
+        devices.filter(device => device instanceof Thermostat_1.Thermostat && this.config.showThermostats !== false).forEach(thermostatDevice => {
             if (this.config.showFan) {
                 const uuid = this.api.hap.uuid.generate(thermostatDevice.getName() + ' Fan');
                 deviceInfos.push({
