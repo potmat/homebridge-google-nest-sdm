@@ -43,13 +43,16 @@
       },
       "showThermostats": {
         "title": "Show Thermostats",
+        "description": "Enable or disable thermostat accessories",
         "type": "boolean",
         "default": true,
         "required": false
       },
       "showFan": {
         "title": "Show Fan Switch",
+        "description": "Enable or disable fan switch accessories for thermostats",
         "type": "boolean",
+        "default": false,
         "required": false
       },
       "fanDuration": {
