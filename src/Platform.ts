@@ -10,17 +10,17 @@ import {
 
 import { PLATFORM_NAME, PLUGIN_NAME } from './Settings';
 import { CameraAccessory } from './CameraAccessory';
-import {SmartDeviceManagement} from './sdm/Api';
-import {Config} from "./Config";
-import {ThermostatAccessory} from "./ThermostatAccessory";
-import {Camera} from "./sdm/Camera";
-import {Thermostat} from "./sdm/Thermostat";
-import {Doorbell} from "./sdm/Doorbell";
-import {DoorbellAccessory} from "./DoorbellAccessory";
+import { SmartDeviceManagement } from './sdm/Api';
+import { Config } from "./Config";
+import { ThermostatAccessory } from "./ThermostatAccessory";
+import { Camera } from "./sdm/Camera";
+import { Thermostat } from "./sdm/Thermostat";
+import { Doorbell } from "./sdm/Doorbell";
+import { DoorbellAccessory } from "./DoorbellAccessory";
 import EcoMode = require('./EcoMode');
-import {FanAccessory} from "./FanAccessory";
-import {Device} from "./sdm/Device";
-import {UnknownDevice} from "./sdm/UnknownDevice";
+import { FanAccessory } from "./FanAccessory";
+import { Device } from "./sdm/Device";
+import { UnknownDevice } from "./sdm/UnknownDevice";
 
 let IEcoMode: any;
 
@@ -63,7 +63,7 @@ export class Platform implements DynamicPlatformPlugin {
             this.discoverDevices();
         });
 
-        this.Characteristic = Object.defineProperty(this.api.hap.Characteristic, 'EcoMode', {value: this.EcoMode});
+        this.Characteristic = Object.defineProperty(this.api.hap.Characteristic, 'EcoMode', { value: this.EcoMode });
     }
 
     /**
@@ -100,7 +100,7 @@ export class Platform implements DynamicPlatformPlugin {
                         return this.api.hap.Categories.VIDEO_DOORBELL;
                     else if (device instanceof Camera)
                         return this.api.hap.Categories.CAMERA;
-                    else if (device instanceof Thermostat)
+                    else if (device instanceof Thermostat && this.config.showThermostats !== false) // Add condition here
                         return this.api.hap.Categories.THERMOSTAT;
                     else if (device instanceof UnknownDevice)
                         return this.api.hap.Categories.OTHER;
@@ -114,7 +114,8 @@ export class Platform implements DynamicPlatformPlugin {
                 }
             });
 
-        devices.filter(device => device instanceof Thermostat).forEach(thermostatDevice => {
+        // Only add fan accessories if both the thermostat is enabled and showFan is enabled
+        devices.filter(device => device instanceof Thermostat && this.config.showThermostats !== false).forEach(thermostatDevice => {
             if (this.config.showFan) {
                 const uuid = this.api.hap.uuid.generate(thermostatDevice.getName() + ' Fan');
                 deviceInfos.push({
