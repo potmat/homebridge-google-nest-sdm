@@ -92,47 +92,53 @@ export class Platform implements DynamicPlatformPlugin {
         if (!devices)
             return;
 
+        // Filter out devices that should be excluded based on configuration
         const deviceInfos = devices
             .map(device => {
                 const uuid = this.api.hap.uuid.generate(device.getName());
-                const category = (() => {
-                    if (device instanceof Doorbell)
-                        return this.api.hap.Categories.VIDEO_DOORBELL;
-                    else if (device instanceof Camera)
-                        return this.api.hap.Categories.CAMERA;
-                    else if (device instanceof Thermostat && this.config.showThermostats !== false) // Add condition here
-                        return this.api.hap.Categories.THERMOSTAT;
-                    else if (device instanceof UnknownDevice)
-                        return this.api.hap.Categories.OTHER;
-                })();
+                let category = undefined;
+
+                if (device instanceof Doorbell) {
+                    category = this.api.hap.Categories.VIDEO_DOORBELL;
+                } else if (device instanceof Camera) {
+                    category = this.api.hap.Categories.CAMERA;
+                } else if (device instanceof Thermostat && this.config.showThermostats !== false) {
+                    category = this.api.hap.Categories.THERMOSTAT;
+                } else if (device instanceof UnknownDevice) {
+                    category = this.api.hap.Categories.OTHER;
+                }
+
+                // If category is undefined, this device should be excluded
+                if (category === undefined) {
+                    return null;
+                }
 
                 return {
                     device: device,
                     uuid: uuid,
                     category: category,
                     existingAccessory: this.accessories.find(accessory => accessory.UUID === uuid)
-                }
-            });
+                };
+            })
+            .filter(item => item !== null); // Remove null entries (excluded devices)
 
         // Only add fan accessories if both the thermostat is enabled and showFan is enabled
-        devices.filter(device => device instanceof Thermostat && this.config.showThermostats !== false).forEach(thermostatDevice => {
-            if (this.config.showFan) {
-                const uuid = this.api.hap.uuid.generate(thermostatDevice.getName() + ' Fan');
-                deviceInfos.push({
-                    device: thermostatDevice,
-                    uuid: uuid,
-                    category: this.api.hap.Categories.FAN,
-                    existingAccessory: this.accessories.find(accessory => accessory.UUID === uuid)
-                })
-            }
-        });
+        if (this.config.showThermostats !== false && this.config.showFan) {
+            devices
+                .filter(device => device instanceof Thermostat)
+                .forEach(thermostatDevice => {
+                    const uuid = this.api.hap.uuid.generate(thermostatDevice.getName() + ' Fan');
+                    deviceInfos.push({
+                        device: thermostatDevice,
+                        uuid: uuid,
+                        category: this.api.hap.Categories.FAN,
+                        existingAccessory: this.accessories.find(accessory => accessory.UUID === uuid)
+                    });
+                });
+        }
 
         // loop over the discovered devices and register each one if it has not already been registered
         for (const deviceInfo of deviceInfos) {
-
-            if (deviceInfo.category === this.api.hap.Categories.OTHER)
-                continue;
-
             if (deviceInfo.existingAccessory) {
                 this.log.info('Restoring existing accessory from cache:', deviceInfo.existingAccessory.displayName);
 
