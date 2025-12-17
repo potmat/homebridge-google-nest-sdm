@@ -82,22 +82,32 @@ If you prefer manual setup or the script doesn't work for your environment.
 3. Pay the $5 registration fee
 4. **Use the Google account that has your Nest devices**
 
-### Step 2: Create Google Cloud Project
+### Step 2: Create or Use Existing Google Cloud Project
+
+You can either create a new GCP project or use an existing one.
 
 #### Option A: Using gcloud CLI
 
+**Create a new project:**
+
 ```bash
-# Set your project name
 PROJECT_NAME="nest-homebridge"
 PROJECT_ID="${PROJECT_NAME}-$(date +%s | tail -c 6)"
 
-# Create the project
 gcloud projects create "$PROJECT_ID" --name="$PROJECT_NAME"
-
-# Set as active project
 gcloud config set project "$PROJECT_ID"
+```
 
-# Enable required APIs
+**Or use an existing project:**
+
+```bash
+PROJECT_ID="your-existing-project-id"
+gcloud config set project "$PROJECT_ID"
+```
+
+**Enable required APIs:**
+
+```bash
 gcloud services enable smartdevicemanagement.googleapis.com
 gcloud services enable pubsub.googleapis.com
 ```
@@ -105,7 +115,7 @@ gcloud services enable pubsub.googleapis.com
 #### Option B: Using Google Cloud Console
 
 1. Go to [Google Cloud Console](https://console.cloud.google.com)
-2. Create a new project
+2. Create a new project or select an existing one
 3. Enable [Smart Device Management API](https://console.cloud.google.com/apis/library/smartdevicemanagement.googleapis.com)
 4. Enable [Cloud Pub/Sub API](https://console.cloud.google.com/apis/library/pubsub.googleapis.com)
 
@@ -118,7 +128,7 @@ gcloud services enable pubsub.googleapis.com
    - User support email: Your email
    - Developer contact email: Your email
 4. Save and continue through all steps
-5. Under **Audiance** --> **Test users**, add your Google account email
+5. Under **Audience** --> **Test users**, add your Google account email
 
 ### Step 4: Create OAuth 2.0 Credentials
 
@@ -270,6 +280,21 @@ The response will include your `refresh_token`. **Save this!**
 ---
 
 ## Troubleshooting
+
+### Verify Your Setup
+
+Run the verification script to check your configuration:
+
+```bash
+./scripts/verify-nest-sdm.sh nest-sdm-credentials.json
+```
+
+This will test:
+
+- API access and authentication
+- Device discovery
+- Pub/Sub configuration
+- Enabled APIs
 
 ### Common Issues
 
