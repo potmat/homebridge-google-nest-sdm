@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 #
 # Homebridge Google Nest SDM - Automated Setup Script
+# Author: WeekendSuperhero (https://github.com/WeekendSuperhero)
 # Usage: ./setup-nest-sdm.sh [PROJECT_NAME]
 
 set -e

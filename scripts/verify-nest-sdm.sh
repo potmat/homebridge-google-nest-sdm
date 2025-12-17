@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # Homebridge Google Nest SDM - Verification & Troubleshooting Script
-#
+# Author: WeekendSuperhero (https://github.com/WeekendSuperhero)
 # Usage: ./verify-nest-sdm.sh [config-file]
 
 set -e

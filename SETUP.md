@@ -2,6 +2,9 @@
 
 This guide streamlines the setup process for [homebridge-google-nest-sdm](https://github.com/potmat/homebridge-google-nest-sdm) using a combination of automation scripts and clear manual steps.
 
+**Last Updated:** 2025-12-17  
+**Contributors:** [WeekendSuperhero](https://github.com/WeekendSuperhero)
+
 ## Table of Contents
 
 - [Prerequisites](#prerequisites)
