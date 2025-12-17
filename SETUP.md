@@ -44,11 +44,23 @@ gcloud auth login
 
 The automated script handles most GCP configuration and guides you through manual steps.
 
-### 1. Download and Run the Setup Script
+### 1. Run the Setup Script
+
+If you've cloned the repository:
+
+```bash
+# Navigate to the repository
+cd homebridge-google-nest-sdm
+
+# Run the setup script
+./scripts/setup-nest-sdm.sh
+```
+
+Or download and run directly:
 
 ```bash
 # Download the setup script
-curl -O https://raw.githubusercontent.com/potmat/setup-nest-sdm.sh
+curl -O https://raw.githubusercontent.com/potmat/homebridge-google-nest-sdm/master/scripts/setup-nest-sdm.sh
 
 # Make it executable
 chmod +x setup-nest-sdm.sh
@@ -286,18 +298,61 @@ The response will include your `refresh_token`. **Save this!**
 
 ### Verify Your Setup
 
-Run the verification script to check your configuration:
+The verification script provides comprehensive diagnostics for your configuration.
+
+#### Running the Verification Script
+
+**If you've cloned the repository:**
 
 ```bash
+# From the repository root
+cd homebridge-google-nest-sdm
 ./scripts/verify-nest-sdm.sh nest-sdm-credentials.json
 ```
 
-This will test:
+**Or download and run directly:**
 
-- API access and authentication
-- Device discovery
-- Pub/Sub configuration
-- Enabled APIs
+```bash
+# Download the verification script
+curl -O https://raw.githubusercontent.com/potmat/homebridge-google-nest-sdm/master/scripts/verify-nest-sdm.sh
+
+# Make it executable
+chmod +x verify-nest-sdm.sh
+
+# Run the script
+./verify-nest-sdm.sh nest-sdm-credentials.json
+```
+
+#### What the Script Checks
+
+The verification script will test:
+
+- ✅ Required tools (gcloud CLI, jq, curl)
+- ✅ Configuration file validity
+- ✅ OAuth token generation
+- ✅ API access and authentication
+- ✅ Device discovery
+- ✅ Pub/Sub subscription configuration
+- ✅ Pub/Sub topic permissions
+- ✅ Enabled GCP APIs
+
+#### Advanced Usage
+
+**Run specific checks:**
+
+```bash
+# Test only API access
+./scripts/verify-nest-sdm.sh nest-sdm-credentials.json --api
+
+# Test only Pub/Sub configuration
+./scripts/verify-nest-sdm.sh nest-sdm-credentials.json --pubsub
+
+# Generate a test access token
+./scripts/verify-nest-sdm.sh nest-sdm-credentials.json --token
+
+# Interactive menu mode
+./scripts/verify-nest-sdm.sh nest-sdm-credentials.json --interactive
+```
 
 ### Common Issues
 
