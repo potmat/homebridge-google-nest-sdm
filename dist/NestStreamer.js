@@ -28,18 +28,20 @@ const werift_1 = require("werift");
 const Traits = __importStar(require("./sdm/Traits"));
 const pick_port_1 = __importDefault(require("pick-port"));
 class NestStreamer {
-    constructor(log, camera) {
+    constructor(log, camera, config) {
         this.log = log;
         this.camera = camera;
+        this.config = config;
     }
 }
 exports.NestStreamer = NestStreamer;
 class RtspNestStreamer extends NestStreamer {
     async initialize() {
+        var _a, _b;
         const streamInfo = await this.camera.generateStream();
         this.token = streamInfo.streamExtensionToken;
         return {
-            args: '-analyzeduration 15000000 -probesize 100000000 -i ' + streamInfo.streamUrls.rtspUrl
+            args: `-analyzeduration ${(_a = this.config.analyzeDuration) !== null && _a !== void 0 ? _a : 2000000} -probesize ${(_b = this.config.probeSize) !== null && _b !== void 0 ? _b : 5000000} -i ` + streamInfo.streamUrls.rtspUrl
         };
     }
     async teardown() {
@@ -49,6 +51,7 @@ class RtspNestStreamer extends NestStreamer {
 exports.RtspNestStreamer = RtspNestStreamer;
 class WebRtcNestStreamer extends NestStreamer {
     async initialize() {
+        var _a, _b;
         this.udp = (0, dgram_1.createSocket)("udp4");
         this.pc = new werift_1.RTCPeerConnection({
             bundlePolicy: "max-bundle",
@@ -110,7 +113,7 @@ class WebRtcNestStreamer extends NestStreamer {
             sdp: streamInfo.answerSdp
         });
         return {
-            args: `-protocol_whitelist pipe,crypto,udp,rtp,fd -analyzeduration 15000000 -probesize 100000000 -i -`,
+            args: `-protocol_whitelist pipe,crypto,udp,rtp,fd -analyzeduration ${(_a = this.config.analyzeDuration) !== null && _a !== void 0 ? _a : 2000000} -probesize ${(_b = this.config.probeSize) !== null && _b !== void 0 ? _b : 5000000} -i -`,
             stdin: `v=0
 o=- 0 0 IN IP4 127.0.0.1
 s=-
@@ -154,12 +157,12 @@ a=sendrecv`
     }
 }
 exports.WebRtcNestStreamer = WebRtcNestStreamer;
-async function getStreamer(log, camera) {
+async function getStreamer(log, camera, config) {
     if ((await camera.getVideoProtocol()) === Traits.ProtocolType.WEB_RTC) {
-        return new WebRtcNestStreamer(log, camera);
+        return new WebRtcNestStreamer(log, camera, config);
     }
     else {
-        return new RtspNestStreamer(log, camera);
+        return new RtspNestStreamer(log, camera, config);
     }
 }
 exports.getStreamer = getStreamer;

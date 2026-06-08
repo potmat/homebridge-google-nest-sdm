@@ -193,7 +193,7 @@ class StreamingDelegate {
         const bitrate = request.video.max_bit_rate * 4;
         const vEncoder = this.config.vEncoder || 'libx264 -preset ultrafast -tune zerolatency';
         this.log.debug(`Video stream requested: ${request.video.width} x ${request.video.height}, ${request.video.fps} fps, ${request.video.max_bit_rate} kbps`, this.camera.getDisplayName());
-        const nestStreamer = await (0, NestStreamer_1.getStreamer)(this.log, this.camera);
+        const nestStreamer = await (0, NestStreamer_1.getStreamer)(this.log, this.camera, this.config);
         let ffmpegArgs;
         let nestStream;
         try {
@@ -412,7 +412,7 @@ class StreamingDelegate {
                 "-ac", `${this.cameraRecordingConfiguration.audioCodec.audioChannels}`,
             ]
             : [];
-        const nestStreamer = await (0, NestStreamer_1.getStreamer)(this.log, this.camera);
+        const nestStreamer = await (0, NestStreamer_1.getStreamer)(this.log, this.camera, this.config);
         const nestStream = await nestStreamer.initialize();
         const hksvStreamer = new HksvStreamer_1.default(this.log, nestStream, audioArgs, videoArgs, this.platform.debugMode);
         this.recordingSessionInfo = {

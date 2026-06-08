@@ -5,6 +5,7 @@ import {RTCPeerConnection, RTCRtpCodecParameters} from "werift";
 import * as Traits from "./sdm/Traits";
 import {Logger} from "homebridge";
 import pickPort, { pickPortOptions } from 'pick-port';
+import {Config} from "./Config";
 
 export interface NestStream {
     args: string,
@@ -15,10 +16,12 @@ export abstract class NestStreamer {
     protected token: string | undefined;
     protected camera: Camera;
     protected log: Logger;
+    protected config: Config;
 
-    constructor(log: Logger, camera: Camera) {
+    constructor(log: Logger, camera: Camera, config: Config) {
         this.log = log;
         this.camera = camera;
+        this.config = config;
     }
 
     abstract initialize(): Promise<NestStream>;
@@ -30,7 +33,7 @@ export class RtspNestStreamer extends NestStreamer {
         const streamInfo = <GenerateRtspStream> await this.camera.generateStream();
         this.token = streamInfo.streamExtensionToken;
         return {
-            args: '-analyzeduration 15000000 -probesize 100000000 -i ' + streamInfo.streamUrls.rtspUrl
+            args: `-analyzeduration ${this.config.analyzeDuration ?? 2000000} -probesize ${this.config.probeSize ?? 5000000} -i ` + streamInfo.streamUrls.rtspUrl
         };
     }
 
@@ -113,7 +116,7 @@ export class WebRtcNestStreamer extends NestStreamer {
         });
 
         return {
-            args: `-protocol_whitelist pipe,crypto,udp,rtp,fd -analyzeduration 15000000 -probesize 100000000 -i -`,
+            args: `-protocol_whitelist pipe,crypto,udp,rtp,fd -analyzeduration ${this.config.analyzeDuration ?? 2000000} -probesize ${this.config.probeSize ?? 5000000} -i -`,
             stdin: `v=0
 o=- 0 0 IN IP4 127.0.0.1
 s=-
@@ -156,10 +159,10 @@ a=sendrecv`
     }
 }
 
-export async function getStreamer(log: Logger, camera: Camera): Promise<NestStreamer> {
+export async function getStreamer(log: Logger, camera: Camera, config: Config): Promise<NestStreamer> {
     if ((await camera.getVideoProtocol()) === Traits.ProtocolType.WEB_RTC) {
-        return new WebRtcNestStreamer(log, camera);
+        return new WebRtcNestStreamer(log, camera, config);
     } else {
-        return new RtspNestStreamer(log, camera);
+        return new RtspNestStreamer(log, camera, config);
     }
 }

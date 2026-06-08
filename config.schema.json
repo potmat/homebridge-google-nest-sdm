@@ -56,6 +56,20 @@
         "condition": {
           "functionBody": "return model.showFan"
         }
+      },
+      "analyzeDuration": {
+        "title": "FFmpeg Analyze Duration (microseconds)",
+        "type": "integer",
+        "required": false,
+        "default": 2000000,
+        "description": "How long (in microseconds) FFmpeg probes the stream before it starts outputting frames. Lower values make video start faster (e.g. after a doorbell ring), higher values give FFmpeg more time to reliably detect the stream. Defaults to 2000000 (2 seconds)."
+      },
+      "probeSize": {
+        "title": "FFmpeg Probe Size (bytes)",
+        "type": "integer",
+        "required": false,
+        "default": 5000000,
+        "description": "How many bytes of the stream FFmpeg reads while probing before it starts outputting frames. Lower values make video start faster (e.g. after a doorbell ring), higher values give FFmpeg more data to reliably detect the stream. Defaults to 5000000 (5 MB)."
       }
     }
   }
