@@ -41,7 +41,7 @@ class RtspNestStreamer extends NestStreamer {
         const streamInfo = await this.camera.generateStream();
         this.token = streamInfo.streamExtensionToken;
         return {
-            args: `-analyzeduration ${(_a = this.config.analyzeDuration) !== null && _a !== void 0 ? _a : 2000000} -probesize ${(_b = this.config.probeSize) !== null && _b !== void 0 ? _b : 5000000} -i ` + streamInfo.streamUrls.rtspUrl
+            args: `-analyzeduration ${(_a = this.config.analyzeDuration) !== null && _a !== void 0 ? _a : 15000000} -probesize ${(_b = this.config.probeSize) !== null && _b !== void 0 ? _b : 100000000} -i ` + streamInfo.streamUrls.rtspUrl
         };
     }
     async teardown() {
@@ -113,7 +113,7 @@ class WebRtcNestStreamer extends NestStreamer {
             sdp: streamInfo.answerSdp
         });
         return {
-            args: `-protocol_whitelist pipe,crypto,udp,rtp,fd -analyzeduration ${(_a = this.config.analyzeDuration) !== null && _a !== void 0 ? _a : 2000000} -probesize ${(_b = this.config.probeSize) !== null && _b !== void 0 ? _b : 5000000} -i -`,
+            args: `-protocol_whitelist pipe,crypto,udp,rtp,fd -analyzeduration ${(_a = this.config.analyzeDuration) !== null && _a !== void 0 ? _a : 15000000} -probesize ${(_b = this.config.probeSize) !== null && _b !== void 0 ? _b : 100000000} -i -`,
             stdin: `v=0
 o=- 0 0 IN IP4 127.0.0.1
 s=-

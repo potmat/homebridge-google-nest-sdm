@@ -61,15 +61,15 @@
         "title": "FFmpeg Analyze Duration (microseconds)",
         "type": "integer",
         "required": false,
-        "default": 2000000,
-        "description": "How long (in microseconds) FFmpeg probes the stream before it starts outputting frames. Lower values make video start faster (e.g. after a doorbell ring), higher values give FFmpeg more time to reliably detect the stream. Defaults to 2000000 (2 seconds)."
+        "default": 15000000,
+        "description": "Maximum time (in microseconds) FFmpeg will probe the stream to detect its parameters before giving up. FFmpeg stops as soon as it has detected the stream, so this is an upper bound, not a fixed delay. Defaults to 15000000 (15 seconds), the plugin's long-standing value. Lowering it can surface stuck streams faster, but setting it too low can cause copy-codec streams to fail to start (FFmpeg never learns the video dimensions). Only change this if you know your camera delivers a keyframe quickly."
       },
       "probeSize": {
         "title": "FFmpeg Probe Size (bytes)",
         "type": "integer",
         "required": false,
-        "default": 5000000,
-        "description": "How many bytes of the stream FFmpeg reads while probing before it starts outputting frames. Lower values make video start faster (e.g. after a doorbell ring), higher values give FFmpeg more data to reliably detect the stream. Defaults to 5000000 (5 MB)."
+        "default": 100000000,
+        "description": "Maximum number of bytes FFmpeg will read while probing the stream to detect its parameters. FFmpeg stops as soon as it has detected the stream, so this is an upper bound, not a fixed amount. Defaults to 100000000 (100 MB), the plugin's long-standing value. Setting it too low can cause copy-codec streams to fail to start (FFmpeg never learns the video dimensions)."
       }
     }
   }
