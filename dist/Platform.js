@@ -12,7 +12,6 @@ const DoorbellAccessory_1 = require("./DoorbellAccessory");
 const EcoMode = require("./EcoMode");
 const FanAccessory_1 = require("./FanAccessory");
 const UnknownDevice_1 = require("./sdm/UnknownDevice");
-const StreamParamCache_1 = require("./StreamParamCache");
 let IEcoMode;
 /**
  * HomebridgePlatform
@@ -26,7 +25,6 @@ class Platform {
         this.api = api;
         this.accessories = [];
         this.debugMode = process.argv.includes('-D') || process.argv.includes('--debug');
-        this.streamParamCache = new StreamParamCache_1.StreamParamCache(api.user.storagePath(), log);
         this.EcoMode = EcoMode(api);
         IEcoMode = this.EcoMode;
         this.config = platformConfig;

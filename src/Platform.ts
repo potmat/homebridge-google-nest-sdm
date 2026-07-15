@@ -21,7 +21,6 @@ import EcoMode = require('./EcoMode');
 import {FanAccessory} from "./FanAccessory";
 import {Device} from "./sdm/Device";
 import {UnknownDevice} from "./sdm/UnknownDevice";
-import {StreamParamCache} from "./StreamParamCache";
 
 let IEcoMode: any;
 
@@ -33,7 +32,6 @@ let IEcoMode: any;
 export class Platform implements DynamicPlatformPlugin {
     public readonly Characteristic: typeof Characteristic & typeof IEcoMode;
     public readonly debugMode: boolean;
-    public readonly streamParamCache: StreamParamCache;
     private readonly smartDeviceManagement: SmartDeviceManagement | undefined;
     private readonly accessories: PlatformAccessory[] = [];
     private readonly EcoMode;
@@ -45,7 +43,6 @@ export class Platform implements DynamicPlatformPlugin {
         public readonly api: API,
     ) {
         this.debugMode = process.argv.includes('-D') || process.argv.includes('--debug');
-        this.streamParamCache = new StreamParamCache(api.user.storagePath(), log);
         this.EcoMode = EcoMode(api);
         IEcoMode = this.EcoMode;
 

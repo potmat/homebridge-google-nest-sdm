@@ -31,10 +31,9 @@ const Traits = __importStar(require("./sdm/Traits"));
 const pick_port_1 = __importDefault(require("pick-port"));
 const H264_1 = require("./H264");
 class NestStreamer {
-    constructor(log, camera, streamParamCache, config) {
+    constructor(log, camera, config) {
         this.log = log;
         this.camera = camera;
-        this.streamParamCache = streamParamCache;
         this.config = config;
     }
 }
@@ -124,13 +123,8 @@ class WebRtcNestStreamer extends NestStreamer {
                 this.udp.send(rtp.serialize(), audioPort, "127.0.0.1");
             });
         });
-        const deviceId = this.camera.getName();
-        const cached = this.streamParamCache.get(deviceId);
-        let capturedSps;
-        let capturedPps;
         let sawFirstVideoRtp = false;
         let sawFirstKeyframe = false;
-        let injectedParams = false;
         // Diagnostics for the keyframe→FFmpeg-output gap: the IDR spans many RTP
         // packets (its last one carries the marker bit), and FFmpeg cannot finish
         // probing until it has also seen the *next* frame's timestamp. These track
@@ -141,12 +135,6 @@ class WebRtcNestStreamer extends NestStreamer {
         let keyframeComplete = false;
         let framesAfterKeyframe = 0;
         let lastVideoTimestamp;
-        // Original sequence number of the keyframe packet we splice our SPS/PPS in
-        // front of. Once set, every packet at or after this point is renumbered +1 to
-        // make room for the one synthetic packet. Serial-number arithmetic (RFC 1982)
-        // leaves out-of-order stragglers from *before* the splice untouched, so they
-        // can't collide with the injected packet's slot.
-        let injectAtSeq;
         const videoPort = await (0, pick_port_1.default)(options);
         const videoTransceiver = this.pc.addTransceiver("video", { direction: "recvonly" });
         videoTransceiver.onTrack.subscribe((track) => {
@@ -215,45 +203,6 @@ class WebRtcNestStreamer extends NestStreamer {
                     mark(`video frame ${framesAfterKeyframe} after keyframe started`);
                 }
                 lastVideoTimestamp = rtp.header.timestamp;
-                // Splice our cached SPS/PPS in as a proper access unit immediately before
-                // the first keyframe: same timestamp and SSRC as the IDR, sequenced right
-                // in front of it, with every following packet renumbered +1. This mimics
-                // exactly how the camera delivers its own parameter sets (SPS→PPS→IDR in
-                // one access unit) — the only form FFmpeg actually honors — so it gets the
-                // dimensions at the first keyframe (~1s) instead of waiting for the camera's
-                // next periodic SPS (up to ~15s).
-                if (cached && !injectedParams && isKeyframe) {
-                    injectedParams = true;
-                    injectAtSeq = rtp.header.sequenceNumber;
-                    const psPacket = (0, H264_1.buildParameterSetRtpPacket)({
-                        sps: Buffer.from(cached.sps, 'base64'),
-                        pps: Buffer.from(cached.pps, 'base64'),
-                        payloadType: rtp.header.payloadType,
-                        sequenceNumber: injectAtSeq,
-                        timestamp: rtp.header.timestamp,
-                        ssrc: rtp.header.ssrc
-                    });
-                    captureVideo(psPacket);
-                    this.udp.send(psPacket, videoPort, "127.0.0.1");
-                    mark('injected cached SPS/PPS in-band before keyframe');
-                }
-                // Learn this camera's H.264 parameter sets from the live stream so future
-                // streams can be primed (reads the original payload, before any renumbering).
-                if (!capturedSps || !capturedPps) {
-                    const { sps, pps } = (0, H264_1.extractParameterSets)(rtp.payload);
-                    if (sps)
-                        capturedSps = sps;
-                    if (pps)
-                        capturedPps = pps;
-                    if (capturedSps && capturedPps) {
-                        this.streamParamCache.set(deviceId, {
-                            sps: capturedSps.toString('base64'),
-                            pps: capturedPps.toString('base64')
-                        });
-                    }
-                }
-                if (injectAtSeq !== undefined && ((rtp.header.sequenceNumber - injectAtSeq) & 0xffff) < 0x8000)
-                    rtp.header.sequenceNumber = (rtp.header.sequenceNumber + 1) & 0xffff;
                 const out = rtp.serialize();
                 captureVideo(out);
                 this.udp.send(out, videoPort, "127.0.0.1");
@@ -265,10 +214,11 @@ class WebRtcNestStreamer extends NestStreamer {
                 // asks for a recovery picture, which these cameras answer with an IDR but
                 // *without* SPS/PPS — leaving FFmpeg to wait many seconds for the camera's
                 // next periodic parameter sets. FIR ("full intra request", RFC 5104) asks
-                // for a full intra frame, which encoders typically resend *with* the
-                // parameter sets. The hope: get the camera's own SPS to FFmpeg up front so
-                // stream detection finishes fast. FIR needs a per-SSRC sequence number that
-                // increments each request, or the camera ignores repeats.
+                // for a full intra frame, which these cameras answer with the parameter
+                // sets attached (verified: every FIR-elicited keyframe carries SPS/PPS in
+                // the same access unit), so FFmpeg has the dimensions at the first
+                // keyframe. FIR needs a per-SSRC sequence number that increments each
+                // request, or the camera ignores repeats.
                 const requestKeyframe = () => {
                     var _a;
                     sendRemb();
@@ -301,22 +251,15 @@ class WebRtcNestStreamer extends NestStreamer {
         mark('remote description set; returning to start FFmpeg');
         // An RTP capture of what FFmpeg actually receives proved the real cause of slow
         // startup: FFmpeg already has the video dimensions at the first keyframe (the
-        // camera sends its SPS/PPS in-band with it — FIR makes sure of it — and we splice
-        // our cached copy in too), so it is NOT waiting for parameter sets. It was burning
-        // the analyzeduration window estimating the frame rate of a slow ~7.5fps stream.
-        // Lowering analyzeduration attacked that but broke cameras whose first keyframe
-        // arrives after the cap (Driveway Camera at 2s), because it also limits how long
-        // find_stream_info will WAIT for codec parameters. -fpsprobesize 0 targets only
-        // the fps sampling: find_stream_info returns as soon as it has codec parameters,
-        // while the full 15s window remains available for a late keyframe. Video is
-        // stream-copied, so fps metadata is never used downstream.
-        let videoFmtp = 'a=fmtp:97 level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f';
-        if (cached) {
-            const spsBytes = Buffer.from(cached.sps, 'base64');
-            const profileLevelId = spsBytes.length >= 4 ? spsBytes.subarray(1, 4).toString('hex') : '42e01f';
-            videoFmtp = `a=fmtp:97 level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=${profileLevelId};sprop-parameter-sets=${cached.sps},${cached.pps}`;
-            this.log.debug(`Priming FFmpeg with cached H.264 parameter sets (profile-level-id=${profileLevelId}).`, this.camera.getDisplayName());
-        }
+        // camera sends its SPS/PPS in-band with it — FIR makes sure of it), so it is NOT
+        // waiting for parameter sets. It was burning the analyzeduration window
+        // estimating the frame rate of a slow ~7.5fps stream. Lowering analyzeduration
+        // attacked that but broke cameras whose first keyframe arrives after the cap,
+        // because it also limits how long find_stream_info will WAIT for codec
+        // parameters. -fpsprobesize 0 targets only the fps sampling: find_stream_info
+        // returns as soon as it has codec parameters, while the full analyzeduration
+        // window remains available for a late keyframe. Video is stream-copied, so fps
+        // metadata is never used downstream.
         return {
             args: `-protocol_whitelist pipe,crypto,udp,rtp,fd -analyzeduration ${(_b = this.config.analyzeDuration) !== null && _b !== void 0 ? _b : 15000000} -probesize ${(_c = this.config.probeSize) !== null && _c !== void 0 ? _c : 100000000} -fpsprobesize 0 -i -`,
             stdin: `v=0
@@ -335,7 +278,7 @@ a=rtcp-fb:97 ccm fir
 a=rtcp-fb:97 nack
 a=rtcp-fb:97 nack pli
 a=rtcp-fb:97 goog-remb
-${videoFmtp}
+a=fmtp:97 level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f
 a=sendrecv`
         };
     }
@@ -370,12 +313,12 @@ a=sendrecv`
     }
 }
 exports.WebRtcNestStreamer = WebRtcNestStreamer;
-async function getStreamer(log, camera, streamParamCache, config) {
+async function getStreamer(log, camera, config) {
     if ((await camera.getVideoProtocol()) === Traits.ProtocolType.WEB_RTC) {
-        return new WebRtcNestStreamer(log, camera, streamParamCache, config);
+        return new WebRtcNestStreamer(log, camera, config);
     }
     else {
-        return new RtspNestStreamer(log, camera, streamParamCache, config);
+        return new RtspNestStreamer(log, camera, config);
     }
 }
 exports.getStreamer = getStreamer;
