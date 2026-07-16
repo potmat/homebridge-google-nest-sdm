@@ -389,7 +389,11 @@ export abstract class StreamingDelegate<T extends CameraController> implements C
         this.startStream(request, callback);
         break;
       case StreamRequestTypes.RECONFIGURE:
-        this.log.debug(`Received request to reconfigure: ${request.video.width} x ${request.video.height}, ${request.video.fps} fps, ${request.video.max_bit_rate} kbps (Ignored)`, this.camera.getDisplayName());
+        // Video is stream-copied, so resolution/fps cannot change mid-stream, but
+        // the requested bitrate can be honored by re-advertising it to the camera
+        // via REMB — the camera's own encoder then adapts its rate.
+        this.log.debug(`Received request to reconfigure: ${request.video.width} x ${request.video.height}, ${request.video.fps} fps, ${request.video.max_bit_rate} kbps`, this.camera.getDisplayName());
+        this.ongoingSessions[request.sessionID]?.streamer.setMaxBitrate(request.video.max_bit_rate * 1000);
         callback();
         break;
       case StreamRequestTypes.STOP:

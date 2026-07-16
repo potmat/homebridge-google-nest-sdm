@@ -36,6 +36,12 @@ class NestStreamer {
         this.camera = camera;
         this.config = config;
     }
+    /**
+     * Adjust the sender's target bitrate mid-stream, if the transport supports
+     * it. HomeKit sends RECONFIGURE requests when the viewer's bandwidth
+     * changes (e.g. watching over cellular); default is a no-op.
+     */
+    setMaxBitrate(bitrate) { }
 }
 exports.NestStreamer = NestStreamer;
 class RtspNestStreamer extends NestStreamer {
@@ -53,6 +59,12 @@ class RtspNestStreamer extends NestStreamer {
 }
 exports.RtspNestStreamer = RtspNestStreamer;
 class WebRtcNestStreamer extends NestStreamer {
+    constructor() {
+        super(...arguments);
+        // Start high so the first IDR is not throttled by the sender's conservative
+        // initial estimate; RECONFIGURE requests adjust it afterwards.
+        this.rembBitrate = 4000000;
+    }
     async initialize() {
         var _a, _b, _c;
         // Diagnostics: log a timeline of WebRTC startup milestones relative to this
@@ -147,30 +159,32 @@ class WebRtcNestStreamer extends NestStreamer {
             // estimate, so advertise generous bandwidth immediately and keep repeating
             // it alongside the keyframe requests. Per RFC draft, the REMB media-source
             // SSRC field is 0 and the target SSRCs ride in the feedback list.
-            const REMB_BITRATE = 4000000;
-            let rembExp = 0, rembMantissa = REMB_BITRATE;
-            while (rembMantissa > 0x3ffff) {
-                rembMantissa = Math.floor(rembMantissa / 2);
-                rembExp++;
-            }
+            // setMaxBitrate() adjusts the advertised value mid-stream when HomeKit
+            // reconfigures (the very first send can race DTLS setup and fail; the
+            // repeat alongside the next keyframe request delivers it).
             let firstRembSent = false;
             const sendRemb = () => {
                 var _a;
+                let exp = 0, mantissa = this.rembBitrate;
+                while (mantissa > 0x3ffff) {
+                    mantissa = Math.floor(mantissa / 2);
+                    exp++;
+                }
                 try {
                     const remb = new werift_1.RtcpPayloadSpecificFeedback({
                         feedback: new werift_1.ReceiverEstimatedMaxBitrate({
                             senderSsrc: videoTransceiver.receiver.rtcpSsrc,
                             mediaSsrc: 0,
                             ssrcNum: 1,
-                            brExp: rembExp,
-                            brMantissa: rembMantissa,
+                            brExp: exp,
+                            brMantissa: mantissa,
                             ssrcFeedbacks: [track.ssrc]
                         })
                     });
                     videoTransceiver.receiver.dtlsTransport.sendRtcp([remb]).then(() => {
                         if (!firstRembSent) {
                             firstRembSent = true;
-                            mark(`sent first REMB (${REMB_BITRATE / 1000000}Mbps)`);
+                            mark(`sent first REMB (${this.rembBitrate / 1000000}Mbps)`);
                         }
                     }).catch((e) => { var _a; return this.log.debug('REMB send failed.', (_a = e === null || e === void 0 ? void 0 : e.message) !== null && _a !== void 0 ? _a : e); });
                 }
@@ -178,6 +192,7 @@ class WebRtcNestStreamer extends NestStreamer {
                     this.log.debug('REMB build failed.', (_a = e === null || e === void 0 ? void 0 : e.message) !== null && _a !== void 0 ? _a : e);
                 }
             };
+            this.sendRemb = sendRemb;
             sendRemb();
             track.onReceiveRtp.subscribe((rtp) => {
                 if (!sawFirstVideoRtp) {
@@ -281,6 +296,17 @@ a=rtcp-fb:97 goog-remb
 a=fmtp:97 level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f
 a=sendrecv`
         };
+    }
+    setMaxBitrate(bitrate) {
+        var _a;
+        // Floor keeps a pathological low request from starving keyframe delivery
+        // outright; HomeKit's lowest tiers sit around 300kbps anyway.
+        const clamped = Math.max(bitrate, 300000);
+        if (clamped === this.rembBitrate)
+            return;
+        this.rembBitrate = clamped;
+        this.log.debug(`Advertising new max bitrate via REMB: ${(clamped / 1000000).toFixed(2)}Mbps`, this.camera.getDisplayName());
+        (_a = this.sendRemb) === null || _a === void 0 ? void 0 : _a.call(this);
     }
     async teardown() {
         var _a, _b;
