@@ -415,6 +415,15 @@ class StreamingDelegate {
         const nestStreamer = await (0, NestStreamer_1.getStreamer)(this.log, this.camera, this.config);
         const nestStream = await nestStreamer.initialize();
         const hksvStreamer = new HksvStreamer_1.default(this.log, nestStream, audioArgs, videoArgs, this.platform.debugMode);
+        // Tear down any prior recording session before overwriting it. A HomeKit hub
+        // can start a new recording (e.g. after a brief reconnect) before the previous
+        // session's close event fires. Without this, the previous HksvStreamer — and
+        // its ffmpeg child process — is orphaned and never cleaned up, accumulating
+        // memory over time. See #150.
+        if (this.recordingSessionInfo) {
+            this.recordingSessionInfo.hksvStreamer.destroy();
+            this.recordingSessionInfo.nestStreamer.teardown();
+        }
         this.recordingSessionInfo = {
             hksvStreamer: hksvStreamer,
             nestStreamer: nestStreamer

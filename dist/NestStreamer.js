@@ -42,6 +42,9 @@ class RtspNestStreamer extends NestStreamer {
     async initialize() {
         var _a, _b;
         const streamInfo = await this.camera.generateStream();
+        if (!streamInfo) {
+            throw new Error(`Unable to start stream for ${this.camera.getDisplayName()}: no response from the Nest API (this is usually rate limiting — see the error above).`);
+        }
         this.token = streamInfo.streamExtensionToken;
         return {
             args: `-analyzeduration ${(_a = this.config.analyzeDuration) !== null && _a !== void 0 ? _a : 15000000} -probesize ${(_b = this.config.probeSize) !== null && _b !== void 0 ? _b : 100000000} -i ` + streamInfo.streamUrls.rtspUrl
@@ -253,6 +256,9 @@ class WebRtcNestStreamer extends NestStreamer {
         await this.pc.setLocalDescription(offer);
         this.mark('sending offer to Nest (GenerateWebRtcStream)');
         const streamInfo = await this.camera.generateStream(offer.sdp);
+        if (!streamInfo) {
+            throw new Error(`Unable to start stream for ${this.camera.getDisplayName()}: no response from the Nest API (this is usually rate limiting — see the error above).`);
+        }
         this.mark('received answer from Nest');
         this.token = streamInfo.mediaSessionId;
         await this.pc.setRemoteDescription({

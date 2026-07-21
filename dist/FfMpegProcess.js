@@ -55,6 +55,13 @@ class FfmpegProcess {
                 }
                 if (debug) {
                     text.split(/\n/).forEach((line) => {
+                        if (!line.trim()) {
+                            return;
+                        }
+                        // These are normal WebRTC bandwidth probes, not errors, and otherwise drown the log.
+                        if (line.includes('Empty H.264 RTP packet')) {
+                            return;
+                        }
                         log.debug(line, cameraName);
                     });
                 }
