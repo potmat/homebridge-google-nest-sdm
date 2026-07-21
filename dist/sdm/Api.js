@@ -60,25 +60,43 @@ class SmartDeviceManagement {
             });
             this.subscription = this.pubSubClient.subscription(config.subscriptionId);
             this.subscription.on('message', message => {
+                var _a;
                 message.ack();
                 if (!this.devices)
                     return;
                 this.log.debug('Event received: ' + message.data.toString());
-                const event = JSON.parse(message.data);
-                // if ((event as Events.ResourceRelationEvent).relationUpdate) {
-                //     const resourceRelationtEvent = event as Events.ResourceRelationEvent;
-                // } else
-                if (event.resourceUpdate.events) {
-                    const resourceEventEvent = event;
-                    const device = lodash_1.default.find(this.devices, device => device.getName() === resourceEventEvent.resourceUpdate.name);
-                    if (device)
-                        device.event(resourceEventEvent);
+                // This callback runs asynchronously, long after the try/catch below
+                // has returned, so anything thrown here is an unhandled exception
+                // rather than a caught one. The payload is external input we do not
+                // control, so no single malformed message may take down the bridge.
+                try {
+                    const event = JSON.parse(message.data);
+                    // Relation updates (a device added to, removed from, or moved
+                    // between structures/rooms) carry a relationUpdate and NO
+                    // resourceUpdate. Reading resourceUpdate.events on one of those
+                    // throws, so bail before the trait/event dispatch below.
+                    const resourceUpdate = event.resourceUpdate;
+                    if (!resourceUpdate) {
+                        this.log.debug(event.relationUpdate
+                            ? 'Ignoring relation update event.'
+                            : 'Ignoring event with no resourceUpdate.');
+                        return;
+                    }
+                    if (resourceUpdate.events) {
+                        const resourceEventEvent = event;
+                        const device = lodash_1.default.find(this.devices, device => device.getName() === resourceEventEvent.resourceUpdate.name);
+                        if (device)
+                            device.event(resourceEventEvent);
+                    }
+                    else if (resourceUpdate.traits) {
+                        const resourceTraitEvent = event;
+                        const device = lodash_1.default.find(this.devices, device => device.getName() === resourceTraitEvent.resourceUpdate.name);
+                        if (device)
+                            device.event(resourceTraitEvent);
+                    }
                 }
-                else if (event.resourceUpdate.traits) {
-                    const resourceTraitEvent = event;
-                    const device = lodash_1.default.find(this.devices, device => device.getName() === resourceTraitEvent.resourceUpdate.name);
-                    if (device)
-                        device.event(resourceTraitEvent);
+                catch (error) {
+                    this.log.error('Could not handle event: ', (_a = error === null || error === void 0 ? void 0 : error.message) !== null && _a !== void 0 ? _a : error);
                 }
             });
             this.subscription.on('error', error => {
