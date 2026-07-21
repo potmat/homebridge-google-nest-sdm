@@ -601,6 +601,12 @@ export abstract class StreamingDelegate<T extends CameraController> implements C
       }
     } catch (error: any) {
       this.log.error("Encountered unexpected error on generator " + error.stack);
+    } finally {
+      // Clear the session even if the controller never calls closeRecordingStream (e.g. the
+      // generator threw and HAP moved on): otherwise handlingRecordingStreamingRequest stays true
+      // and blocks all future recordings. closeRecordingStream is idempotent, so a later HAP close
+      // is a no-op. (Thanks @littlepope81 for the catch on #223.)
+      this.closeRecordingStream(streamId, undefined);
     }
   }
 
