@@ -130,7 +130,11 @@ class Camera extends Device_1.Device {
     }
     isEventStale(event) {
         const ageSeconds = (Date.now() - new Date(event.timestamp).getTime()) / 1000;
-        // Fail open when the event timestamp cannot be parsed.
+        // Both a missing timestamp and an unparseable one land here: new Date(undefined)
+        // and new Date('nonsense') each yield NaN from getTime(). Fail OPEN in that case
+        // — treat the event as fresh and let it through. A malformed or absent timestamp
+        // must never be able to silently swallow real motion or a doorbell ring; the cost
+        // of being wrong that way is a missed alert, versus a duplicate one the other way.
         if (Number.isNaN(ageSeconds))
             return false;
         if (ageSeconds > Camera.MAX_EVENT_AGE_SECONDS) {
