@@ -5,7 +5,6 @@ import { StreamingDelegate } from './StreamingDelegate';
 
 export class FfmpegProcess {
     private readonly process: ChildProcess;
-    private emptyH264RtpPacketCount = 0;
 
     constructor(cameraName: string, sessionId: string, ffmpegArgs: string, stdin: string | null | undefined, log: Logger,
                 debug: boolean, delegate: StreamingDelegate<CameraController>, callback?: StreamRequestCallback) {
@@ -52,7 +51,6 @@ export class FfmpegProcess {
                         }
                         // These are normal WebRTC bandwidth probes, not errors, and otherwise drown the log.
                         if (line.includes('Empty H.264 RTP packet')) {
-                            this.emptyH264RtpPacketCount++;
                             return;
                         }
                         log.debug(line, cameraName);
@@ -68,9 +66,6 @@ export class FfmpegProcess {
             delegate.stopStream(sessionId);
         });
         this.process.on('exit', (code: number, signal: NodeJS.Signals) => {
-            if (this.emptyH264RtpPacketCount > 0) {
-                log.debug(`Suppressed ${this.emptyH264RtpPacketCount} 'Empty H.264 RTP packet' messages (WebRTC padding probes).`, cameraName);
-            }
             const message = 'FFmpeg exited with code: ' + code + ' and signal: ' + signal;
 
             if (code == null || code === 255) {

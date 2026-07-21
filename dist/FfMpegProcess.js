@@ -5,7 +5,6 @@ const child_process_1 = require("child_process");
 const stream_1 = require("stream");
 class FfmpegProcess {
     constructor(cameraName, sessionId, ffmpegArgs, stdin, log, debug, delegate, callback) {
-        this.emptyH264RtpPacketCount = 0;
         let pathToFfmpeg = require('ffmpeg-for-homebridge');
         if (!pathToFfmpeg)
             pathToFfmpeg = 'ffmpeg';
@@ -43,7 +42,6 @@ class FfmpegProcess {
                         }
                         // These are normal WebRTC bandwidth probes, not errors, and otherwise drown the log.
                         if (line.includes('Empty H.264 RTP packet')) {
-                            this.emptyH264RtpPacketCount++;
                             return;
                         }
                         log.debug(line, cameraName);
@@ -59,9 +57,6 @@ class FfmpegProcess {
             delegate.stopStream(sessionId);
         });
         this.process.on('exit', (code, signal) => {
-            if (this.emptyH264RtpPacketCount > 0) {
-                log.debug(`Suppressed ${this.emptyH264RtpPacketCount} 'Empty H.264 RTP packet' messages (WebRTC padding probes).`, cameraName);
-            }
             const message = 'FFmpeg exited with code: ' + code + ' and signal: ' + signal;
             if (code == null || code === 255) {
                 if (this.process.killed) {
