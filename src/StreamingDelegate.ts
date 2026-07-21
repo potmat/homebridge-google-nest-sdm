@@ -292,7 +292,7 @@ export abstract class StreamingDelegate<T extends CameraController> implements C
 
     this.log.debug(`Video stream requested: ${request.video.width} x ${request.video.height}, ${request.video.fps} fps, ${request.video.max_bit_rate} kbps`, this.camera.getDisplayName());
 
-    const nestStreamer = await getStreamer(this.log, this.camera);
+    const nestStreamer = await getStreamer(this.log, this.camera, this.config);
 
     let ffmpegArgs: string;
     let nestStream: NestStream;
@@ -542,7 +542,7 @@ export abstract class StreamingDelegate<T extends CameraController> implements C
         ]
         : [];
 
-    const nestStreamer = await getStreamer(this.log, this.camera);
+    const nestStreamer = await getStreamer(this.log, this.camera, this.config);
     const nestStream = await nestStreamer.initialize();
     const hksvStreamer = new HksvStreamer(
         this.log,
