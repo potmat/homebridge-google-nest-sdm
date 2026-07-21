@@ -68,7 +68,7 @@ class Camera extends Device_1.Device {
     }
     async getEventImage(eventId, date) {
         const dateDiff = (Date.now() - date.getTime()) / 1000;
-        if (dateDiff > 30) {
+        if (dateDiff > Camera.MAX_EVENT_AGE_SECONDS) {
             this.log.debug(`Camera event image is too old (${dateDiff} sec), ignoring.`, this.getDisplayName());
             return;
         }
@@ -128,8 +128,21 @@ class Camera extends Device_1.Device {
             });
         }
     }
+    isEventStale(event) {
+        const ageSeconds = (Date.now() - new Date(event.timestamp).getTime()) / 1000;
+        // Fail open when the event timestamp cannot be parsed.
+        if (Number.isNaN(ageSeconds))
+            return false;
+        if (ageSeconds > Camera.MAX_EVENT_AGE_SECONDS) {
+            this.log.debug(`Camera event is too old (${ageSeconds} sec), ignoring.`, this.getDisplayName());
+            return true;
+        }
+        return false;
+    }
     event(event) {
         super.event(event);
+        if (this.isEventStale(event))
+            return;
         lodash_1.default.forEach(event.resourceUpdate.events, (value, key) => {
             switch (key) {
                 case Events.Constants.CameraMotion:
@@ -166,4 +179,5 @@ class Camera extends Device_1.Device {
     }
 }
 exports.Camera = Camera;
+Camera.MAX_EVENT_AGE_SECONDS = 30;
 //# sourceMappingURL=Camera.js.map

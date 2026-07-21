@@ -13,6 +13,8 @@ import * as Traits from "./Traits";
 
 export class Camera extends Device {
 
+    protected static readonly MAX_EVENT_AGE_SECONDS = 30;
+
     private image: Buffer | null = null;
 
     getDisplayName(): string {
@@ -52,7 +54,7 @@ export class Camera extends Device {
     async getEventImage(eventId: string, date: Date): Promise<void> {
 
         const dateDiff = (Date.now() - date.getTime())/1000;
-        if (dateDiff > 30) {
+        if (dateDiff > Camera.MAX_EVENT_AGE_SECONDS) {
             this.log.debug(`Camera event image is too old (${dateDiff} sec), ignoring.`, this.getDisplayName());
             return;
         }
@@ -114,8 +116,24 @@ export class Camera extends Device {
         }
     }
 
+    protected isEventStale(event: Events.Event): boolean {
+        const ageSeconds = (Date.now() - new Date(event.timestamp).getTime())/1000;
+
+        // Fail open when the event timestamp cannot be parsed.
+        if (Number.isNaN(ageSeconds)) return false;
+
+        if (ageSeconds > Camera.MAX_EVENT_AGE_SECONDS) {
+            this.log.debug(`Camera event is too old (${ageSeconds} sec), ignoring.`, this.getDisplayName());
+            return true;
+        }
+
+        return false;
+    }
+
     event(event: ResourceEventEvent): void {
         super.event(event);
+        if (this.isEventStale(event)) return;
+
         _.forEach(event.resourceUpdate.events, (value, key) => {
             switch (key) {
                 case Events.Constants.CameraMotion:
