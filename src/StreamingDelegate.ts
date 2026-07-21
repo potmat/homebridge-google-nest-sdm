@@ -63,6 +63,7 @@ type ResolutionInfo = {
 };
 
 type RecordingSessionInfo = {
+  streamId: number,
   nestStreamer: NestStreamer,
   hksvStreamer: HksvStreamer
 }
@@ -432,9 +433,17 @@ export abstract class StreamingDelegate<T extends CameraController> implements C
   }
 
   closeRecordingStream(streamId: number, reason: HDSProtocolSpecificErrorReason | undefined): void {
+    // Only tear down if this close targets the session we're actually running. A HomeKit hub can
+    // send a late close for an already-replaced (orphaned) session; without this guard that stale
+    // close would destroy the *current* recording.
+    if (this.recordingSessionInfo && this.recordingSessionInfo.streamId !== streamId) {
+      this.log.debug(`Ignoring recording close for a stale/replaced session id ${streamId}.`, this.camera.getDisplayName());
+      return;
+    }
     if (this.recordingSessionInfo?.hksvStreamer) {
       this.recordingSessionInfo?.hksvStreamer.destroy();
-      this.recordingSessionInfo.nestStreamer.teardown();
+      // teardown() is async; an unhandled rejection here would restart the bridge on Node >= 15.
+      Promise.resolve(this.recordingSessionInfo.nestStreamer.teardown()).catch(e => this.log.error('Error tearing down recording SDM stream: ' + e, this.camera.getDisplayName()));
       this.recordingSessionInfo = undefined;
     }
     this.handlingRecordingStreamingRequest = false;
@@ -550,10 +559,11 @@ export abstract class StreamingDelegate<T extends CameraController> implements C
     // memory over time. See #150.
     if (this.recordingSessionInfo) {
       this.recordingSessionInfo.hksvStreamer.destroy();
-      this.recordingSessionInfo.nestStreamer.teardown();
+      Promise.resolve(this.recordingSessionInfo.nestStreamer.teardown()).catch(e => this.log.error('Error tearing down prior recording SDM stream: ' + e, this.camera.getDisplayName()));
     }
 
     this.recordingSessionInfo = {
+      streamId: streamId,
       hksvStreamer: hksvStreamer,
       nestStreamer: nestStreamer
     }
