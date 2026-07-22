@@ -83,6 +83,11 @@ class SmartDeviceManagement {
             this.subscription = sub;
             this.subscribed = true;
             let reconnectScheduled = false;
+            // Reconnecting restores the flow of FUTURE events; it does NOT recover events missed
+            // during the outage. Pub/Sub redelivers the backlog on re-subscribe, but anything older
+            // than the freshness window (see #219 / isEventStale) is discarded at that point — by
+            // design, since a motion alert delivered minutes late is worse than no alert. So an
+            // outage longer than that window means those events are gone, not merely delayed.
             const reconnect = (reason, error) => {
                 var _a, _b;
                 if (reconnectScheduled)
