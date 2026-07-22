@@ -11,8 +11,8 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "engines": {
-    "homebridge": ">=1.4.0",
-    "node": ">=18"
+    "homebridge": ">=1.4.0 || ^2.0.0-beta.0",
+    "node": ">=18 || >=20 || >=22 || >=24"
   },
   "funding": {
     "type": "paypal",
@@ -46,7 +46,7 @@
     "@types/lodash": "^4.14.173",
     "@types/node": "^18.19.17",
     "copyfiles": "^2.4.1",
-    "homebridge": "^1.4.0",
+    "homebridge": "^2.0.0-beta.0",
     "rimraf": "^3.0.2",
     "typescript": "^4.4.3"
   }
