@@ -542,40 +542,51 @@ export abstract class StreamingDelegate<T extends CameraController> implements C
         ]
         : [];
 
-    const nestStreamer = await getStreamer(this.log, this.camera, this.config);
-    const nestStream = await nestStreamer.initialize();
-    const hksvStreamer = new HksvStreamer(
-        this.log,
-        nestStream,
-        audioArgs,
-        videoArgs,
-        this.platform.debugMode
-    );
-
-    // Tear down any prior recording session before overwriting it. A HomeKit hub
-    // can start a new recording (e.g. after a brief reconnect) before the previous
-    // session's close event fires. Without this, the previous HksvStreamer — and
-    // its ffmpeg child process — is orphaned and never cleaned up, accumulating
-    // memory over time. See #150.
-    if (this.recordingSessionInfo) {
-      this.recordingSessionInfo.hksvStreamer.destroy();
-      Promise.resolve(this.recordingSessionInfo.nestStreamer.teardown()).catch(e => this.log.error('Error tearing down prior recording SDM stream: ' + e, this.camera.getDisplayName()));
-    }
-
-    this.recordingSessionInfo = {
-      streamId: streamId,
-      hksvStreamer: hksvStreamer,
-      nestStreamer: nestStreamer
-    }
-
-    await hksvStreamer.start();
-    if (!hksvStreamer || hksvStreamer.destroyed) {
-      throw new Error('Streaming server already closed.')
-    }
-
-    const pending: Array<Buffer> = [];
+    // Hoisted so the finally can release them even if a setup-phase await throws before the
+    // session is promoted to recordingSessionInfo below.
+    let nestStreamer: NestStreamer | undefined;
+    let hksvStreamer: HksvStreamer | undefined;
+    // True once this.recordingSessionInfo points at THIS session. Distinguishes a setup-phase throw
+    // (release the locals ourselves) from a post-promotion exit (let closeRecordingStream own it, and
+    // don't re-tear-down if a normal close or a newer session already did — that would double the SDM
+    // stopStream call, see @littlepope81's #221).
+    let promoted = false;
 
     try {
+      nestStreamer = await getStreamer(this.log, this.camera, this.config);
+      const nestStream = await nestStreamer.initialize();
+      hksvStreamer = new HksvStreamer(
+          this.log,
+          nestStream,
+          audioArgs,
+          videoArgs,
+          this.platform.debugMode
+      );
+
+      // Tear down any prior recording session before overwriting it. A HomeKit hub
+      // can start a new recording (e.g. after a brief reconnect) before the previous
+      // session's close event fires. Without this, the previous HksvStreamer — and
+      // its ffmpeg child process — is orphaned and never cleaned up, accumulating
+      // memory over time. See #150.
+      if (this.recordingSessionInfo) {
+        this.recordingSessionInfo.hksvStreamer.destroy();
+        Promise.resolve(this.recordingSessionInfo.nestStreamer.teardown()).catch(e => this.log.error('Error tearing down prior recording SDM stream: ' + e, this.camera.getDisplayName()));
+      }
+
+      this.recordingSessionInfo = {
+        streamId: streamId,
+        hksvStreamer: hksvStreamer,
+        nestStreamer: nestStreamer
+      }
+      promoted = true;
+
+      await hksvStreamer.start();
+      if (!hksvStreamer || hksvStreamer.destroyed) {
+        throw new Error('Streaming server already closed.')
+      }
+
+      const pending: Array<Buffer> = [];
+
       for await (const box of this.recordingSessionInfo.hksvStreamer.generator()) {
         pending.push(box.header, box.data);
 
@@ -602,11 +613,33 @@ export abstract class StreamingDelegate<T extends CameraController> implements C
     } catch (error: any) {
       this.log.error("Encountered unexpected error on generator " + error.stack);
     } finally {
-      // Clear the session even if the controller never calls closeRecordingStream (e.g. the
-      // generator threw and HAP moved on): otherwise handlingRecordingStreamingRequest stays true
-      // and blocks all future recordings. closeRecordingStream is idempotent, so a later HAP close
-      // is a no-op. (Thanks @littlepope81 for the catch on #223.)
-      this.closeRecordingStream(streamId, undefined);
+      // Guarantee teardown no matter where we exit. The try now wraps the whole setup — not just
+      // the generator loop — so a throw during setup is cleaned up too: getStreamer, the SDM
+      // rate-limit (429) that initialize() raises (#221), and the 'Streaming server already closed'
+      // guard all previously bypassed cleanup and orphaned the open SDM stream on Google's side plus
+      // the ffmpeg child. Leaking an SDM session is the expensive half under the per-device limits.
+      //
+      // (handlingRecordingStreamingRequest is reset here as well, but nothing currently reads it, so
+      // this is about releasing the streams — not, as an earlier version of this comment wrongly
+      // claimed, unblocking a request gate. If that flag is ever wired up as a real guard, note it is
+      // set at the top of this method before the session is promoted below, so a prior session's
+      // finally landing in that window can clear it — see @littlepope81's review on #224.)
+      if (promoted) {
+        // We got far enough that this.recordingSessionInfo owned these streamers. Clean up ONLY if
+        // we're still the current session: the normal HomeKit close calls closeRecordingStream first
+        // (recordingSessionInfo is already undefined here), and a newer recording may have replaced us
+        // (recordingSessionInfo now holds its id). In both cases the streamers were already torn down
+        // exactly once; calling teardown() again would fire a redundant SDM stopStream (#221).
+        if (this.recordingSessionInfo && this.recordingSessionInfo.streamId === streamId)
+          this.closeRecordingStream(streamId, undefined); // idempotent; honors the stale-id guard inside
+      } else {
+        // Threw before promotion (e.g. the 429 at initialize()): closeRecordingStream can't see our
+        // locals, so release them directly.
+        hksvStreamer?.destroy();
+        if (nestStreamer)
+          Promise.resolve(nestStreamer.teardown()).catch(e => this.log.error('Error tearing down recording SDM stream: ' + e, this.camera.getDisplayName()));
+        this.handlingRecordingStreamingRequest = false;
+      }
     }
   }
 
