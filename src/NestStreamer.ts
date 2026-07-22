@@ -51,7 +51,11 @@ export class RtspNestStreamer extends NestStreamer {
     }
 
     async teardown(): Promise<void> {
-        await this.camera.stopStream(this.token!);
+        // initialize() can throw before this.token is set (e.g. the Nest API rate-limits the
+        // generateStream call, #221). No stream was opened in that case, so there is nothing to stop —
+        // and stopStream(undefined) would fire a redundant, guaranteed-to-fail SDM request.
+        if (!this.token) return;
+        await this.camera.stopStream(this.token);
     }
 }
 
@@ -328,10 +332,16 @@ a=sendrecv`
             this.captureStream = undefined;
         }
 
-        try {
-            await this.camera.stopStream(this.token!);
-        } catch (error: any) {
-            this.log.error('Error stopping camera stream.', error);
+        // Only stop the SDM stream if one was actually opened. initialize() creates pc/udp above but
+        // assigns this.token later (after the media session is set up), so a throw in between leaves the
+        // token unset — stopStream(undefined) would be a redundant, guaranteed-to-fail SDM request (#221).
+        // The pc/udp are still closed below regardless.
+        if (this.token) {
+            try {
+                await this.camera.stopStream(this.token);
+            } catch (error: any) {
+                this.log.error('Error stopping camera stream.', error);
+            }
         }
 
         try {
