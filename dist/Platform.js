@@ -59,6 +59,7 @@ class Platform {
      * must not be registered again to prevent "duplicate UUID" errors.
      */
     async discoverDevices() {
+        var _a;
         if (!this.smartDeviceManagement)
             return;
         const devices = await this.smartDeviceManagement.list_devices();
@@ -101,6 +102,18 @@ class Platform {
                 continue;
             if (deviceInfo.existingAccessory) {
                 this.log.info('Restoring existing accessory from cache:', deviceInfo.existingAccessory.displayName);
+                // Sync the cached accessory's name with the device's current name.
+                // A cached accessory keeps its creation-time displayName forever, so
+                // without this a Google Home rename never reaches an already-registered
+                // camera — getDisplayName() alone only affects newly-created ones.
+                const desiredName = deviceInfo.category === 3 /* FAN */
+                    ? deviceInfo.device.getDisplayName() + ' Fan'
+                    : deviceInfo.device.getDisplayName();
+                if (desiredName !== 'Unknown' && deviceInfo.existingAccessory.displayName !== desiredName) {
+                    this.log.info(`Renaming accessory '${deviceInfo.existingAccessory.displayName}' to '${desiredName}' (device name changed).`);
+                    deviceInfo.existingAccessory.displayName = desiredName;
+                    (_a = deviceInfo.existingAccessory.getService(this.api.hap.Service.AccessoryInformation)) === null || _a === void 0 ? void 0 : _a.setCharacteristic(this.api.hap.Characteristic.Name, desiredName);
+                }
                 // if you need to update the accessory.context then you should run `api.updatePlatformAccessories`. eg.:
                 deviceInfo.existingAccessory.context.device = deviceInfo.device;
                 this.api.updatePlatformAccessories([deviceInfo.existingAccessory]);
