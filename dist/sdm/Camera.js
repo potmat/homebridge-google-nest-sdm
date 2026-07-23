@@ -32,6 +32,7 @@ const fs_1 = __importDefault(require("fs"));
 const path_1 = __importDefault(require("path"));
 const lodash_1 = __importDefault(require("lodash"));
 const Traits = __importStar(require("./Traits"));
+const ApiError_1 = require("./ApiError");
 class Camera extends Device_1.Device {
     constructor() {
         super(...arguments);
@@ -89,7 +90,7 @@ class Camera extends Device_1.Device {
             setTimeout(() => this.image = null, 10000);
         }
         catch (error) {
-            this.log.error('Could not execute event image GET request: ', JSON.stringify(error), this.getDisplayName());
+            this.log.error(`Could not execute event image GET request: ${(0, ApiError_1.describeApiError)(error)}`, this.getDisplayName());
         }
     }
     async getCameraLiveStream() {
