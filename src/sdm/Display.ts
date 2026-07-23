@@ -3,7 +3,7 @@ import {Camera} from "./Camera";
 export class Display extends Camera {
 
     getDisplayName(): string {
-        return this.displayName ? this.displayName + ' Display' : 'Unknown';
+        return this.resolveDisplayName('Display');
     }
 
     getResolutions(): [number, number, number][] {

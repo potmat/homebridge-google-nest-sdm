@@ -32,6 +32,29 @@ export abstract class Device {
 
     abstract getDisplayName() : string;
 
+    /**
+     * The user-assigned device name from the Info trait, or null when unset.
+     * Renames in the Google Home app land HERE (Info.customName) — the
+     * parentRelations displayName is the ROOM relation and does not change on
+     * a device rename. Reading it live from traits means SDM Info events and
+     * the daily refresh pick renames up without a plugin restart.
+     */
+    protected getCustomName(): string | null {
+        const info = this.device?.traits ? this.device.traits['sdm.devices.traits.Info'] as {customName?: string} | undefined : undefined;
+        const name = info?.customName?.trim();
+        return name ? name : null;
+    }
+
+    /**
+     * Display name for an accessory: the Google Home custom name if the user set
+     * one, otherwise the room relation plus a device-type suffix (e.g. "Office
+     * Camera"), or "Unknown" when neither is known. Shared so every device type
+     * resolves names the same way.
+     */
+    protected resolveDisplayName(typeSuffix: string): string {
+        return this.getCustomName() ?? (this.displayName ? `${this.displayName} ${typeSuffix}` : 'Unknown');
+    }
+
     getName(): string {
         return <string>this.device.name;
     }

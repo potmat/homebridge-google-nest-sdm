@@ -7,7 +7,7 @@ import {ThreadStateType} from "./Events";
 export class Doorbell extends Camera {
 
     getDisplayName(): string {
-        return this.displayName ? this.displayName + ' Doorbell' : 'Unknown';
+        return this.resolveDisplayName('Doorbell');
     }
 
     onRing: (() => void) | undefined;
