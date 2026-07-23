@@ -31,5 +31,10 @@ export class DoorbellAccessory extends MotionAccessory<Doorbell> {
     handleRing(): void {
         this.log.debug('Doorbell ring!', this.accessory.displayName);
         this.streamingDelegate.getController().ringDoorbell();
+        // A ring is activity at the door: hold the motion window open too, so a
+        // ring-triggered HKSV recording gets the same ~20s post-event tail instead
+        // of ending at the first fragment (the recording generator only samples
+        // MotionDetected when deciding to end a recording).
+        this.handleMotion();
     }
 }

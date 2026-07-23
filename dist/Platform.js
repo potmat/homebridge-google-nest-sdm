@@ -1,6 +1,27 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Platform = void 0;
+const fs = __importStar(require("fs"));
+const path = __importStar(require("path"));
 const Settings_1 = require("./Settings");
 const CameraAccessory_1 = require("./CameraAccessory");
 const Api_1 = require("./sdm/Api");
@@ -20,11 +41,26 @@ let IEcoMode;
  */
 class Platform {
     constructor(log, platformConfig, api) {
+        var _a;
         this.log = log;
         this.platformConfig = platformConfig;
         this.api = api;
         this.accessories = [];
         this.debugMode = process.argv.includes('-D') || process.argv.includes('--debug');
+        // Owner-only dir for the per-camera snapshot JPEGs (interior frames). An
+        // empty value means "unavailable" so a bad directory degrades to the
+        // placeholder tile instead of failing the whole FFmpeg command (and the
+        // stream). Created 0700 since these are pictures of the user's home.
+        let snapshotDir = path.join(api.user.storagePath(), 'nest-camera-snapshots');
+        try {
+            fs.mkdirSync(snapshotDir, { recursive: true, mode: 0o700 });
+            fs.chmodSync(snapshotDir, 0o700);
+        }
+        catch (error) {
+            this.log.warn(`Could not create snapshot directory ${snapshotDir}; camera tiles will show the placeholder image.`, (_a = error === null || error === void 0 ? void 0 : error.message) !== null && _a !== void 0 ? _a : error);
+            snapshotDir = '';
+        }
+        this.snapshotDir = snapshotDir;
         this.EcoMode = EcoMode(api);
         IEcoMode = this.EcoMode;
         this.config = platformConfig;

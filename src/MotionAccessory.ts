@@ -10,6 +10,7 @@ export abstract class MotionAccessory<T extends Camera> extends Accessory<T> {
     private readonly motionService: Service;
     private lastMotion: number | undefined;
     private readonly motionDecay: number = 20000;
+    private motionDecayTimer: ReturnType<typeof setTimeout> | undefined;
 
     constructor(
         api: API,
@@ -30,16 +31,17 @@ export abstract class MotionAccessory<T extends Camera> extends Accessory<T> {
         this.device.onMotion = this.handleMotion.bind(this);
     }
 
-    private handleMotion() {
+    protected handleMotion() {
         this.log.debug('Motion detected!', this.accessory.displayName);
         this.lastMotion = Date.now();
         this.motionService.updateCharacteristic(this.platform.Characteristic.MotionDetected, true);
-        setTimeout(() => {
-            if (!this.lastMotion || Date.now() - this.lastMotion > this.motionDecay) {
-                this.lastMotion = undefined;
-                this.motionService.updateCharacteristic(this.platform.Characteristic.MotionDetected, false);
-            }
-        }, this.motionDecay)
+        if (this.motionDecayTimer)
+            clearTimeout(this.motionDecayTimer);
+        this.motionDecayTimer = setTimeout(() => {
+            this.motionDecayTimer = undefined;
+            this.lastMotion = undefined;
+            this.motionService.updateCharacteristic(this.platform.Characteristic.MotionDetected, false);
+        }, this.motionDecay);
     }
 
     private handleMotionDetectedGet(): Nullable<CharacteristicValue> {

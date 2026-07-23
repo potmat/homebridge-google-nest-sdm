@@ -5,7 +5,8 @@ const child_process_1 = require("child_process");
 const net_1 = require("net");
 const stream_1 = require("stream");
 class HksvStreamer {
-    constructor(log, nestStream, audioOutputArgs, videoOutputArgs, debugMode) {
+    constructor(log, nestStream, audioOutputArgs, videoOutputArgs, debugMode, snapshotOutputArgs = []) {
+        this.snapshotOutputArgs = snapshotOutputArgs;
         this.destroyed = false;
         this.nestStream = nestStream;
         this.debugMode = debugMode;
@@ -41,6 +42,9 @@ class HksvStreamer {
         }
         const port = this.server.address().port;
         this.args.push("tcp://127.0.0.1:" + port);
+        // Additional output keeping the camera's on-disk snapshot JPEG fresh
+        // while a recording runs, so tiles update on every motion event.
+        this.args.push(...this.snapshotOutputArgs);
         this.log.debug(this.ffmpegPath + " " + this.args.join(" "));
         this.childProcess = (0, child_process_1.spawn)(this.ffmpegPath, this.args, { env: process.env, stdio: 'pipe' });
         this.childProcess.on('error', (error) => {

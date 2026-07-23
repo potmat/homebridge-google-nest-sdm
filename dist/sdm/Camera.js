@@ -51,6 +51,9 @@ class Camera extends Device_1.Device {
         else
             return await fs_1.default.promises.readFile(path_1.default.join(__dirname, "..", "res", "google-logo.jpg"));
     }
+    getCachedEventImage() {
+        return this.image;
+    }
     getResolutions() {
         return [
             [320, 180, 30],

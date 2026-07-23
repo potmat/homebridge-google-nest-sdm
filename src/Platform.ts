@@ -7,6 +7,8 @@ import {
     Characteristic,
     Categories
 } from 'homebridge';
+import * as fs from "fs";
+import * as path from "path";
 
 import { PLATFORM_NAME, PLUGIN_NAME } from './Settings';
 import { CameraAccessory } from './CameraAccessory';
@@ -32,6 +34,11 @@ let IEcoMode: any;
 export class Platform implements DynamicPlatformPlugin {
     public readonly Characteristic: typeof Characteristic & typeof IEcoMode;
     public readonly debugMode: boolean;
+    // Directory where live/HKSV streams drop a periodically-refreshed JPEG per
+    // camera, served as the HomeKit snapshot (SDM has no snapshot API). Empty
+    // string means "unavailable" — the delegate then omits the snapshot output
+    // and serves the placeholder instead of failing the FFmpeg command.
+    public readonly snapshotDir: string;
     private readonly smartDeviceManagement: SmartDeviceManagement | undefined;
     private readonly accessories: PlatformAccessory[] = [];
     private readonly EcoMode;
@@ -43,6 +50,21 @@ export class Platform implements DynamicPlatformPlugin {
         public readonly api: API,
     ) {
         this.debugMode = process.argv.includes('-D') || process.argv.includes('--debug');
+
+        // Owner-only dir for the per-camera snapshot JPEGs (interior frames). An
+        // empty value means "unavailable" so a bad directory degrades to the
+        // placeholder tile instead of failing the whole FFmpeg command (and the
+        // stream). Created 0700 since these are pictures of the user's home.
+        let snapshotDir = path.join(api.user.storagePath(), 'nest-camera-snapshots');
+        try {
+            fs.mkdirSync(snapshotDir, {recursive: true, mode: 0o700});
+            fs.chmodSync(snapshotDir, 0o700);
+        } catch (error: any) {
+            this.log.warn(`Could not create snapshot directory ${snapshotDir}; camera tiles will show the placeholder image.`, error?.message ?? error);
+            snapshotDir = '';
+        }
+        this.snapshotDir = snapshotDir;
+
         this.EcoMode = EcoMode(api);
         IEcoMode = this.EcoMode;
 
