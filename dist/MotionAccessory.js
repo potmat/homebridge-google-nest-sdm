@@ -19,11 +19,12 @@ class MotionAccessory extends Accessory_1.Accessory {
         this.log.debug('Motion detected!', this.accessory.displayName);
         this.lastMotion = Date.now();
         this.motionService.updateCharacteristic(this.platform.Characteristic.MotionDetected, true);
-        setTimeout(() => {
-            if (!this.lastMotion || Date.now() - this.lastMotion > this.motionDecay) {
-                this.lastMotion = undefined;
-                this.motionService.updateCharacteristic(this.platform.Characteristic.MotionDetected, false);
-            }
+        if (this.motionDecayTimer)
+            clearTimeout(this.motionDecayTimer);
+        this.motionDecayTimer = setTimeout(() => {
+            this.motionDecayTimer = undefined;
+            this.lastMotion = undefined;
+            this.motionService.updateCharacteristic(this.platform.Characteristic.MotionDetected, false);
         }, this.motionDecay);
     }
     handleMotionDetectedGet() {

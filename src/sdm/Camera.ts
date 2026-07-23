@@ -35,6 +35,10 @@ export class Camera extends Device {
             return await fs.promises.readFile(path.join(__dirname, "..", "res", "google-logo.jpg"));
     }
 
+    getCachedEventImage(): Buffer | null {
+        return this.image;
+    }
+
     getResolutions(): [number, number, number][] {
         return [
             [320, 180, 30],

@@ -10,7 +10,7 @@ import {
   Logger, MediaContainerType, PlatformAccessory,
   PrepareStreamCallback,
   PrepareStreamRequest,
-  PrepareStreamResponse, RecordingPacket, SnapshotRequest,
+  PrepareStreamResponse, RecordingPacket, ResourceRequestReason, SnapshotRequest,
   SnapshotRequestCallback,
   SRTPCryptoSuites,
   StartStreamRequest,
@@ -20,6 +20,8 @@ import {
 } from 'homebridge';
 import { VideoCodecType } from 'hap-nodejs'
 import {createSocket, Socket} from 'dgram';
+import * as fs from 'fs';
+import * as path from 'path';
 import os from 'os';
 import {networkInterfaceDefault} from 'systeminformation';
 import {Config} from './Config'
@@ -101,9 +103,18 @@ export abstract class StreamingDelegate<T extends CameraController> implements C
       }
     });
 
+    // Hand the accessory's existing MotionSensor (created by MotionAccessory
+    // before any delegate is constructed) to the camera controller: HAP then
+    // advertises EventTriggerOption.MOTION in the HKSV supported configuration,
+    // links the sensor to RecordingManagement, and adds StatusActive. Without
+    // this, plain cameras advertise an EMPTY trigger set and motion recordings
+    // depend on Apple-hub heuristics. The service stays caller-managed.
+    const motionService = accessory.getService(this.hap.Service.MotionSensor);
+
     this.options = {
       cameraStreamCount: camera.getResolutions().length, // HomeKit requires at least 2 streams, but 1 is also just fine
       delegate: this,
+      ...(motionService ? {sensors: {motion: motionService}} : {}),
       streamingOptions: {
         supportedCryptoSuites: [this.hap.SRTPCryptoSuites.AES_CM_128_HMAC_SHA1_80],
         video: {
@@ -167,11 +178,82 @@ export abstract class StreamingDelegate<T extends CameraController> implements C
 
   abstract getController(): T;
 
+  /**
+   * Path of the periodically-refreshed JPEG that live and HKSV streams write
+   * for this camera (see the snapshot output appended to the FFmpeg commands).
+   */
+  private snapshotFilePath(): string {
+    return path.join(this.platform.snapshotDir, this.accessory.UUID + '.jpg');
+  }
+
+  /**
+   * FFmpeg output group that decodes the (otherwise stream-copied) video at a
+   * low rate and keeps a single JPEG updated on disk, giving HomeKit tiles a
+   * real "last seen" frame — SDM offers no snapshot API, so without this the
+   * tiles only ever show a static placeholder logo.
+   */
+  private snapshotOutputArgs(): Array<string> {
+    // Unavailable directory → no snapshot output at all: a broken extra output
+    // would otherwise take the entire FFmpeg command (and the stream) down.
+    // -atomic_writing makes each frame a temp-file+rename, so a concurrent
+    // reader or second writer (live view + HKSV recording) never sees a torn file.
+    if (!this.platform.snapshotDir)
+      return [];
+    return [
+      '-an', '-sn', '-dn',
+      '-codec:v', 'mjpeg',
+      '-q:v', '4',
+      '-vf', 'fps=1/2,scale=640:-2',
+      '-f', 'image2',
+      '-update', '1',
+      '-atomic_writing', '1',
+      '-y', this.snapshotFilePath()
+    ];
+  }
+
+  // A stream-written snapshot older than this is treated as absent: a day-old
+  // "last seen" frame is still useful, but an ancient one masquerades as current
+  // and shadows the fresher event-image path in camera.getSnapshot().
+  private static readonly SNAPSHOT_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+
   handleSnapshotRequest(request: SnapshotRequest, callback: SnapshotRequestCallback): void {
-    this.camera.getSnapshot()
-        .then(result => {
-          callback(undefined, result);
+    this.log.debug(`Snapshot requested (reason: ${request.reason === undefined ? 'unspecified' : request.reason === ResourceRequestReason.PERIODIC ? 'periodic' : 'event'})`, this.camera.getDisplayName());
+
+    if (request.reason === ResourceRequestReason.EVENT) {
+      const image = this.camera.getCachedEventImage();
+      if (image) {
+        callback(undefined, image);
+        return;
+      }
+    }
+
+    if (!this.platform.snapshotDir) {
+      this.camera.getSnapshot()
+          .then(result => callback(undefined, result))
+          .catch(error => callback(error));
+      return;
+    }
+
+    const snapshotFile = this.snapshotFilePath();
+    fs.promises.stat(snapshotFile)
+        .then(stats => {
+          if (Date.now() - stats.mtimeMs > StreamingDelegate.SNAPSHOT_MAX_AGE_MS)
+            throw new Error('snapshot file too old');
+          return fs.promises.readFile(snapshotFile);
         })
+        .then(image => {
+          // Serve the file only if it is a structurally complete JPEG (SOI...EOI);
+          // a partial file (killed FFmpeg, disk full) must fall back, not break the tile.
+          if (image.length >= 4 && image[0] === 0xff && image[1] === 0xd8
+              && image[image.length - 2] === 0xff && image[image.length - 1] === 0xd9) {
+            callback(undefined, image);
+          } else {
+            throw new Error('incomplete snapshot file');
+          }
+        })
+        .catch(() => this.camera.getSnapshot()
+            .then(result => callback(undefined, result))
+            .catch(error => callback(error)));
   }
 
   private static determineResolution(request: VideoInfo): ResolutionInfo {
@@ -350,6 +432,17 @@ export abstract class StreamingDelegate<T extends CameraController> implements C
           '?rtcpport=' + sessionInfo.audioPort + '&pkt_size=188';
 
 
+    // ffmpegArgs is a whitespace-split STRING (see FfmpegProcess), so a snapshot
+    // path containing spaces would shatter the whole command and kill the stream.
+    // Skip the snapshot output in that case — the HKSV path passes args as an
+    // array and keeps working regardless.
+    const snapshotArgs = this.snapshotOutputArgs();
+    if (snapshotArgs.length > 0 && !/\s/.test(this.snapshotFilePath())) {
+      ffmpegArgs += ' ' + snapshotArgs.join(' ');
+    } else if (snapshotArgs.length > 0) {
+      this.log.debug('Snapshot path contains whitespace; skipping snapshot output on the live stream.', this.camera.getDisplayName());
+    }
+
     if (this.platform.debugMode) {
       ffmpegArgs += ' -loglevel level+verbose';
     }
@@ -471,13 +564,15 @@ export abstract class StreamingDelegate<T extends CameraController> implements C
       throw new Error('No recording configuration for this camera.');
 
     /**
-     * With this flag you can control how the generator reacts to a reset to the motion trigger.
-     * If set to true, the generator will send a proper endOfStream if the motion stops.
-     * If set to false, the generator will run till the HomeKit Controller closes the stream.
-     *
-     * Note: In a real implementation you would most likely introduce a bit of a delay.
+     * End the recording with a proper endOfStream once motion stops, instead of
+     * running until the HomeKit controller closes the stream. Left to the
+     * controller, sessions can run for hours (observed: a 3h50m recording on a
+     * doorbell with sparse motion), keeping the camera streaming continuously
+     * and leaving it briefly unable to serve live views after the session
+     * finally closes. The motion sensor already decays 20s after the last
+     * motion event, so recordings end with ~20-25s of post-motion tail.
      */
-    const STOP_AFTER_MOTION_STOP = false;
+    const endOnMotionStop = this.config.endRecordingOnMotionStop ?? true;
 
     this.handlingRecordingStreamingRequest = true;
 
@@ -549,7 +644,8 @@ export abstract class StreamingDelegate<T extends CameraController> implements C
         nestStream,
         audioArgs,
         videoArgs,
-        this.platform.debugMode
+        this.platform.debugMode,
+        this.snapshotOutputArgs()
     );
 
     // Tear down any prior recording session before overwriting it. A HomeKit hub
@@ -586,7 +682,7 @@ export abstract class StreamingDelegate<T extends CameraController> implements C
           const fragment = Buffer.concat(pending);
           pending.splice(0, pending.length);
 
-          const isLast = STOP_AFTER_MOTION_STOP && !motionDetected;
+          const isLast = endOnMotionStop && !motionDetected;
 
           yield {
             data: fragment,

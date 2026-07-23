@@ -27,7 +27,8 @@ export default class HksvStreamer {
     connectPromise: Promise<void>;
     connectResolve?: () => void;
 
-    constructor(log: Logger, nestStream: NestStream, audioOutputArgs: Array<string>, videoOutputArgs: Array<string>, debugMode: boolean) {
+    constructor(log: Logger, nestStream: NestStream, audioOutputArgs: Array<string>, videoOutputArgs: Array<string>, debugMode: boolean,
+                private readonly snapshotOutputArgs: Array<string> = []) {
         this.nestStream = nestStream;
         this.debugMode = debugMode;
         this.log = log;
@@ -78,6 +79,9 @@ export default class HksvStreamer {
 
         const port = (this.server.address() as AddressInfo).port;
         this.args.push("tcp://127.0.0.1:" + port);
+        // Additional output keeping the camera's on-disk snapshot JPEG fresh
+        // while a recording runs, so tiles update on every motion event.
+        this.args.push(...this.snapshotOutputArgs);
 
         this.log.debug(this.ffmpegPath + " " + this.args.join(" "));
 

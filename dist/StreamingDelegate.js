@@ -1,10 +1,31 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.StreamingDelegate = void 0;
 const dgram_1 = require("dgram");
+const fs = __importStar(require("fs"));
+const path = __importStar(require("path"));
 const os_1 = __importDefault(require("os"));
 const systeminformation_1 = require("systeminformation");
 const FfMpegProcess_1 = require("./FfMpegProcess");
@@ -28,9 +49,17 @@ class StreamingDelegate {
                 this.stopStream(session);
             }
         });
+        // Hand the accessory's existing MotionSensor (created by MotionAccessory
+        // before any delegate is constructed) to the camera controller: HAP then
+        // advertises EventTriggerOption.MOTION in the HKSV supported configuration,
+        // links the sensor to RecordingManagement, and adds StatusActive. Without
+        // this, plain cameras advertise an EMPTY trigger set and motion recordings
+        // depend on Apple-hub heuristics. The service stays caller-managed.
+        const motionService = accessory.getService(this.hap.Service.MotionSensor);
         this.options = {
             cameraStreamCount: camera.getResolutions().length,
             delegate: this,
+            ...(motionService ? { sensors: { motion: motionService } } : {}),
             streamingOptions: {
                 supportedCryptoSuites: [0 /* AES_CM_128_HMAC_SHA1_80 */],
                 video: {
@@ -91,11 +120,73 @@ class StreamingDelegate {
             }
         };
     }
+    /**
+     * Path of the periodically-refreshed JPEG that live and HKSV streams write
+     * for this camera (see the snapshot output appended to the FFmpeg commands).
+     */
+    snapshotFilePath() {
+        return path.join(this.platform.snapshotDir, this.accessory.UUID + '.jpg');
+    }
+    /**
+     * FFmpeg output group that decodes the (otherwise stream-copied) video at a
+     * low rate and keeps a single JPEG updated on disk, giving HomeKit tiles a
+     * real "last seen" frame — SDM offers no snapshot API, so without this the
+     * tiles only ever show a static placeholder logo.
+     */
+    snapshotOutputArgs() {
+        // Unavailable directory → no snapshot output at all: a broken extra output
+        // would otherwise take the entire FFmpeg command (and the stream) down.
+        // -atomic_writing makes each frame a temp-file+rename, so a concurrent
+        // reader or second writer (live view + HKSV recording) never sees a torn file.
+        if (!this.platform.snapshotDir)
+            return [];
+        return [
+            '-an', '-sn', '-dn',
+            '-codec:v', 'mjpeg',
+            '-q:v', '4',
+            '-vf', 'fps=1/2,scale=640:-2',
+            '-f', 'image2',
+            '-update', '1',
+            '-atomic_writing', '1',
+            '-y', this.snapshotFilePath()
+        ];
+    }
     handleSnapshotRequest(request, callback) {
-        this.camera.getSnapshot()
-            .then(result => {
-            callback(undefined, result);
-        });
+        this.log.debug(`Snapshot requested (reason: ${request.reason === undefined ? 'unspecified' : request.reason === 0 /* PERIODIC */ ? 'periodic' : 'event'})`, this.camera.getDisplayName());
+        if (request.reason === 1 /* EVENT */) {
+            const image = this.camera.getCachedEventImage();
+            if (image) {
+                callback(undefined, image);
+                return;
+            }
+        }
+        if (!this.platform.snapshotDir) {
+            this.camera.getSnapshot()
+                .then(result => callback(undefined, result))
+                .catch(error => callback(error));
+            return;
+        }
+        const snapshotFile = this.snapshotFilePath();
+        fs.promises.stat(snapshotFile)
+            .then(stats => {
+            if (Date.now() - stats.mtimeMs > StreamingDelegate.SNAPSHOT_MAX_AGE_MS)
+                throw new Error('snapshot file too old');
+            return fs.promises.readFile(snapshotFile);
+        })
+            .then(image => {
+            // Serve the file only if it is a structurally complete JPEG (SOI...EOI);
+            // a partial file (killed FFmpeg, disk full) must fall back, not break the tile.
+            if (image.length >= 4 && image[0] === 0xff && image[1] === 0xd8
+                && image[image.length - 2] === 0xff && image[image.length - 1] === 0xd9) {
+                callback(undefined, image);
+            }
+            else {
+                throw new Error('incomplete snapshot file');
+            }
+        })
+            .catch(() => this.camera.getSnapshot()
+            .then(result => callback(undefined, result))
+            .catch(error => callback(error)));
     }
     static determineResolution(request) {
         let width = request.width;
@@ -243,6 +334,17 @@ class StreamingDelegate {
                 ' -srtp_out_params ' + sessionInfo.audioSRTP.toString('base64') +
                 ' srtp://' + sessionInfo.address + ':' + sessionInfo.audioPort +
                 '?rtcpport=' + sessionInfo.audioPort + '&pkt_size=188';
+        // ffmpegArgs is a whitespace-split STRING (see FfmpegProcess), so a snapshot
+        // path containing spaces would shatter the whole command and kill the stream.
+        // Skip the snapshot output in that case — the HKSV path passes args as an
+        // array and keeps working regardless.
+        const snapshotArgs = this.snapshotOutputArgs();
+        if (snapshotArgs.length > 0 && !/\s/.test(this.snapshotFilePath())) {
+            ffmpegArgs += ' ' + snapshotArgs.join(' ');
+        }
+        else if (snapshotArgs.length > 0) {
+            this.log.debug('Snapshot path contains whitespace; skipping snapshot output on the live stream.', this.camera.getDisplayName());
+        }
         if (this.platform.debugMode) {
             ffmpegArgs += ' -loglevel level+verbose';
         }
@@ -353,18 +455,20 @@ class StreamingDelegate {
      *   when the HomeKit Controller requests it (see the documentation of `CameraRecordingDelegate`).
      */
     async *handleRecordingStreamRequest(streamId) {
-        var _a, _b, _c;
+        var _a, _b, _c, _d;
         this.log.debug('Recording request received.');
         if (!this.cameraRecordingConfiguration)
             throw new Error('No recording configuration for this camera.');
         /**
-         * With this flag you can control how the generator reacts to a reset to the motion trigger.
-         * If set to true, the generator will send a proper endOfStream if the motion stops.
-         * If set to false, the generator will run till the HomeKit Controller closes the stream.
-         *
-         * Note: In a real implementation you would most likely introduce a bit of a delay.
+         * End the recording with a proper endOfStream once motion stops, instead of
+         * running until the HomeKit controller closes the stream. Left to the
+         * controller, sessions can run for hours (observed: a 3h50m recording on a
+         * doorbell with sparse motion), keeping the camera streaming continuously
+         * and leaving it briefly unable to serve live views after the session
+         * finally closes. The motion sensor already decays 20s after the last
+         * motion event, so recordings end with ~20-25s of post-motion tail.
          */
-        const STOP_AFTER_MOTION_STOP = false;
+        const endOnMotionStop = (_a = this.config.endRecordingOnMotionStop) !== null && _a !== void 0 ? _a : true;
         this.handlingRecordingStreamingRequest = true;
         if (this.cameraRecordingConfiguration.videoCodec.type !== 0 /* H264 */)
             throw new Error('Unsupported recording codec type.');
@@ -409,7 +513,7 @@ class StreamingDelegate {
             default:
                 throw new Error("Unsupported audio sample rate: " + this.cameraRecordingConfiguration.audioCodec.samplerate);
         }
-        const audioArgs = ((_b = (_a = this.controller) === null || _a === void 0 ? void 0 : _a.recordingManagement) === null || _b === void 0 ? void 0 : _b.recordingManagementService.getCharacteristic(this.platform.Characteristic.RecordingAudioActive))
+        const audioArgs = ((_c = (_b = this.controller) === null || _b === void 0 ? void 0 : _b.recordingManagement) === null || _c === void 0 ? void 0 : _c.recordingManagementService.getCharacteristic(this.platform.Characteristic.RecordingAudioActive))
             ? [
                 "-acodec", "libfdk_aac",
                 ...(this.cameraRecordingConfiguration.audioCodec.type === 0 /* AAC_LC */ ?
@@ -422,7 +526,7 @@ class StreamingDelegate {
             : [];
         const nestStreamer = await (0, NestStreamer_1.getStreamer)(this.log, this.camera, this.config);
         const nestStream = await nestStreamer.initialize();
-        const hksvStreamer = new HksvStreamer_1.default(this.log, nestStream, audioArgs, videoArgs, this.platform.debugMode);
+        const hksvStreamer = new HksvStreamer_1.default(this.log, nestStream, audioArgs, videoArgs, this.platform.debugMode, this.snapshotOutputArgs());
         // Tear down any prior recording session before overwriting it. A HomeKit hub
         // can start a new recording (e.g. after a brief reconnect) before the previous
         // session's close event fires. Without this, the previous HksvStreamer — and
@@ -445,12 +549,12 @@ class StreamingDelegate {
         try {
             for await (const box of this.recordingSessionInfo.hksvStreamer.generator()) {
                 pending.push(box.header, box.data);
-                const motionDetected = (_c = this.accessory.getService(this.hap.Service.MotionSensor)) === null || _c === void 0 ? void 0 : _c.getCharacteristic(this.platform.Characteristic.MotionDetected).value;
+                const motionDetected = (_d = this.accessory.getService(this.hap.Service.MotionSensor)) === null || _d === void 0 ? void 0 : _d.getCharacteristic(this.platform.Characteristic.MotionDetected).value;
                 this.log.debug("mp4 box type " + box.type + " and length " + box.length);
                 if (box.type === "moov" || box.type === "mdat") {
                     const fragment = Buffer.concat(pending);
                     pending.splice(0, pending.length);
-                    const isLast = STOP_AFTER_MOTION_STOP && !motionDetected;
+                    const isLast = endOnMotionStop && !motionDetected;
                     yield {
                         data: fragment,
                         isLast: isLast,
@@ -475,4 +579,8 @@ class StreamingDelegate {
     }
 }
 exports.StreamingDelegate = StreamingDelegate;
+// A stream-written snapshot older than this is treated as absent: a day-old
+// "last seen" frame is still useful, but an ancient one masquerades as current
+// and shadows the fresher event-image path in camera.getSnapshot().
+StreamingDelegate.SNAPSHOT_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 //# sourceMappingURL=StreamingDelegate.js.map
