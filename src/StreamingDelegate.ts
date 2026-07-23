@@ -102,7 +102,13 @@ export abstract class StreamingDelegate<T extends CameraController> implements C
     });
 
     this.options = {
-      cameraStreamCount: camera.getResolutions().length, // HomeKit requires at least 2 streams, but 1 is also just fine
+      // Number of CONCURRENT streams (one RTPStreamManagement service each), not
+      // the resolutions list. This passed resolutions.length (11), creating 11
+      // stream services per camera — a wall of duplicate camera tiles in the
+      // Homebridge accessories view, and far more than a Nest camera can serve
+      // at once. Two is plenty for a live view plus a HomeKit hub recording.
+      // HAP prunes the excess cached services on restore when this shrinks.
+      cameraStreamCount: 2,
       delegate: this,
       streamingOptions: {
         supportedCryptoSuites: [this.hap.SRTPCryptoSuites.AES_CM_128_HMAC_SHA1_80],
