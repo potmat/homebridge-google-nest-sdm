@@ -36,6 +36,13 @@ class NestStreamer {
         this.camera = camera;
         this.config = config;
     }
+    /**
+     * Adjust the sender's target bitrate mid-stream, if the transport supports
+     * it. HomeKit sends RECONFIGURE requests when the viewer's available
+     * bandwidth changes (e.g. moving to cellular). Default is a no-op; only the
+     * WebRTC streamer can act on it, by re-advertising REMB.
+     */
+    setMaxBitrate(bitrate) { }
 }
 exports.NestStreamer = NestStreamer;
 class RtspNestStreamer extends NestStreamer {
@@ -58,6 +65,9 @@ exports.RtspNestStreamer = RtspNestStreamer;
 class WebRtcNestStreamer extends NestStreamer {
     constructor() {
         super(...arguments);
+        // Start high so the first IDR is not throttled by the sender's conservative
+        // initial estimate; RECONFIGURE requests adjust it afterwards via setMaxBitrate().
+        this.rembBitrate = 4000000;
         this.startTime = 0;
         this.displayName = '';
         this.firstRembSent = false;
@@ -84,7 +94,7 @@ class WebRtcNestStreamer extends NestStreamer {
     // SSRC field is 0 and the target SSRCs ride in the feedback list.
     sendRemb() {
         var _a;
-        let rembExp = 0, rembMantissa = WebRtcNestStreamer.REMB_BITRATE;
+        let rembExp = 0, rembMantissa = this.rembBitrate;
         while (rembMantissa > 0x3ffff) {
             rembMantissa = Math.floor(rembMantissa / 2);
             rembExp++;
@@ -103,7 +113,7 @@ class WebRtcNestStreamer extends NestStreamer {
             this.videoTransceiver.receiver.dtlsTransport.sendRtcp([remb]).then(() => {
                 if (!this.firstRembSent) {
                     this.firstRembSent = true;
-                    this.mark(`sent first REMB (${WebRtcNestStreamer.REMB_BITRATE / 1000000}Mbps)`);
+                    this.mark(`sent first REMB (${this.rembBitrate / 1000000}Mbps)`);
                 }
             }).catch((e) => { var _a; return this.log.debug('REMB send failed.', (_a = e === null || e === void 0 ? void 0 : e.message) !== null && _a !== void 0 ? _a : e); });
         }
@@ -328,9 +338,21 @@ a=sendrecv`
             this.log.error('Error closing UDP connection to FFMpeg.', error);
         }
     }
+    setMaxBitrate(bitrate) {
+        // Floor keeps a pathologically low request from starving keyframe
+        // delivery outright; HomeKit's lowest tiers sit around 300kbps anyway.
+        const clamped = Math.max(bitrate, 300000);
+        if (clamped === this.rembBitrate)
+            return;
+        this.rembBitrate = clamped;
+        this.log.debug(`Advertising new max bitrate via REMB: ${(clamped / 1000000).toFixed(2)}Mbps`, this.camera.getDisplayName());
+        // A RECONFIGURE can land before onTrack has populated these; the REMB is
+        // then carried by the first send once the track arrives.
+        if (this.videoTransceiver && this.videoTrack)
+            this.sendRemb();
+    }
 }
 exports.WebRtcNestStreamer = WebRtcNestStreamer;
-WebRtcNestStreamer.REMB_BITRATE = 4000000;
 async function getStreamer(log, camera, config) {
     if ((await camera.getVideoProtocol()) === Traits.ProtocolType.WEB_RTC) {
         return new WebRtcNestStreamer(log, camera, config);
