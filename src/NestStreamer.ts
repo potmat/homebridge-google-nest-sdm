@@ -36,6 +36,14 @@ export abstract class NestStreamer {
 
     abstract initialize(): Promise<NestStream>;
     abstract teardown(): void;
+
+    /**
+     * Adjust the sender's target bitrate mid-stream, if the transport supports
+     * it. HomeKit sends RECONFIGURE requests when the viewer's available
+     * bandwidth changes (e.g. moving to cellular). Default is a no-op; only the
+     * WebRTC streamer can act on it, by re-advertising REMB.
+     */
+    setMaxBitrate(bitrate: number): void {}
 }
 
 export class RtspNestStreamer extends NestStreamer {
@@ -56,7 +64,9 @@ export class RtspNestStreamer extends NestStreamer {
 }
 
 export class WebRtcNestStreamer extends NestStreamer {
-    private static readonly REMB_BITRATE = 4_000_000;
+    // Start high so the first IDR is not throttled by the sender's conservative
+    // initial estimate; RECONFIGURE requests adjust it afterwards via setMaxBitrate().
+    private rembBitrate = 4_000_000;
     private udp: Socket | undefined;
     private pc: RTCPeerConnection | undefined;
     private keyframeRequestInterval: ReturnType<typeof setInterval> | undefined;
@@ -92,7 +102,7 @@ export class WebRtcNestStreamer extends NestStreamer {
     // it alongside the keyframe requests. Per RFC draft, the REMB media-source
     // SSRC field is 0 and the target SSRCs ride in the feedback list.
     private sendRemb() {
-        let rembExp = 0, rembMantissa = WebRtcNestStreamer.REMB_BITRATE;
+        let rembExp = 0, rembMantissa = this.rembBitrate;
         while (rembMantissa > 0x3ffff) { rembMantissa = Math.floor(rembMantissa / 2); rembExp++; }
         try {
             const remb = new RtcpPayloadSpecificFeedback({
@@ -108,7 +118,7 @@ export class WebRtcNestStreamer extends NestStreamer {
             this.videoTransceiver!.receiver.dtlsTransport.sendRtcp([remb]).then(() => {
                 if (!this.firstRembSent) {
                     this.firstRembSent = true;
-                    this.mark(`sent first REMB (${WebRtcNestStreamer.REMB_BITRATE / 1000000}Mbps)`);
+                    this.mark(`sent first REMB (${this.rembBitrate / 1000000}Mbps)`);
                 }
             }).catch((e: any) => this.log.debug('REMB send failed.', e?.message ?? e));
         } catch (e: any) {
@@ -345,6 +355,20 @@ a=sendrecv`
         } catch (error: any) {
             this.log.error('Error closing UDP connection to FFMpeg.', error);
         }
+    }
+
+    setMaxBitrate(bitrate: number): void {
+        // Floor keeps a pathologically low request from starving keyframe
+        // delivery outright; HomeKit's lowest tiers sit around 300kbps anyway.
+        const clamped = Math.max(bitrate, 300_000);
+        if (clamped === this.rembBitrate)
+            return;
+        this.rembBitrate = clamped;
+        this.log.debug(`Advertising new max bitrate via REMB: ${(clamped / 1000000).toFixed(2)}Mbps`, this.camera.getDisplayName());
+        // A RECONFIGURE can land before onTrack has populated these; the REMB is
+        // then carried by the first send once the track arrives.
+        if (this.videoTransceiver && this.videoTrack)
+            this.sendRemb();
     }
 }
 

@@ -16,6 +16,9 @@ class StreamingDelegate {
         // keep track of sessions
         this.pendingSessions = {};
         this.ongoingSessions = {};
+        // Bitrate from a RECONFIGURE that arrived before its START finished setting up
+        // the session; applied once the session registers.
+        this.pendingMaxBitrate = {};
         this.handlingRecordingStreamingRequest = false;
         this.platform = platform;
         this.log = log;
@@ -272,6 +275,12 @@ class StreamingDelegate {
         activeSession.mainProcess = new FfMpegProcess_1.FfmpegProcess(this.camera.getDisplayName(), request.sessionID, ffmpegArgs, nestStream.stdin, this.log, this.platform.debugMode, this, callback);
         this.ongoingSessions[request.sessionID] = activeSession;
         delete this.pendingSessions[request.sessionID];
+        // A RECONFIGURE that raced this (async) START stashed its bitrate; apply it now.
+        const pendingBitrate = this.pendingMaxBitrate[request.sessionID];
+        if (pendingBitrate) {
+            delete this.pendingMaxBitrate[request.sessionID];
+            activeSession.streamer.setMaxBitrate(pendingBitrate);
+        }
     }
     async handleStreamRequest(request, callback) {
         switch (request.type) {
@@ -279,7 +288,18 @@ class StreamingDelegate {
                 this.startStream(request, callback);
                 break;
             case "reconfigure" /* RECONFIGURE */:
-                this.log.debug(`Received request to reconfigure: ${request.video.width} x ${request.video.height}, ${request.video.fps} fps, ${request.video.max_bit_rate} kbps (Ignored)`, this.camera.getDisplayName());
+                // Resolution/fps can't change on a stream-copied feed, but the requested
+                // bitrate can be re-advertised to the camera via REMB — which in copy
+                // mode adapts the HomeKit-facing rate directly. A RECONFIGURE can arrive
+                // while START is still initializing (session not yet registered), so
+                // stash it and apply on register rather than dropping it.
+                this.log.debug(`Received request to reconfigure: ${request.video.width} x ${request.video.height}, ${request.video.fps} fps, ${request.video.max_bit_rate} kbps`, this.camera.getDisplayName());
+                if (this.ongoingSessions[request.sessionID]) {
+                    this.ongoingSessions[request.sessionID].streamer.setMaxBitrate(request.video.max_bit_rate * 1000);
+                }
+                else {
+                    this.pendingMaxBitrate[request.sessionID] = request.video.max_bit_rate * 1000;
+                }
                 callback();
                 break;
             case "stop" /* STOP */:
@@ -321,6 +341,7 @@ class StreamingDelegate {
             }
         }
         delete this.ongoingSessions[sessionId];
+        delete this.pendingMaxBitrate[sessionId];
         this.log.debug('Stopped video stream.', this.camera.getDisplayName());
     }
     closeRecordingStream(streamId, reason) {
