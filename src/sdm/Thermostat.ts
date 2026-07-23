@@ -9,7 +9,7 @@ import * as Events from './Events';
 export class Thermostat extends Device {
 
     getDisplayName(): string {
-        return this.displayName ? this.displayName + ' Thermostat' : 'Unknown';
+        return this.resolveDisplayName('Thermostat');
     }
 
     onTemperatureChanged: ((temperature: number) => void) | undefined;

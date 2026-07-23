@@ -18,7 +18,7 @@ export class Camera extends Device {
     private image: Buffer | null = null;
 
     getDisplayName(): string {
-        return this.displayName ? this.displayName + ' Camera' : 'Unknown';
+        return this.resolveDisplayName('Camera');
     }
 
     onMotion: (() => void) | undefined;
