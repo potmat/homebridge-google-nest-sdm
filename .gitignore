@@ -104,3 +104,4 @@ typings/
 
 # TernJS port file
 .tern-port
+nest-sdm-credentials.json
