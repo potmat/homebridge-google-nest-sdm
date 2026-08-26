@@ -1,5 +1,6 @@
 import * as google from "googleapis";
 import * as Events from './Events';
+import * as Traits from './Traits';
 import {Logger} from "homebridge";
 import _ from "lodash";
 
@@ -16,7 +17,10 @@ export abstract class Device {
         this.device = device;
         this.lastRefresh = Date.now();
         const parent = <google.smartdevicemanagement_v1.Schema$GoogleHomeEnterpriseSdmV1ParentRelation|undefined>_.find(device.parentRelations, relation => relation.displayName);
-        this.displayName = parent?.displayName;
+        const info = <Traits.Info|undefined>device.traits?.[Traits.Constants.Info];
+        const customName = info?.customName?.trim();
+        //Prefer the name the user gave the device, fall back to the room it lives in.
+        this.displayName = customName ? customName : parent?.displayName;
         this.log = log;
     }
 
