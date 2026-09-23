@@ -10,6 +10,7 @@ const systeminformation_1 = require("systeminformation");
 const FfMpegProcess_1 = require("./FfMpegProcess");
 const NestStreamer_1 = require("./NestStreamer");
 const HksvStreamer_1 = __importDefault(require("./HksvStreamer"));
+const SnapshotRefresher_1 = require("./SnapshotRefresher");
 const pick_port_1 = __importDefault(require("pick-port"));
 class StreamingDelegate {
     constructor(log, api, platform, camera, accessory) {
@@ -23,7 +24,12 @@ class StreamingDelegate {
         this.config = platform.platformConfig;
         this.camera = camera;
         this.accessory = accessory;
+        if (SnapshotRefresher_1.SnapshotRefresher.isEnabled(this.config)) {
+            this.snapshotRefresher = new SnapshotRefresher_1.SnapshotRefresher(log, camera, this.config, api.user.storagePath(), () => Object.keys(this.ongoingSessions).length > 0 || this.handlingRecordingStreamingRequest, 20000 + 15000 * StreamingDelegate.snapshotRefresherCount++);
+        }
         api.on("shutdown" /* SHUTDOWN */, () => {
+            var _a;
+            (_a = this.snapshotRefresher) === null || _a === void 0 ? void 0 : _a.stop();
             for (const session in this.ongoingSessions) {
                 this.stopStream(session);
             }
@@ -475,4 +481,6 @@ class StreamingDelegate {
     }
 }
 exports.StreamingDelegate = StreamingDelegate;
+// staggers the first snapshot refresh of each camera
+StreamingDelegate.snapshotRefresherCount = 0;
 //# sourceMappingURL=StreamingDelegate.js.map

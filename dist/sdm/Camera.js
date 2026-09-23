@@ -36,6 +36,7 @@ class Camera extends Device_1.Device {
     constructor() {
         super(...arguments);
         this.image = null;
+        this.lastSnapshot = null;
     }
     getDisplayName() {
         return this.displayName ? this.displayName + ' Camera' : 'Unknown';
@@ -43,6 +44,8 @@ class Camera extends Device_1.Device {
     async getSnapshot() {
         if (this.image)
             return this.image;
+        if (this.lastSnapshot)
+            return this.lastSnapshot;
         //Nest cams do not have any method to get a current snapshot,
         //starting streams up just to retrieve one is slow and will cause
         //the SDM API to hit a rate limit of creating too many streams
@@ -50,6 +53,9 @@ class Camera extends Device_1.Device {
             return await fs_1.default.promises.readFile(path_1.default.join(__dirname, "..", "res", "nest-logo.jpg"));
         else
             return await fs_1.default.promises.readFile(path_1.default.join(__dirname, "..", "res", "google-logo.jpg"));
+    }
+    setLastSnapshot(snapshot) {
+        this.lastSnapshot = snapshot;
     }
     getResolutions() {
         return [

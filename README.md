@@ -32,6 +32,7 @@ Don't forget the ``--unsafe-perm`` part!
         "vEncoder": "<optional>"
         "showFan": "<optional>"
         "fanDuration": "<optional>"
+        "snapshotRefreshInterval": "<optional>"
     }
 
 I recommend you use the plugin config UI to enter these values.
@@ -55,6 +56,8 @@ Follow the getting started guide here: https://developers.google.com/nest/device
 **showFan** is optional.  If true, a fan accessory will be added.
 
 **fanDuration** is optional. You only need to use this if **showFan** is set to true. It controls the fan duration (in seconds) when turning on the fan.  Must be between 1 and 43200.  Defaults to 900 if not set.
+
+**snapshotRefreshInterval** is optional. If set, every this many minutes the plugin briefly opens a stream to each camera, captures one frame and uses it as the snapshot shown in the Home app instead of the Nest/Google logo. Values below 5 are raised to 5. Defaults to 0 (disabled). Each refresh starts one stream per camera, which counts against the Nest API rate limits, so avoid very short intervals. Refreshes are skipped while a camera is being viewed or recorded.
 
 ONE IMPORTANT DIFFERENCE!
 
@@ -100,7 +103,7 @@ HomeKit Secure Video will require even more CPU power.  The clips need to be tra
 
 **Q**: I don't see camera snapshots in the Home app, just the Nest/Google logo. Why?
 
-**A**: The SDM API does not have any method for getting a camera snapshot on demand, only when an event occurs. The Nest logo is used as a placeholder for first generation cameras, while the Google logo is used for second generation cameras.  If an event occurred in the last few seconds you will likely see an image.
+**A**: The SDM API does not have any method for getting a camera snapshot on demand, only when an event occurs. The Nest logo is used as a placeholder for first generation cameras, while the Google logo is used for second generation cameras.  If an event occurred in the last few seconds you will likely see an image. You can set **snapshotRefreshInterval** to have the plugin capture a periodic snapshot from the live stream instead.
 
 **Q**: My cameras never respond.  Why?
 

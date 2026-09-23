@@ -64,6 +64,14 @@
         "default": 15000000,
         "description": "Maximum time (in microseconds) FFmpeg will probe the stream to detect its parameters before giving up. FFmpeg stops as soon as it has detected the stream, so this is an upper bound, not a fixed delay. Defaults to 15000000 (15 seconds), the plugin's long-standing value. WARNING: lowering this can break WebRTC cameras. Some cameras only send their H.264 parameter sets (SPS/PPS) every several seconds; if FFmpeg gives up before they arrive it fails to start the stream with 'dimensions not set' and you get no video. Raise this (or leave it at the default) if a camera fails to start; only lower it if you have confirmed your specific camera still streams reliably at the lower value."
       },
+      "snapshotRefreshInterval": {
+        "title": "Snapshot Refresh Interval (minutes)",
+        "type": "integer",
+        "required": false,
+        "default": 0,
+        "minimum": 0,
+        "description": "The Nest API has no way to fetch a camera snapshot on demand, so by default the Home app tiles show the Nest/Google logo. Set this to periodically open a short stream, capture one frame and use it as the tile image. 0 (the default) disables it; values below 5 are raised to 5. Each refresh starts one stream per camera, which counts against the Nest API rate limits, so avoid very short intervals. The refresh is skipped while a camera is being viewed or recorded."
+      },
       "probeSize": {
         "title": "FFmpeg Probe Size (bytes)",
         "type": "integer",
