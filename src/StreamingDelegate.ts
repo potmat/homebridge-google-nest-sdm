@@ -28,6 +28,7 @@ import {Camera} from "./sdm/Camera";
 import {getStreamer, NestStream, NestStreamer} from "./NestStreamer";
 import {Platform} from "./Platform";
 import HksvStreamer from "./HksvStreamer";
+import {SnapshotRefresher} from "./SnapshotRefresher";
 import pickPort, { pickPortOptions } from 'pick-port';
 
 type SessionInfo = {
@@ -69,6 +70,9 @@ type RecordingSessionInfo = {
 }
 
 export abstract class StreamingDelegate<T extends CameraController> implements CameraStreamingDelegate, CameraRecordingDelegate {
+  // staggers the first snapshot refresh of each camera
+  private static snapshotRefresherCount = 0;
+
   protected hap: HAP;
   protected log: Logger;
 
@@ -86,6 +90,7 @@ export abstract class StreamingDelegate<T extends CameraController> implements C
   protected cameraRecordingConfiguration?: CameraRecordingConfiguration;
   protected handlingRecordingStreamingRequest = false;
   protected recordingSessionInfo?: RecordingSessionInfo;
+  private snapshotRefresher?: SnapshotRefresher;
 
   constructor(log: Logger, api: API, platform: Platform, camera: Camera, accessory: PlatformAccessory) {
     this.platform = platform;
@@ -95,7 +100,14 @@ export abstract class StreamingDelegate<T extends CameraController> implements C
     this.camera = camera;
     this.accessory = accessory;
 
+    if (SnapshotRefresher.isEnabled(this.config)) {
+      this.snapshotRefresher = new SnapshotRefresher(log, camera, this.config, api.user.storagePath(),
+          () => Object.keys(this.ongoingSessions).length > 0 || this.handlingRecordingStreamingRequest,
+          20000 + 15000 * StreamingDelegate.snapshotRefresherCount++);
+    }
+
     api.on(APIEvent.SHUTDOWN, () => {
+      this.snapshotRefresher?.stop();
       for (const session in this.ongoingSessions) {
         this.stopStream(session);
       }

@@ -16,6 +16,7 @@ export class Camera extends Device {
     protected static readonly MAX_EVENT_AGE_SECONDS = 30;
 
     private image: Buffer | null = null;
+    private lastSnapshot: Buffer | null = null;
 
     getDisplayName(): string {
         return this.displayName ? this.displayName + ' Camera' : 'Unknown';
@@ -25,6 +26,7 @@ export class Camera extends Device {
 
     async getSnapshot(): Promise<Buffer | undefined> {
         if (this.image) return this.image;
+        if (this.lastSnapshot) return this.lastSnapshot;
 
         //Nest cams do not have any method to get a current snapshot,
         //starting streams up just to retrieve one is slow and will cause
@@ -33,6 +35,10 @@ export class Camera extends Device {
             return await fs.promises.readFile(path.join(__dirname, "..", "res", "nest-logo.jpg"));
         else
             return await fs.promises.readFile(path.join(__dirname, "..", "res", "google-logo.jpg"));
+    }
+
+    setLastSnapshot(snapshot: Buffer): void {
+        this.lastSnapshot = snapshot;
     }
 
     getResolutions(): [number, number, number][] {
