@@ -60,21 +60,38 @@ export class SmartDeviceManagement {
 
                 this.log.debug('Event received: ' + message.data.toString());
 
-                const event: Events.Event = JSON.parse(message.data);
+                // This callback runs asynchronously, long after the try/catch below
+                // has returned, so anything thrown here is an unhandled exception
+                // rather than a caught one. The payload is external input we do not
+                // control, so no single malformed message may take down the bridge.
+                try {
+                    const event: Events.Event = JSON.parse(message.data);
 
-                // if ((event as Events.ResourceRelationEvent).relationUpdate) {
-                //     const resourceRelationtEvent = event as Events.ResourceRelationEvent;
-                // } else
-                if ((event as Events.ResourceEventEvent).resourceUpdate.events) {
-                    const resourceEventEvent = event as Events.ResourceEventEvent;
-                    const device = _.find(this.devices, device => device.getName() === resourceEventEvent.resourceUpdate.name);
-                    if (device)
-                        device.event(resourceEventEvent);
-                } else if ((event as Events.ResourceTraitEvent).resourceUpdate.traits) {
-                    const resourceTraitEvent = event as Events.ResourceTraitEvent;
-                    const device = _.find(this.devices, device => device.getName() === resourceTraitEvent.resourceUpdate.name);
-                    if (device)
-                        device.event(resourceTraitEvent);
+                    // Relation updates (a device added to, removed from, or moved
+                    // between structures/rooms) carry a relationUpdate and NO
+                    // resourceUpdate. Reading resourceUpdate.events on one of those
+                    // throws, so bail before the trait/event dispatch below.
+                    const resourceUpdate = (event as Events.ResourceEventEvent | Events.ResourceTraitEvent).resourceUpdate;
+                    if (!resourceUpdate) {
+                        this.log.debug((event as Events.ResourceRelationEvent).relationUpdate
+                            ? 'Ignoring relation update event.'
+                            : 'Ignoring event with no resourceUpdate.');
+                        return;
+                    }
+
+                    if ((resourceUpdate as Events.ResourceEventUpdate).events) {
+                        const resourceEventEvent = event as Events.ResourceEventEvent;
+                        const device = _.find(this.devices, device => device.getName() === resourceEventEvent.resourceUpdate.name);
+                        if (device)
+                            device.event(resourceEventEvent);
+                    } else if ((resourceUpdate as Events.ResourceTraitUpdate).traits) {
+                        const resourceTraitEvent = event as Events.ResourceTraitEvent;
+                        const device = _.find(this.devices, device => device.getName() === resourceTraitEvent.resourceUpdate.name);
+                        if (device)
+                            device.event(resourceTraitEvent);
+                    }
+                } catch (error: any) {
+                    this.log.error('Could not handle event: ', error?.message ?? error);
                 }
             });
             this.subscription.on('error', error => {

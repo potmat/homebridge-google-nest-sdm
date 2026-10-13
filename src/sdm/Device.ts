@@ -74,7 +74,17 @@ export abstract class Device {
             this.log.debug(`Execution of command ${name} returned ${JSON.stringify(response.data.results)}`, this.getDisplayName());
             return <U>response.data.results;
         } catch (error: any) {
-            this.log.error('Could not execute device command: ', JSON.stringify(error), this.getDisplayName());
+            const serializedError = JSON.stringify(error) || '';
+            const isRateLimited = error?.response?.status === 429
+                || error?.code === 429
+                || serializedError.includes('RESOURCE_EXHAUSTED')
+                || serializedError.includes('Rate limited');
+
+            if (isRateLimited) {
+                this.log.error(`Google rate-limited the ${name} command (HTTP 429). Too many camera commands in a short period — wait about a minute before retrying.`, this.getDisplayName());
+            } else {
+                this.log.error('Could not execute device command: ', JSON.stringify(error), this.getDisplayName());
+            }
         }
 
         return undefined;

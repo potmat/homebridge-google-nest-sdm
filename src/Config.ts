@@ -7,5 +7,7 @@ export type Config = {
     gcpProjectId?: string,
     vEncoder?: string,
     showFan?: boolean,
-    fanDuration?: number
+    fanDuration?: number,
+    analyzeDuration?: number,
+    probeSize?: number
 }

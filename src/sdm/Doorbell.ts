@@ -14,6 +14,7 @@ export class Doorbell extends Camera {
 
     event(event: Events.ResourceEventEvent) {
         super.event(event);
+        if (this.isEventStale(event)) return;
 
         _.forEach(event.resourceUpdate.events, (value, key) => {
             switch (key) {
