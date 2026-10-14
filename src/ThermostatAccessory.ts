@@ -18,6 +18,12 @@ import {TemperatureRange} from "./sdm/Types";
 export class ThermostatAccessory extends Accessory<Thermostat> {
     private readonly service: Service;
 
+    // HeatCool only: HomeKit fires heat and cool threshold setters back-to-back when the thermostat is changed in HeatCool mode
+    // We will buffer these values so we only send one SetRange
+    private pendingHeatC?: number;
+    private pendingCoolC?: number;
+    private pendingRangeTimer?: NodeJS.Timeout;
+
     constructor(
         api: API,
         log: Logger,
@@ -79,6 +85,14 @@ export class ThermostatAccessory extends Accessory<Thermostat> {
         this.service.getCharacteristic(this.platform.Characteristic.HeatingThresholdTemperature).removeOnSet();
         this.service.getCharacteristic(this.platform.Characteristic.TargetTemperature).removeOnGet();
         this.service.getCharacteristic(this.platform.Characteristic.TargetTemperature).removeOnSet();
+
+        // Clear any pending HeatCool updates when setting event handlers.
+        if (this.pendingRangeTimer) {
+            clearTimeout(this.pendingRangeTimer);
+            this.pendingRangeTimer = undefined;
+        }
+        this.pendingHeatC = undefined;
+        this.pendingCoolC = undefined;
 
         let tempUnits = await this.device.getTemperatureUnits();
 
@@ -377,7 +391,8 @@ export class ThermostatAccessory extends Accessory<Thermostat> {
         if (!_.isNumber(value))
             throw new Error(`Cannot set "${value}" as cooling threshold temperature.`);
 
-        await this.device.setTargetTemperatureRange(value, undefined);
+        // Buffer until we have both heat and cool values
+        this.queueHeatCoolRangeUpdate({ coolC: value });
     }
 
     /**
@@ -409,7 +424,8 @@ export class ThermostatAccessory extends Accessory<Thermostat> {
         if (!_.isNumber(value))
             throw new Error(`Cannot set "${value}" as heating threshold temperature.`);
 
-        await this.device.setTargetTemperatureRange(undefined, value);
+        // Buffer until we have both heat and cool values
+        this.queueHeatCoolRangeUpdate({ heatC: value });
     }
 
     /**
@@ -434,5 +450,63 @@ export class ThermostatAccessory extends Accessory<Thermostat> {
     private async handleEcoModeSet(value:CharacteristicValue) {
         this.log.debug('Triggered SET EcoMode:' + value, this.accessory.displayName);
         await this.device.setEco(value ? EcoModeType.MANUAL_ECO : EcoModeType.OFF);
+    }
+    /**
+     * HeatCool only:
+     * HomeKit often sends heating and cooling threshold updates separately
+     * We buffer the values and send a single SetRange call once both are known
+     *
+     * If only one side arrives, we wait briefly then fill the missing value using current range
+     */
+    private queueHeatCoolRangeUpdate(update: { heatC?: number; coolC?: number }) {
+        if (_.isNumber(update.heatC)) this.pendingHeatC = update.heatC;
+        if (_.isNumber(update.coolC)) this.pendingCoolC = update.coolC;
+
+        // If we already have both values, send immediately
+        if (_.isNumber(this.pendingHeatC) && _.isNumber(this.pendingCoolC)) {
+            if (this.pendingRangeTimer) {
+                clearTimeout(this.pendingRangeTimer);
+                this.pendingRangeTimer = undefined;
+            }
+            void this.flushHeatCoolRangeUpdate();
+            return;
+        }
+
+        // If only one value is known, wait 500ms then call the update
+        if (!this.pendingRangeTimer) {
+            this.pendingRangeTimer = setTimeout(() => {
+                this.pendingRangeTimer = undefined;
+                void this.flushHeatCoolRangeUpdate();
+            }, 500);
+        }
+    }
+
+    private async flushHeatCoolRangeUpdate() {
+        let heatC = this.pendingHeatC;
+        let coolC = this.pendingCoolC;
+
+        // Clear pending values so a new gesture can queue independently
+        this.pendingHeatC = undefined;
+        this.pendingCoolC = undefined;
+
+        // Check and cancel if nothing is queued
+        if (!_.isNumber(heatC) && !_.isNumber(coolC)) return;
+
+        // If one value is missing, fill from current range
+        if (!_.isNumber(heatC) || !_.isNumber(coolC)) {
+            const current = await this.device.getTargetTemperatureRange();
+            if (!_.isNumber(heatC)) heatC = current?.heat!;
+            if (!_.isNumber(coolC)) coolC = current?.cool!;
+        }
+
+        if (!_.isNumber(heatC) || !_.isNumber(coolC)) return;
+
+        this.log.debug(
+            `Sending HEATCOOL SetRange heat=${heatC} cool=${coolC}`,
+            this.accessory.displayName
+        );
+
+        // Set the new range
+        await this.device.setTargetTemperatureRange(coolC, heatC);
     }
 }
