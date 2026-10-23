@@ -40,6 +40,14 @@ class Camera extends Device_1.Device {
     getDisplayName() {
         return this.displayName ? this.displayName + ' Camera' : 'Unknown';
     }
+    /**
+     * The room/device name as Google reports it, without the ' Camera' suffix
+     * getDisplayName() appends. Used to derive this camera's stream name on a local
+     * RTSP restreamer for the HKSV prebuffer.
+     */
+    getSourceName() {
+        return this.displayName || '';
+    }
     async getSnapshot() {
         if (this.image)
             return this.image;
@@ -153,6 +161,13 @@ class Camera extends Device_1.Device {
                 case Events.Constants.CameraPerson:
                     if (event.eventThreadState && event.eventThreadState != Events_1.ThreadStateType.STARTED)
                         return;
+                    // Latch the prebuffer anchor HERE -- only for a STARTED motion/person
+                    // event, i.e. one that actually triggers a recording. Anchoring on every
+                    // event would let a later UPDATE or ENDED overwrite it and shrink the
+                    // pre-roll to nothing.
+                    const eventTs = Date.parse(event.timestamp);
+                    if (!isNaN(eventTs))
+                        this.lastEventTimestamp = eventTs;
                     this.getVideoProtocol()
                         .then(protocol => {
                         if (protocol === Traits.ProtocolType.WEB_RTC) {

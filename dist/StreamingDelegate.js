@@ -10,6 +10,7 @@ const systeminformation_1 = require("systeminformation");
 const FfMpegProcess_1 = require("./FfMpegProcess");
 const NestStreamer_1 = require("./NestStreamer");
 const HksvStreamer_1 = __importDefault(require("./HksvStreamer"));
+const PrebufferManager_1 = require("./PrebufferManager");
 const pick_port_1 = __importDefault(require("pick-port"));
 class StreamingDelegate {
     constructor(log, api, platform, camera, accessory) {
@@ -23,10 +24,30 @@ class StreamingDelegate {
         this.config = platform.platformConfig;
         this.camera = camera;
         this.accessory = accessory;
+        // Start the ring NOW, not on the first updateRecordingActive(true). It exists to hold
+        // footage from BEFORE a trigger, so a ring that only warms once HomeKit toggles
+        // recording is empty at exactly the moment it is first needed. updateRecordingActive
+        // still stops it when the user turns recording off for a camera, and starts it again
+        // when they turn it back on.
+        try {
+            const key = this.prebufferKey();
+            const manager = this.prebufferManager();
+            if (key && manager && (this.config.prebufferSeconds || 0) > 0) {
+                manager.ensure(key);
+                this.log.info(`[prebuffer:${key}] ring started (${this.config.prebufferSeconds}s pre-roll configured)`);
+            }
+        }
+        catch (e) {
+            this.log.error('Prebuffer could not be started: ' + e, this.camera.getDisplayName());
+        }
         api.on("shutdown" /* SHUTDOWN */, () => {
+            var _a;
             for (const session in this.ongoingSessions) {
                 this.stopStream(session);
             }
+            // Stop the prebuffer rings too. Their reader ffmpegs would otherwise outlive the
+            // bridge until they happen to take a SIGPIPE.
+            (_a = this.prebufferManager()) === null || _a === void 0 ? void 0 : _a.stopAll();
         });
         this.options = {
             cameraStreamCount: camera.getResolutions().length,
@@ -54,7 +75,19 @@ class StreamingDelegate {
             recording: {
                 delegate: this,
                 options: {
-                    prebufferLength: 4000,
+                    // Advertise the pre-roll we can actually serve. HomeKit does not merely bound its
+                    // request by this value, it TRIMS the stored clip to it: a measured event
+                    // (2026-07-29 16:06) had ~11s of history served and the kept clip began at exactly
+                    // trigger-minus-4s, with everything earlier discarded. Leaving this at 4000 while
+                    // the ring serves 15s therefore throws away most of what the feature exists to
+                    // recover — and since the recording request itself arrives seconds AFTER the event
+                    // timestamp, a 4s ceiling means the median clip still starts after the subject has
+                    // gone, which is the whole defect.
+                    //
+                    // Unchanged at 4000 when the prebuffer is off, so nobody who hasn't enabled it sees
+                    // a different advertisement. (That the stock value promises 4s of pre-trigger
+                    // footage the plugin has never delivered is a separate issue — potmat#233.)
+                    prebufferLength: this.advertisedPrebufferLength(),
                     mediaContainerConfiguration: {
                         type: 0 /* FRAGMENTED_MP4 */,
                         fragmentLength: 4000,
@@ -324,7 +357,7 @@ class StreamingDelegate {
         this.log.debug('Stopped video stream.', this.camera.getDisplayName());
     }
     closeRecordingStream(streamId, reason) {
-        var _a, _b;
+        var _a, _b, _c;
         // Only tear down if this close targets the session we're actually running. A HomeKit hub can
         // send a late close for an already-replaced (orphaned) session; without this guard that stale
         // close would destroy the *current* recording.
@@ -335,7 +368,7 @@ class StreamingDelegate {
         if ((_a = this.recordingSessionInfo) === null || _a === void 0 ? void 0 : _a.hksvStreamer) {
             (_b = this.recordingSessionInfo) === null || _b === void 0 ? void 0 : _b.hksvStreamer.destroy();
             // teardown() is async; an unhandled rejection here would restart the bridge on Node >= 15.
-            Promise.resolve(this.recordingSessionInfo.nestStreamer.teardown()).catch(e => this.log.error('Error tearing down recording SDM stream: ' + e, this.camera.getDisplayName()));
+            Promise.resolve((_c = this.recordingSessionInfo.nestStreamer) === null || _c === void 0 ? void 0 : _c.teardown()).catch(e => this.log.error('Error tearing down recording SDM stream: ' + e, this.camera.getDisplayName()));
             this.recordingSessionInfo = undefined;
         }
         this.handlingRecordingStreamingRequest = false;
@@ -353,7 +386,7 @@ class StreamingDelegate {
      *   when the HomeKit Controller requests it (see the documentation of `CameraRecordingDelegate`).
      */
     async *handleRecordingStreamRequest(streamId) {
-        var _a, _b, _c;
+        var _a, _b, _c, _d;
         this.log.debug('Recording request received.');
         if (!this.cameraRecordingConfiguration)
             throw new Error('No recording configuration for this camera.');
@@ -420,8 +453,26 @@ class StreamingDelegate {
                 "-ac", `${this.cameraRecordingConfiguration.audioCodec.audioChannels}`,
             ]
             : [];
-        const nestStreamer = await (0, NestStreamer_1.getStreamer)(this.log, this.camera, this.config);
-        const nestStream = await nestStreamer.initialize();
+        // PREBUFFER: when configured, feed the encoder from the rolling in-memory ring so
+        // the clip begins BEFORE the trigger. Measured 2026-07-29: Google Home's own clip
+        // for an event began 6.1s before the SDM timestamp Google gave us, and our first
+        // frame landed 3.6s after it -- a ~9.7s gap during which the subject walks out of
+        // shot, leaving HomeKit's People/Animals/Vehicles analysis nothing to find, so it
+        // discards the clip with no error reported at any layer.
+        //
+        // Falls back to the normal SDM dial whenever the ring is not ready, so a cold start,
+        // a restreamer restart or a camera that is switched off all degrade to exactly the
+        // behaviour of this plugin with the feature disabled.
+        let nestStreamer;
+        let nestStream;
+        const prebufferStream = this.createPrebufferStream();
+        if (prebufferStream) {
+            nestStream = { args: "-f mp4 -i pipe:0", stdinStream: prebufferStream };
+        }
+        else {
+            nestStreamer = await (0, NestStreamer_1.getStreamer)(this.log, this.camera, this.config);
+            nestStream = await nestStreamer.initialize();
+        }
         const hksvStreamer = new HksvStreamer_1.default(this.log, nestStream, audioArgs, videoArgs, this.platform.debugMode);
         // Tear down any prior recording session before overwriting it. A HomeKit hub
         // can start a new recording (e.g. after a brief reconnect) before the previous
@@ -430,22 +481,27 @@ class StreamingDelegate {
         // memory over time. See #150.
         if (this.recordingSessionInfo) {
             this.recordingSessionInfo.hksvStreamer.destroy();
-            Promise.resolve(this.recordingSessionInfo.nestStreamer.teardown()).catch(e => this.log.error('Error tearing down prior recording SDM stream: ' + e, this.camera.getDisplayName()));
+            Promise.resolve((_c = this.recordingSessionInfo.nestStreamer) === null || _c === void 0 ? void 0 : _c.teardown()).catch(e => this.log.error('Error tearing down prior recording SDM stream: ' + e, this.camera.getDisplayName()));
         }
         this.recordingSessionInfo = {
             streamId: streamId,
             hksvStreamer: hksvStreamer,
             nestStreamer: nestStreamer
         };
-        await hksvStreamer.start();
-        if (!hksvStreamer || hksvStreamer.destroyed) {
-            throw new Error('Streaming server already closed.');
-        }
         const pending = [];
         try {
+            // start() belongs INSIDE the try. Outside it, a failure to start (port bind,
+            // spawn error, destroy racing the listen) threw before the finally existed, so
+            // the prebuffer consumer stayed subscribed and its queue grew until the
+            // 240-fragment backstop destroyed it minutes later. Inside, the finally below
+            // releases it immediately on every failure path.
+            await hksvStreamer.start();
+            if (!hksvStreamer || hksvStreamer.destroyed) {
+                throw new Error('Streaming server already closed.');
+            }
             for await (const box of this.recordingSessionInfo.hksvStreamer.generator()) {
                 pending.push(box.header, box.data);
-                const motionDetected = (_c = this.accessory.getService(this.hap.Service.MotionSensor)) === null || _c === void 0 ? void 0 : _c.getCharacteristic(this.platform.Characteristic.MotionDetected).value;
+                const motionDetected = (_d = this.accessory.getService(this.hap.Service.MotionSensor)) === null || _d === void 0 ? void 0 : _d.getCharacteristic(this.platform.Characteristic.MotionDetected).value;
                 this.log.debug("mp4 box type " + box.type + " and length " + box.length);
                 if (box.type === "moov" || box.type === "mdat") {
                     const fragment = Buffer.concat(pending);
@@ -465,10 +521,122 @@ class StreamingDelegate {
         catch (error) {
             this.log.error("Encountered unexpected error on generator " + error.stack);
         }
+        finally {
+            // Release this recording's ring subscription HERE rather than relying on the hub.
+            // hap-nodejs does eventually call closeRecordingStream — on a generator throw
+            // immediately, but on a clean return without isLast only via a ~12s timeout — and
+            // until it does, a finished recording keeps a subscriber attached and its queue
+            // filling at ~150KB/s. Destroying the source is idempotent and also ends ffmpeg's
+            // stdin, so the child exits instead of waiting on input that will never come.
+            try {
+                prebufferStream === null || prebufferStream === void 0 ? void 0 : prebufferStream.destroy();
+            }
+            catch (e) { /* already gone */ }
+        }
+    }
+    /**
+     * This camera's stream name on the local RTSP restreamer, or undefined when the
+     * prebuffer is not configured. Defaults to a slug of the name Google reports
+     * ("Front Door" -> front_door); override with `prebufferStreamNames` when the
+     * restreamer names its streams differently.
+     */
+    prebufferKey() {
+        var _a;
+        if (!this.config.prebufferRtspBase)
+            return undefined;
+        const sourceName = this.camera.getSourceName();
+        // A configured override is used VERBATIM. It exists precisely for stream names the slug
+        // rule cannot produce — Home Assistant's bundled go2rtc names streams `camera.front_door`,
+        // and dots, dashes and capitals are all destroyed by the slug. Slugifying the user's own
+        // value would leave no way to express those names at all, and the symptom is silent: the
+        // ring 404s forever, backs off to the five-minute cap, and every recording quietly falls
+        // back to a direct dial with no indication the override was ignored.
+        const configured = (_a = this.config.prebufferStreamNames) === null || _a === void 0 ? void 0 : _a[sourceName];
+        if (configured)
+            return configured;
+        const key = sourceName.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+        return key || undefined;
+    }
+    /**
+     * The `prebufferLength` to advertise to HomeKit. Bounded at 15s: the hub treats this as the
+     * amount of pre-trigger footage to KEEP, and advertising more than the ring retains would
+     * promise history that does not exist.
+     */
+    advertisedPrebufferLength() {
+        const seconds = this.config.prebufferSeconds || 0;
+        if (!this.config.prebufferRtspBase || seconds <= 0)
+            return 4000;
+        // Never advertise more history than the ring actually retains. The two values are
+        // independent config fields and JSON Schema cannot express "this one must not exceed
+        // that one", so nothing stops a 15s pre-roll on a 5s ring. Since the hub KEEPS what we
+        // advertise, that combination promises 15s and delivers 5 — silently, because every
+        // layer reports success. Clamp to the smaller of the two.
+        const retained = this.config.prebufferRetainSeconds || 15;
+        return Math.min(seconds * 1000, retained * 1000, 15000);
+    }
+    prebufferManager() {
+        if (!this.config.prebufferRtspBase)
+            return undefined;
+        return (0, PrebufferManager_1.getPrebufferManager)(this.log, require('ffmpeg-for-homebridge') || 'ffmpeg', this.config.prebufferRtspBase, this.config.prebufferRetainSeconds);
+    }
+    /**
+     * A Readable carrying [pre-trigger history][live], or undefined to fall back to a
+     * normal SDM dial. Never throws: a prebuffer failure must cost pre-trigger footage,
+     * not the recording.
+     */
+    createPrebufferStream() {
+        var _a;
+        const prebufferSeconds = this.config.prebufferSeconds || 0;
+        if (prebufferSeconds <= 0)
+            return undefined;
+        const key = this.prebufferKey();
+        const manager = this.prebufferManager();
+        if (!key || !manager)
+            return undefined;
+        try {
+            // Serve what the hub SELECTED, not what we advertised. Our value is only an upper
+            // bound; anything beyond the selection is encoded and then discarded.
+            const selectedMs = ((_a = this.cameraRecordingConfiguration) === null || _a === void 0 ? void 0 : _a.prebufferLength) || 0;
+            // One fragment (~1.67s) of slack: fragments are stamped when they COMPLETE, so the
+            // one containing the anchor instant would otherwise be filtered out.
+            const requestedMs = Math.min(selectedMs > 0 ? selectedMs + 2000 : prebufferSeconds * 1000, prebufferSeconds * 1000);
+            // Clamp the anchor. lastEventTimestamp is never cleared, and is not latched at all
+            // for a doorbell-chime-triggered recording, so it can be hours old -- which would
+            // make the ring's `t >= since` filter pass EVERY buffered fragment and maximise the
+            // backlog handed to the encoder. Never reach back more than 30s.
+            const anchor = Math.max(this.camera.lastEventTimestamp || Date.now(), Date.now() - 30000);
+            const stream = manager.createStream(key, anchor - requestedMs);
+            if (stream)
+                this.log.debug(`Prebuffer: hub selected ${selectedMs}ms, serving ${requestedMs}ms`, this.camera.getDisplayName());
+            return stream || undefined;
+        }
+        catch (e) {
+            this.log.error('Prebuffer unavailable, falling back to a direct dial: ' + e, this.camera.getDisplayName());
+            return undefined;
+        }
     }
     updateRecordingActive(active) {
-        // we haven't implemented a prebuffer
         this.log.debug("Recording active set to " + active);
+        // Stop holding video in RAM for a camera whose HKSV recording the user has switched
+        // off, and resume when they switch it back on. The ring is started here rather than
+        // lazily at trigger time because it exists to hold history from BEFORE a trigger --
+        // creating it on demand would leave it empty precisely when it is needed.
+        try {
+            const key = this.prebufferKey();
+            const manager = this.prebufferManager();
+            if (!key || !manager || (this.config.prebufferSeconds || 0) <= 0)
+                return;
+            if (active) {
+                manager.ensure(key);
+            }
+            else {
+                this.log.info(`[prebuffer:${key}] HKSV recording disabled for this camera; stopping ring`);
+                manager.release(key);
+            }
+        }
+        catch (e) {
+            this.log.error('Prebuffer updateRecordingActive failed: ' + e, this.camera.getDisplayName());
+        }
     }
     updateRecordingConfiguration(configuration) {
         this.cameraRecordingConfiguration = configuration;

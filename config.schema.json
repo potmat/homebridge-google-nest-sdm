@@ -69,7 +69,38 @@
         "type": "integer",
         "required": false,
         "default": 100000000,
-        "description": "Maximum number of bytes FFmpeg will read while probing the stream to detect its parameters. FFmpeg stops as soon as it has detected the stream, so this is an upper bound, not a fixed amount. Defaults to 100000000 (100 MB), the plugin's long-standing value. WARNING: same caveat as Analyze Duration — setting it too low can cause a camera to fail to start with 'dimensions not set' if its H.264 parameter sets haven't arrived yet. Raise it (or keep the default) if a camera fails to start."
+        "description": "Maximum number of bytes FFmpeg will read while probing the stream to detect its parameters. FFmpeg stops as soon as it has detected the stream, so this is an upper bound, not a fixed amount. Defaults to 100000000 (100 MB), the plugin's long-standing value. WARNING: same caveat as Analyze Duration \u2014 setting it too low can cause a camera to fail to start with 'dimensions not set' if its H.264 parameter sets haven't arrived yet. Raise it (or keep the default) if a camera fails to start."
+      },
+      "prebufferRtspBase": {
+        "title": "HKSV Prebuffer: Local RTSP Base URL",
+        "type": "string",
+        "required": false,
+        "placeholder": "rtsp://127.0.0.1:8554",
+        "description": "Enables the HKSV pre-trigger buffer. Requires a local RTSP restreamer (go2rtc, MediaMTX, ...) that already carries your cameras; the buffer reads from it with -c copy and keeps the last few seconds in memory so a recording can begin BEFORE the event that triggered it. Leave blank to disable. It cannot read Google directly: the buffer must hold a stream open continuously, which would mean one permanently-open WebRTC session per camera."
+      },
+      "prebufferSeconds": {
+        "title": "HKSV Prebuffer: Pre-roll (seconds)",
+        "type": "integer",
+        "required": false,
+        "default": 0,
+        "minimum": 0,
+        "maximum": 15,
+        "description": "How much footage from before the trigger to prepend to a recording. 0 disables the feature. This value is also advertised to HomeKit as prebufferLength, and the hub TRIMS the stored clip to it, so it bounds what is actually kept. Capped at 15s, and it must not exceed the ring retention below. Only used when a Local RTSP Base URL is set."
+      },
+      "prebufferRetainSeconds": {
+        "title": "HKSV Prebuffer: Ring Retention (seconds)",
+        "type": "integer",
+        "required": false,
+        "default": 15,
+        "minimum": 5,
+        "maximum": 60,
+        "description": "How much history each camera's in-memory ring holds. Must exceed the pre-roll, because the recording request itself arrives seconds AFTER the event timestamp it is anchored to. Costs roughly 150KB/s per camera (~2.3MB at the default)."
+      },
+      "prebufferStreamNames": {
+        "title": "HKSV Prebuffer: Stream Name Overrides",
+        "type": "object",
+        "required": false,
+        "description": "Optional map of Google room name to restreamer stream name, e.g. {\"Front Door\": \"doorbell\"}. Without an entry, a camera's stream name is its Google name slugified: \"Front Door\" becomes front_door."
       }
     }
   }

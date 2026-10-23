@@ -73,6 +73,10 @@ export default class HksvStreamer {
         await promise;
 
         if (this.destroyed) {
+            // destroy() ran while we were awaiting 'listening'. Close the server we just
+            // opened; returning without it leaves a listening socket for the life of the
+            // process.
+            try { this.server.close(() => { /* ignore "not running" */ }); } catch (e) { /* not listening */ }
             return;
         }
 
@@ -99,6 +103,39 @@ export default class HksvStreamer {
                 const sdpStream = this.convertStringToStream(this.nestStream.stdin);
                 sdpStream.resume();
                 sdpStream.pipe(this.childProcess.stdin);
+            } else if (this.nestStream.stdinStream) {
+                // Prebuffer path: a continuous fragmented-MP4 byte stream, not an SDP.
+                const src = this.nestStream.stdinStream;
+
+                // ffmpeg exiting first raises EPIPE on the writer; an unhandled 'error'
+                // on stdin would take the whole Homebridge process down rather than end
+                // one recording.
+                this.childProcess.stdin.on('error', () => {
+                    try { src.destroy(); } catch (e) { /* already gone */ }
+                });
+
+                // Destroying a piped Readable does NOT end the destination Writable, so
+                // without this ffmpeg blocks on input forever whenever the prebuffer
+                // consumer dies (reader restart, HKSV disabled mid-recording, the stall
+                // backstop) -- the generator yields nothing and the only exit is the
+                // Apple hub's ~16s timeout, losing the clip's tail or the whole clip.
+                // Ending stdin lets ffmpeg flush and finalize the fragmented MP4.
+                //
+                // Capture the child locally: destroy() sets this.childProcess = undefined
+                // synchronously, but this handler fires asynchronously afterwards, so a
+                // `this.childProcess` guard could never pass and stdin.end() would never
+                // run on the normal path -- which is why ffmpeg had to be SIGKILLed every
+                // time before this was added.
+                const child = this.childProcess;
+                src.once('close', () => {
+                    try {
+                        if (child.stdin && !child.stdin.destroyed) {
+                            child.stdin.end();
+                        }
+                    } catch (e) { /* ffmpeg already gone */ }
+                });
+
+                src.pipe(this.childProcess.stdin);
             }
         }
 
@@ -110,6 +147,35 @@ export default class HksvStreamer {
 
     destroy() {
         this.log.debug('HksvStreamer destroy command received, ending process.');
+
+        const child = this.childProcess;
+
+        // Give ffmpeg EOF on stdin BEFORE signalling it, so it can flush and exit on its
+        // own. Destroying the ring's Readable also drops this recording's subscription,
+        // which is what stops a dead recording from holding the prebuffer open.
+        try {
+            this.nestStream.stdinStream?.destroy();
+        } catch (e) { /* nothing further to do */ }
+        try {
+            if (child?.stdin && !child.stdin.destroyed) {
+                child.stdin.end();
+            }
+        } catch (e) { /* already gone */ }
+
+        // SIGTERM is not enough for an ffmpeg blocked on an input that never delivers.
+        // Three orphans were found alive on this deployment, one for 6.3 hours, each
+        // still holding a prebuffer subscription. Escalate if it has not exited shortly.
+        if (child) {
+            const escalate = setTimeout(() => {
+                try {
+                    if (child.exitCode === null && child.signalCode === null) {
+                        this.log.warn('HksvStreamer: ffmpeg ignored SIGTERM, sending SIGKILL');
+                        child.kill('SIGKILL');
+                    }
+                } catch (e) { /* already gone */ }
+            }, 3000);
+            escalate.unref();
+        }
 
         this.childProcess?.kill();
         this.childProcess = undefined;
