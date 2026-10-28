@@ -24,6 +24,7 @@ class Platform {
         this.platformConfig = platformConfig;
         this.api = api;
         this.accessories = [];
+        this.stopped = false;
         this.debugMode = process.argv.includes('-D') || process.argv.includes('--debug');
         this.EcoMode = EcoMode(api);
         IEcoMode = this.EcoMode;
@@ -33,6 +34,13 @@ class Platform {
             return;
         }
         this.smartDeviceManagement = new Api_1.SmartDeviceManagement(this.config, log);
+        this.api.on('shutdown', () => {
+            var _a;
+            this.stopped = true;
+            if (this.discoveryTimer)
+                clearTimeout(this.discoveryTimer);
+            void ((_a = this.smartDeviceManagement) === null || _a === void 0 ? void 0 : _a.close().catch(error => log.error('Shutdown failed:', error.message)));
+        });
         // When this event is fired it means Homebridge has restored all cached accessories from disk.
         // Dynamic Platform plugins should only register new accessories after this event was fired,
         // in order to ensure they weren't added to homebridge already. This event can also be used
@@ -62,8 +70,13 @@ class Platform {
         if (!this.smartDeviceManagement)
             return;
         const devices = await this.smartDeviceManagement.list_devices();
-        if (!devices)
+        if (this.stopped)
             return;
+        if (!devices) {
+            this.discoveryTimer = setTimeout(() => void this.discoverDevices(), 30000);
+            this.discoveryTimer.unref();
+            return;
+        }
         const deviceInfos = devices
             .map(device => {
             const uuid = this.api.hap.uuid.generate(device.getName());

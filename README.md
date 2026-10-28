@@ -19,6 +19,15 @@ This package is not affiliated with, provided, endorsed, or supported by Google 
 
 Don't forget the ``--unsafe-perm`` part!
 
+# Connection recovery
+
+The plugin reconnects failed event subscriptions with backoff and refreshes device
+state every five minutes without changing settings (288 extra GETs/device/day).
+Timestamp checks prevent stale trait updates; keep the bridge's clock synchronized.
+Persistent failures are logged—check connectivity, credentials and subscriptions.
+
+Run isolated regression tests with `npm ci --include=dev && npm test`.
+
 # Example Homebridge config:
 
     {
