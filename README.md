@@ -19,35 +19,14 @@ This package is not affiliated with, provided, endorsed, or supported by Google 
 
 Don't forget the ``--unsafe-perm`` part!
 
-# Connection recovery and freshness
+# Connection recovery
 
-Events remain the primary low-latency update path. After a subscription error or
-closure, the plugin closes the old subscriber and reconnects with exponential
-backoff (1 second up to 60 seconds). Device discovery is independent of Pub/Sub;
-failed initial discovery is retried every 30 seconds.
+The plugin reconnects failed event subscriptions with backoff and refreshes device
+state every five minutes without changing settings (288 extra GETs/device/day).
+Timestamp checks prevent stale trait updates; keep the bridge's clock synchronized.
+Persistent failures are logged—check connectivity, credentials and subscriptions.
 
-Every five minutes the plugin also fetches a read-only snapshot of each device.
-These requests have a 30-second timeout, do not overlap for the same device, and
-update existing accessories without changing thermostat settings. Changed traits
-notify HomeKit even when no events arrive. This adds approximately 288 GETs per
-device per day; ensure your Google API quotas accommodate your device count.
-Failed requests are logged and retried on subsequent cycles. A successful GET
-confirms cloud connectivity, not the physical sensor's measurement age.
-
-Trait events are ordered per trait using their timestamps. Events older than the
-latest successful snapshot request are ignored, and a snapshot cannot overwrite
-an event received while that request was in flight. This assumes the bridge's
-clock is synchronized. The SDM GET API does not provide a snapshot revision, so
-this is conservative reconciliation, not a strict consistency guarantee. Camera
-and doorbell event handling remains separate from trait ordering.
-
-Shutdown cancels recovery/polling timers and ignores late responses. Recovery
-cannot repair revoked credentials, missing subscriptions or an ongoing internet
-outage: check the logs and Google project configuration in those cases. The
-Homebridge web UI being healthy does not prove Nest connectivity.
-
-Development checks: `npm ci --include=dev && npm test`. The tests use fake Google
-clients and timers; they never access live devices or require credentials.
+Run isolated regression tests with `npm ci --include=dev && npm test`.
 
 # Example Homebridge config:
 
