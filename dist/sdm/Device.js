@@ -7,18 +7,48 @@ exports.Device = void 0;
 const lodash_1 = __importDefault(require("lodash"));
 class Device {
     constructor(smartdevicemanagement, device, log) {
+        this.traitTimes = new Map();
+        this.traitVersions = new Map();
+        this.stopped = false;
         this.smartdevicemanagement = smartdevicemanagement;
         this.device = device;
         this.lastRefresh = Date.now();
+        this.snapshotTime = this.lastRefresh;
         const parent = lodash_1.default.find(device.parentRelations, relation => relation.displayName);
         this.displayName = parent === null || parent === void 0 ? void 0 : parent.displayName;
         this.log = log;
     }
+    /** Filter trait updates before subclass callbacks, not just cache writes. */
+    receiveEvent(event) {
+        var _a, _b;
+        if (this.stopped)
+            return;
+        const update = event.resourceUpdate;
+        if (!(update === null || update === void 0 ? void 0 : update.traits)) {
+            this.event(event); // Camera/doorbell events are not trait snapshots.
+            return;
+        }
+        const timestamp = Date.parse(event.timestamp);
+        if (!Number.isFinite(timestamp))
+            return;
+        const traits = {};
+        for (const [key, value] of Object.entries(update.traits)) {
+            if (timestamp <= Math.max(this.snapshotTime, (_a = this.traitTimes.get(key)) !== null && _a !== void 0 ? _a : 0))
+                continue;
+            this.traitTimes.set(key, timestamp);
+            this.traitVersions.set(key, ((_b = this.traitVersions.get(key)) !== null && _b !== void 0 ? _b : 0) + 1);
+            traits[key] = value;
+        }
+        if (Object.keys(traits).length) {
+            this.event({ ...event, resourceUpdate: { ...update, traits } });
+        }
+    }
+    close() { this.stopped = true; }
     event(event) {
         if (event.resourceUpdate && event.resourceUpdate.traits) {
             const traitEvent = event;
             lodash_1.default.forEach(traitEvent.resourceUpdate.traits, (value, key) => {
-                if (this.device.traits && this.device.traits[key])
+                if (this.device.traits)
                     this.device.traits[key] = value;
             });
         }
@@ -27,23 +57,47 @@ class Device {
     getName() {
         return this.device.name;
     }
-    async refresh() {
+    refresh() {
+        if (this.stopped)
+            return Promise.resolve();
+        if (!this.refreshPromise) {
+            this.refreshPromise = this.fetchSnapshot().finally(() => { this.refreshPromise = undefined; });
+        }
+        return this.refreshPromise;
+    }
+    async fetchSnapshot() {
+        var _a, _b, _c;
+        const started = Date.now();
+        const versions = new Map(this.traitVersions);
         try {
-            const response = await this.smartdevicemanagement.enterprises.devices.get({ name: this.getName() });
-            this.log.debug(`Request for device info for ${this.getDisplayName()} had value ${JSON.stringify(response.data)}`);
-            this.device = response.data;
+            const response = await this.smartdevicemanagement.enterprises.devices.get({ name: this.getName() }, { timeout: 30000 });
+            if (this.stopped)
+                return;
+            const traits = {};
+            for (const [key, value] of Object.entries((_a = response.data.traits) !== null && _a !== void 0 ? _a : {})) {
+                // Preserve events received during this GET, including delayed ones.
+                if (versions.get(key) !== this.traitVersions.get(key) ||
+                    ((_b = this.traitTimes.get(key)) !== null && _b !== void 0 ? _b : 0) > started)
+                    continue;
+                if (!lodash_1.default.isEqual((_c = this.device.traits) === null || _c === void 0 ? void 0 : _c[key], value))
+                    traits[key] = value;
+            }
+            this.snapshotTime = Math.max(this.snapshotTime, started);
             this.lastRefresh = Date.now();
+            if (Object.keys(traits).length) {
+                this.event({ timestamp: new Date(started).toISOString(),
+                    resourceUpdate: { name: this.getName(), traits } });
+            }
         }
         catch (error) {
-            this.log.error('Could not execute device GET request: ', JSON.stringify(error), this.getDisplayName());
+            this.log.error('Could not refresh device:', error.message, this.getDisplayName());
         }
     }
     async getTrait(name) {
         var _a, _b;
         const howLongAgo = Date.now() - this.lastRefresh;
-        //Events will update traits as necessary
-        //no need to refresh more than once per day
-        if (howLongAgo > 1000 * 60 * 60 * 24) {
+        // Events provide low latency; reconciliation repairs missed events.
+        if (howLongAgo > 1000 * 60 * 5) {
             await this.refresh();
             this.log.debug(`Last refresh for ${this.getDisplayName()} was ${howLongAgo / 1000}s, refreshing.`);
         }

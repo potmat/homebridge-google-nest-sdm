@@ -33,8 +33,10 @@ const UnknownDevice_1 = require("./UnknownDevice");
 const Display_1 = require("./Display");
 class SmartDeviceManagement {
     constructor(config, log) {
-        this.subscribed = true;
+        this.stopped = false;
+        this.retryDelay = 1000;
         this.log = log;
+        this.subscriptionId = config.subscriptionId;
         this.oauth2Client = new google.Auth.OAuth2Client(config.clientId, config.clientSecret);
         this.projectId = config.projectId;
         this.oauth2Client.setCredentials({
@@ -58,12 +60,29 @@ class SmartDeviceManagement {
                     refresh_token: config.refreshToken
                 }
             });
-            this.subscription = this.pubSubClient.subscription(config.subscriptionId);
-            this.subscription.on('message', message => {
+            this.connect();
+        }
+        catch (error) {
+            this.log.error('Could not initialize event client:', error.message);
+        }
+        this.refreshTimer = setInterval(() => void this.refreshDevices(), 5 * 60 * 1000);
+        this.refreshTimer.unref();
+    }
+    connect() {
+        if (this.stopped || !this.pubSubClient)
+            return;
+        try {
+            const subscription = this.pubSubClient.subscription(this.subscriptionId);
+            this.subscription = subscription;
+            subscription.on('message', message => {
                 var _a;
-                message.ack();
-                if (!this.devices)
+                if (this.stopped || this.subscription !== subscription)
                     return;
+                this.retryDelay = 1000;
+                if (!this.devices) {
+                    message.nack();
+                    return;
+                }
                 this.log.debug('Event received: ' + message.data.toString());
                 // This callback runs asynchronously, long after the try/catch below
                 // has returned, so anything thrown here is an unhandled exception
@@ -86,34 +105,94 @@ class SmartDeviceManagement {
                         const resourceEventEvent = event;
                         const device = lodash_1.default.find(this.devices, device => device.getName() === resourceEventEvent.resourceUpdate.name);
                         if (device)
-                            device.event(resourceEventEvent);
+                            device.receiveEvent(resourceEventEvent);
                     }
                     else if (resourceUpdate.traits) {
                         const resourceTraitEvent = event;
                         const device = lodash_1.default.find(this.devices, device => device.getName() === resourceTraitEvent.resourceUpdate.name);
                         if (device)
-                            device.event(resourceTraitEvent);
+                            device.receiveEvent(resourceTraitEvent);
                     }
                 }
                 catch (error) {
                     this.log.error('Could not handle event: ', (_a = error === null || error === void 0 ? void 0 : error.message) !== null && _a !== void 0 ? _a : error);
                 }
+                finally {
+                    // Invalid payloads must not poison the queue. Periodic GETs repair traits.
+                    message.ack();
+                }
             });
-            this.subscription.on('error', error => {
-                this.log.error("Plugin initialization failed, there was a failure with event subscription. Did you read the readme: https://github.com/potmat/homebridge-google-nest-sdm#where-do-the-config-values-come-from", error);
-                this.subscribed = false;
+            subscription.on('error', error => {
+                if (this.stopped || this.subscription !== subscription)
+                    return;
+                this.log.error('Event subscription failed; reconnecting:', error.message);
+                this.scheduleReconnect();
+            });
+            subscription.on('close', () => {
+                if (this.subscription === subscription)
+                    this.scheduleReconnect();
             });
         }
         catch (error) {
-            this.log.error("Plugin initialization failed, there was a failure with event subscription. Did you read the readme: https://github.com/potmat/homebridge-google-nest-sdm#where-do-the-config-values-come-from", error);
-            this.subscribed = false;
+            this.log.error('Could not open event subscription:', error.message);
+            this.scheduleReconnect();
+        }
+    }
+    scheduleReconnect() {
+        if (this.stopped || this.reconnectTimer)
+            return;
+        const delay = this.retryDelay;
+        this.retryDelay = Math.min(this.retryDelay * 2, 60000);
+        this.reconnectTimer = setTimeout(async () => {
+            const old = this.subscription;
+            this.subscription = undefined;
+            try {
+                await (old === null || old === void 0 ? void 0 : old.close());
+            }
+            catch (error) {
+                this.log.warn('Could not close event subscription:', error.message);
+            }
+            this.reconnectTimer = undefined;
+            if (this.stopped)
+                return;
+            this.connect();
+            await this.refreshDevices();
+        }, delay);
+        this.reconnectTimer.unref();
+    }
+    refreshDevices() {
+        if (this.stopped || !this.devices)
+            return Promise.resolve();
+        if (!this.refreshPromise) {
+            this.refreshPromise = Promise.all(this.devices.map(device => device.refresh()))
+                .then(() => undefined)
+                .catch((error) => this.log.error('Device reconciliation failed:', error.message))
+                .finally(() => { this.refreshPromise = undefined; });
+        }
+        return this.refreshPromise;
+    }
+    async close() {
+        var _a, _b, _c;
+        this.stopped = true;
+        if (this.reconnectTimer)
+            clearTimeout(this.reconnectTimer);
+        if (this.refreshTimer)
+            clearInterval(this.refreshTimer);
+        (_a = this.devices) === null || _a === void 0 ? void 0 : _a.forEach(device => device.close());
+        try {
+            await ((_b = this.subscription) === null || _b === void 0 ? void 0 : _b.close());
+        }
+        finally {
+            await ((_c = this.pubSubClient) === null || _c === void 0 ? void 0 : _c.close());
         }
     }
     async list_devices() {
-        if (!this.subscribed)
+        if (this.devices)
             return this.devices;
         try {
-            const response = await this.smartdevicemanagement.enterprises.devices.list({ parent: `enterprises/${this.projectId}` });
+            const response = await this.smartdevicemanagement.enterprises.devices.list({ parent: `enterprises/${this.projectId}` }, { timeout: 30000 });
+            if (this.stopped)
+                return;
             this.log.debug('Receieved list of devices: ', response.data.devices);
             this.devices = (0, lodash_1.default)(response.data.devices)
                 .filter(device => device.name !== null)
