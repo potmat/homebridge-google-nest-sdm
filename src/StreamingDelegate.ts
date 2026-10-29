@@ -491,7 +491,10 @@ export abstract class StreamingDelegate<T extends CameraController> implements C
         : this.cameraRecordingConfiguration!.videoCodec.parameters.level === H264Level.LEVEL3_2 ? "3.2" : "3.1";
 
     const videoArgs: Array<string> = [
-      "-an",
+      // No "-an" here. HksvStreamer pushes audioOutputArgs BEFORE videoOutputArgs, so an
+      // unconditional -an at the head of videoArgs silently overrode the whole AAC-ELD block
+      // below and every HKSV clip was recorded mute. Audio is disabled from audioArgs instead,
+      // and only when the RecordingAudioActive characteristic actually says so.
       "-sn",
       "-dn",
       "-codec:v",
@@ -530,7 +533,10 @@ export abstract class StreamingDelegate<T extends CameraController> implements C
         throw new Error("Unsupported audio sample rate: " + this.cameraRecordingConfiguration!.audioCodec.samplerate);
     }
 
-    const audioArgs: Array<string> = this.controller?.recordingManagement?.recordingManagementService.getCharacteristic(this.platform.Characteristic.RecordingAudioActive)
+    // .value, not the Characteristic object: getCharacteristic() returns the object, which is
+    // always truthy, so this branch was taken regardless of the Home app's "Record Audio"
+    // setting. Moot while the -an above won, which is likely why it went unnoticed.
+    const audioArgs: Array<string> = this.controller?.recordingManagement?.recordingManagementService.getCharacteristic(this.platform.Characteristic.RecordingAudioActive)?.value
         ? [
           "-acodec", "libfdk_aac",
           ...(this.cameraRecordingConfiguration!.audioCodec.type === AudioRecordingCodecType.AAC_LC ?
@@ -540,7 +546,8 @@ export abstract class StreamingDelegate<T extends CameraController> implements C
           "-b:a", `${this.cameraRecordingConfiguration!.audioCodec.bitrate}k`,
           "-ac", `${this.cameraRecordingConfiguration!.audioCodec.audioChannels}`,
         ]
-        : [];
+        // Audio off is expressed HERE, where it can be conditional.
+        : ["-an"];
 
     const nestStreamer = await getStreamer(this.log, this.camera, this.config);
     const nestStream = await nestStreamer.initialize();

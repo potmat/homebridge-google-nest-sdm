@@ -353,7 +353,7 @@ class StreamingDelegate {
      *   when the HomeKit Controller requests it (see the documentation of `CameraRecordingDelegate`).
      */
     async *handleRecordingStreamRequest(streamId) {
-        var _a, _b, _c;
+        var _a, _b, _c, _d;
         this.log.debug('Recording request received.');
         if (!this.cameraRecordingConfiguration)
             throw new Error('No recording configuration for this camera.');
@@ -373,7 +373,10 @@ class StreamingDelegate {
         const level = this.cameraRecordingConfiguration.videoCodec.parameters.level === 2 /* LEVEL4_0 */ ? "4.0"
             : this.cameraRecordingConfiguration.videoCodec.parameters.level === 1 /* LEVEL3_2 */ ? "3.2" : "3.1";
         const videoArgs = [
-            "-an",
+            // No "-an" here. HksvStreamer pushes audioOutputArgs BEFORE videoOutputArgs, so an
+            // unconditional -an at the head of videoArgs silently overrode the whole AAC-ELD block
+            // below and every HKSV clip was recorded mute. Audio is disabled from audioArgs instead,
+            // and only when the RecordingAudioActive characteristic actually says so.
             "-sn",
             "-dn",
             "-codec:v",
@@ -409,7 +412,10 @@ class StreamingDelegate {
             default:
                 throw new Error("Unsupported audio sample rate: " + this.cameraRecordingConfiguration.audioCodec.samplerate);
         }
-        const audioArgs = ((_b = (_a = this.controller) === null || _a === void 0 ? void 0 : _a.recordingManagement) === null || _b === void 0 ? void 0 : _b.recordingManagementService.getCharacteristic(this.platform.Characteristic.RecordingAudioActive))
+        // .value, not the Characteristic object: getCharacteristic() returns the object, which is
+        // always truthy, so this branch was taken regardless of the Home app's "Record Audio"
+        // setting. Moot while the -an above won, which is likely why it went unnoticed.
+        const audioArgs = ((_c = (_b = (_a = this.controller) === null || _a === void 0 ? void 0 : _a.recordingManagement) === null || _b === void 0 ? void 0 : _b.recordingManagementService.getCharacteristic(this.platform.Characteristic.RecordingAudioActive)) === null || _c === void 0 ? void 0 : _c.value)
             ? [
                 "-acodec", "libfdk_aac",
                 ...(this.cameraRecordingConfiguration.audioCodec.type === 0 /* AAC_LC */ ?
@@ -419,7 +425,8 @@ class StreamingDelegate {
                 "-b:a", `${this.cameraRecordingConfiguration.audioCodec.bitrate}k`,
                 "-ac", `${this.cameraRecordingConfiguration.audioCodec.audioChannels}`,
             ]
-            : [];
+            // Audio off is expressed HERE, where it can be conditional.
+            : ["-an"];
         const nestStreamer = await (0, NestStreamer_1.getStreamer)(this.log, this.camera, this.config);
         const nestStream = await nestStreamer.initialize();
         const hksvStreamer = new HksvStreamer_1.default(this.log, nestStream, audioArgs, videoArgs, this.platform.debugMode);
@@ -445,7 +452,7 @@ class StreamingDelegate {
         try {
             for await (const box of this.recordingSessionInfo.hksvStreamer.generator()) {
                 pending.push(box.header, box.data);
-                const motionDetected = (_c = this.accessory.getService(this.hap.Service.MotionSensor)) === null || _c === void 0 ? void 0 : _c.getCharacteristic(this.platform.Characteristic.MotionDetected).value;
+                const motionDetected = (_d = this.accessory.getService(this.hap.Service.MotionSensor)) === null || _d === void 0 ? void 0 : _d.getCharacteristic(this.platform.Characteristic.MotionDetected).value;
                 this.log.debug("mp4 box type " + box.type + " and length " + box.length);
                 if (box.type === "moov" || box.type === "mdat") {
                     const fragment = Buffer.concat(pending);
