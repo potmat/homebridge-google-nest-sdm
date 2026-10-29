@@ -277,8 +277,15 @@ class WebRtcNestStreamer extends NestStreamer {
         // returns as soon as it has codec parameters, while the full analyzeduration
         // window remains available for a late keyframe. Video is stream-copied, so fps
         // metadata is never used downstream.
+        //
+        // -max_ts_probe 0: with codec parameters already in hand, find_stream_info
+        // still kept reading until the H.264 parser produced a packet with a dts,
+        // about 7 frames in (~0.5s at 15fps), before FFmpeg sent anything. Skipping
+        // that wait starts output at the first frame after the keyframe, with the same
+        // output packets and timestamps (checked on FFmpeg 6.0 and 8.0). A late
+        // keyframe is still waited for, since codec parameters are still required.
         return {
-            args: `-protocol_whitelist pipe,crypto,udp,rtp,fd -analyzeduration ${(_b = this.config.analyzeDuration) !== null && _b !== void 0 ? _b : 15000000} -probesize ${(_c = this.config.probeSize) !== null && _c !== void 0 ? _c : 100000000} -fpsprobesize 0 -i -`,
+            args: `-protocol_whitelist pipe,crypto,udp,rtp,fd -analyzeduration ${(_b = this.config.analyzeDuration) !== null && _b !== void 0 ? _b : 15000000} -probesize ${(_c = this.config.probeSize) !== null && _c !== void 0 ? _c : 100000000} -fpsprobesize 0 -max_ts_probe 0 -i -`,
             stdin: `v=0
 o=- 0 0 IN IP4 127.0.0.1
 s=-
