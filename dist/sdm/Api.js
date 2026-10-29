@@ -25,6 +25,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.SmartDeviceManagement = void 0;
 const lodash_1 = __importDefault(require("lodash"));
 const google = __importStar(require("googleapis"));
+const ApiError_1 = require("./ApiError");
 const pubsub = __importStar(require("@google-cloud/pubsub"));
 const Camera_1 = require("./Camera");
 const Doorbell_1 = require("./Doorbell");
@@ -134,7 +135,7 @@ class SmartDeviceManagement {
                 .value();
         }
         catch (error) {
-            this.log.error('Could not execute device LIST request: ', JSON.stringify(error));
+            this.log.error(`Could not execute device LIST request: ${(0, ApiError_1.describeApiError)(error)}`);
         }
         return this.devices;
     }

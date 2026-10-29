@@ -1,5 +1,6 @@
 import _ from 'lodash';
 import * as google from 'googleapis';
+import {describeApiError} from "./ApiError";
 import * as pubsub from '@google-cloud/pubsub';
 import {Logger} from 'homebridge';
 import {Config} from "../Config";
@@ -132,7 +133,7 @@ export class SmartDeviceManagement {
                 })
                 .value();
         } catch (error: any) {
-            this.log.error('Could not execute device LIST request: ', JSON.stringify(error));
+            this.log.error(`Could not execute device LIST request: ${describeApiError(error)}`);
         }
 
         return this.devices;

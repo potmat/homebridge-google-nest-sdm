@@ -5,6 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Device = void 0;
 const lodash_1 = __importDefault(require("lodash"));
+const ApiError_1 = require("./ApiError");
 class Device {
     constructor(smartdevicemanagement, device, log) {
         this.smartdevicemanagement = smartdevicemanagement;
@@ -35,7 +36,12 @@ class Device {
             this.lastRefresh = Date.now();
         }
         catch (error) {
-            this.log.error('Could not execute device GET request: ', JSON.stringify(error), this.getDisplayName());
+            if ((0, ApiError_1.isRateLimited)(error)) {
+                this.log.error(`Google rate-limited the GetDevice API (HTTP 429). Device state is refreshed periodically; the cached state is used until this clears — usually within a minute.`, this.getDisplayName());
+            }
+            else {
+                this.log.error(`Could not execute device GET request: ${(0, ApiError_1.describeApiError)(error)}`, this.getDisplayName());
+            }
         }
     }
     async getTrait(name) {
@@ -52,7 +58,7 @@ class Device {
         return value;
     }
     async executeCommand(name, params) {
-        var _a, _b;
+        var _a;
         this.log.debug(`Executing command ${name} with parameters ${JSON.stringify(params)}`, this.getDisplayName());
         try {
             const response = await this.smartdevicemanagement.enterprises.devices.executeCommand({
@@ -66,16 +72,11 @@ class Device {
             return response.data.results;
         }
         catch (error) {
-            const serializedError = JSON.stringify(error) || '';
-            const isRateLimited = ((_b = error === null || error === void 0 ? void 0 : error.response) === null || _b === void 0 ? void 0 : _b.status) === 429
-                || (error === null || error === void 0 ? void 0 : error.code) === 429
-                || serializedError.includes('RESOURCE_EXHAUSTED')
-                || serializedError.includes('Rate limited');
-            if (isRateLimited) {
+            if ((0, ApiError_1.isRateLimited)(error)) {
                 this.log.error(`Google rate-limited the ${name} command (HTTP 429). Too many camera commands in a short period — wait about a minute before retrying.`, this.getDisplayName());
             }
             else {
-                this.log.error('Could not execute device command: ', JSON.stringify(error), this.getDisplayName());
+                this.log.error(`Could not execute device command: ${(0, ApiError_1.describeApiError)(error)}`, this.getDisplayName());
             }
         }
         return undefined;
