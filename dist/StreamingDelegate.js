@@ -372,20 +372,6 @@ class StreamingDelegate {
             : this.cameraRecordingConfiguration.videoCodec.parameters.profile === 1 /* MAIN */ ? "main" : "baseline";
         const level = this.cameraRecordingConfiguration.videoCodec.parameters.level === 2 /* LEVEL4_0 */ ? "4.0"
             : this.cameraRecordingConfiguration.videoCodec.parameters.level === 1 /* LEVEL3_2 */ ? "3.2" : "3.1";
-        const videoArgs = [
-            "-an",
-            "-sn",
-            "-dn",
-            "-codec:v",
-            "libx264",
-            "-pix_fmt",
-            "yuv420p",
-            "-profile:v", profile,
-            "-level:v", level,
-            "-b:v", `${this.cameraRecordingConfiguration.videoCodec.parameters.bitRate}k`,
-            "-force_key_frames", `expr:eq(t,n_forced*${this.cameraRecordingConfiguration.videoCodec.parameters.iFrameInterval / 1000})`,
-            "-r", this.cameraRecordingConfiguration.videoCodec.resolution[2].toString(),
-        ];
         let samplerate;
         switch (this.cameraRecordingConfiguration.audioCodec.samplerate) {
             case 0 /* KHZ_8 */:
@@ -422,6 +408,46 @@ class StreamingDelegate {
             : [];
         const nestStreamer = await (0, NestStreamer_1.getStreamer)(this.log, this.camera, this.config);
         const nestStream = await nestStreamer.initialize();
+        // Copy the camera's H.264 rather than re-encoding it, on the WebRTC path.
+        //
+        // hap-nodejs never inspects the delivered media -- RecordingManagement chunks each
+        // fragment and ships it -- and this recording path has never honoured the negotiated
+        // resolution either, so the hub has been accepting un-validated media for years.
+        // `-movflags frag_keyframe` (added by HksvStreamer) still starts every fragment on a
+        // keyframe, and fragmentLength is documented as a maximum, so the source's own IDR
+        // cadence is within contract.
+        //
+        // Gated on the streamer actually constructed rather than a second getVideoProtocol()
+        // call: that keeps the decision definitionally consistent with the stream fed to ffmpeg,
+        // and avoids a second trait lookup that would retry a failed SDM refresh inside the
+        // recording hot path.
+        //
+        // RTSP cameras keep transcoding. WebRtcNestStreamer runs a FIR/PLI keyframe-request loop
+        // that holds the IDR interval near 2s; RtspNestStreamer has no such mechanism and the
+        // Nest RTSP IDR cadence is unverified. If it exceeded the negotiated fragmentLength,
+        // copied fragments would breach the one limit `-force_key_frames` was guaranteeing, so
+        // that branch keeps the encoder until someone can measure it.
+        const videoArgs = nestStreamer instanceof NestStreamer_1.WebRtcNestStreamer
+            ? [
+                "-an",
+                "-sn",
+                "-dn",
+                "-codec:v", "copy",
+            ]
+            : [
+                "-an",
+                "-sn",
+                "-dn",
+                "-codec:v",
+                "libx264",
+                "-pix_fmt",
+                "yuv420p",
+                "-profile:v", profile,
+                "-level:v", level,
+                "-b:v", `${this.cameraRecordingConfiguration.videoCodec.parameters.bitRate}k`,
+                "-force_key_frames", `expr:eq(t,n_forced*${this.cameraRecordingConfiguration.videoCodec.parameters.iFrameInterval / 1000})`,
+                "-r", this.cameraRecordingConfiguration.videoCodec.resolution[2].toString(),
+            ];
         const hksvStreamer = new HksvStreamer_1.default(this.log, nestStream, audioArgs, videoArgs, this.platform.debugMode);
         // Tear down any prior recording session before overwriting it. A HomeKit hub
         // can start a new recording (e.g. after a brief reconnect) before the previous
