@@ -3,9 +3,9 @@ module.exports = (homebridge) => {
     var _a;
     return _a = class EcoMode extends homebridge.hap.Characteristic {
             constructor() {
-                super('Eco', EcoMode.UUID, {
-                    format: "bool" /* BOOL */,
-                    perms: ["pw" /* PAIRED_WRITE */, "pr" /* PAIRED_READ */, "ev" /* NOTIFY */]
+                super('Eco', _a.UUID, {
+                    format: "bool" /* Formats.BOOL */,
+                    perms: ["pw" /* Perms.PAIRED_WRITE */, "pr" /* Perms.PAIRED_READ */, "ev" /* Perms.NOTIFY */]
                 });
                 this.value = this.getDefaultValue();
             }

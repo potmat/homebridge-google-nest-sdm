@@ -58,11 +58,10 @@ class Device {
         return value;
     }
     async executeCommand(name, params) {
-        var _a;
         this.log.debug(`Executing command ${name} with parameters ${JSON.stringify(params)}`, this.getDisplayName());
         try {
             const response = await this.smartdevicemanagement.enterprises.devices.executeCommand({
-                name: ((_a = this.device) === null || _a === void 0 ? void 0 : _a.name) || undefined,
+                name: this.getName(),
                 requestBody: {
                     command: name,
                     params: params
