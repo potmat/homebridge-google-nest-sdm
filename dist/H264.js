@@ -7,7 +7,8 @@
  * keyframe instead of waiting for the camera's periodic parameter sets.
  */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.containsKeyframe = exports.buildFirFeedback = void 0;
+exports.buildFirFeedback = buildFirFeedback;
+exports.containsKeyframe = containsKeyframe;
 const NAL_TYPE_IDR = 5;
 const NAL_TYPE_STAP_A = 24;
 const NAL_TYPE_FU_A = 28;
@@ -40,7 +41,6 @@ function buildFirFeedback(senderSsrc, mediaSsrc, sequenceNumber) {
         serialize: () => buf
     };
 }
-exports.buildFirFeedback = buildFirFeedback;
 /**
  * Whether an H.264 RTP payload carries (the start of) an IDR keyframe — the
  * first decodable picture FFmpeg can actually emit. Used only for diagnostics
@@ -72,5 +72,4 @@ function containsKeyframe(payload) {
     }
     return false;
 }
-exports.containsKeyframe = containsKeyframe;
 //# sourceMappingURL=H264.js.map

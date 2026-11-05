@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Node ${{ matrix.node-version }} / Homebridge ${{ matrix.homebridge-version }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version:
+          - 22.12.0
+          - 24
+          - 26
+        homebridge-version:
+          - 1.11.4
+          - 2.5.0
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Select Homebridge version
+        run: npm install --no-save --ignore-scripts "homebridge@${{ matrix.homebridge-version }}"
+
+      - name: Build and test
+        run: npm test

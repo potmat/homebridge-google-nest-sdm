@@ -18,7 +18,6 @@ import {
   StreamRequestCallback,
   StreamRequestTypes, VideoInfo
 } from 'homebridge';
-import { VideoCodecType } from 'hap-nodejs'
 import {createSocket, Socket} from 'dgram';
 import os from 'os';
 import {networkInterfaceDefault} from 'systeminformation';
@@ -29,6 +28,11 @@ import {getStreamer, NestStream, NestStreamer} from "./NestStreamer";
 import {Platform} from "./Platform";
 import HksvStreamer from "./HksvStreamer";
 import pickPort, { pickPortOptions } from 'pick-port';
+
+// H.264 is codec type 0 in both HAP-NodeJS generations. Keeping the value
+// local avoids a runtime dependency on the retired `hap-nodejs` package while
+// remaining compatible with Homebridge 1 and 2.
+const H264_VIDEO_CODEC_TYPE = 0;
 
 type SessionInfo = {
   address: string; // address of the HAP controller
@@ -133,7 +137,7 @@ export abstract class StreamingDelegate<T extends CameraController> implements C
             fragmentLength: 4000,
           },
           video: {
-            type: VideoCodecType.H264,
+            type: H264_VIDEO_CODEC_TYPE,
             parameters: {
               profiles: [H264Profile.HIGH],
               levels: [H264Level.LEVEL4_0],
@@ -261,8 +265,11 @@ export abstract class StreamingDelegate<T extends CameraController> implements C
       audioSSRC: audioSSRC
     };
 
-    const response: PrepareStreamResponse = {
+    // Homebridge 1 reads `address`; Homebridge 2 renamed it to
+    // `addressOverride`. Include both so one build works with either runtime.
+    const response = {
       address: currentAddress,
+      addressOverride: currentAddress,
       video: {
         port: videoReturnPort,
         ssrc: videoSSRC,
@@ -277,7 +284,7 @@ export abstract class StreamingDelegate<T extends CameraController> implements C
         srtp_key: request.audio.srtp_key,
         srtp_salt: request.audio.srtp_salt
       }
-    };
+    } as PrepareStreamResponse & { address: string };
 
     this.pendingSessions[request.sessionID] = sessionInfo;
     callback(undefined, response);
@@ -481,7 +488,7 @@ export abstract class StreamingDelegate<T extends CameraController> implements C
 
     this.handlingRecordingStreamingRequest = true;
 
-    if (this.cameraRecordingConfiguration.videoCodec.type !== VideoCodecType.H264)
+    if (this.cameraRecordingConfiguration.videoCodec.type !== H264_VIDEO_CODEC_TYPE)
       throw new Error('Unsupported recording codec type.');
 
     const profile = this.cameraRecordingConfiguration!.videoCodec.parameters.profile === H264Profile.HIGH ? "high"

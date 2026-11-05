@@ -11,6 +11,10 @@ const FfMpegProcess_1 = require("./FfMpegProcess");
 const NestStreamer_1 = require("./NestStreamer");
 const HksvStreamer_1 = __importDefault(require("./HksvStreamer"));
 const pick_port_1 = __importDefault(require("pick-port"));
+// H.264 is codec type 0 in both HAP-NodeJS generations. Keeping the value
+// local avoids a runtime dependency on the retired `hap-nodejs` package while
+// remaining compatible with Homebridge 1 and 2.
+const H264_VIDEO_CODEC_TYPE = 0;
 class StreamingDelegate {
     constructor(log, api, platform, camera, accessory) {
         // keep track of sessions
@@ -23,29 +27,29 @@ class StreamingDelegate {
         this.config = platform.platformConfig;
         this.camera = camera;
         this.accessory = accessory;
-        api.on("shutdown" /* SHUTDOWN */, () => {
+        api.on("shutdown" /* APIEvent.SHUTDOWN */, () => {
             for (const session in this.ongoingSessions) {
                 this.stopStream(session);
             }
         });
         this.options = {
-            cameraStreamCount: camera.getResolutions().length,
+            cameraStreamCount: camera.getResolutions().length, // HomeKit requires at least 2 streams, but 1 is also just fine
             delegate: this,
             streamingOptions: {
-                supportedCryptoSuites: [0 /* AES_CM_128_HMAC_SHA1_80 */],
+                supportedCryptoSuites: [0 /* this.hap.SRTPCryptoSuites.AES_CM_128_HMAC_SHA1_80 */],
                 video: {
                     resolutions: camera.getResolutions(),
                     codec: {
-                        profiles: [1 /* MAIN */],
-                        levels: [0 /* LEVEL3_1 */]
+                        profiles: [1 /* this.hap.H264Profile.MAIN */],
+                        levels: [0 /* this.hap.H264Level.LEVEL3_1 */]
                     }
                 },
                 audio: {
                     twoWayAudio: false,
                     codecs: [
                         {
-                            type: "AAC-eld" /* AAC_ELD */,
-                            samplerate: 16 /* KHZ_16 */,
+                            type: "AAC-eld" /* AudioStreamingCodecType.AAC_ELD */,
+                            samplerate: 16 /* AudioStreamingSamplerate.KHZ_16 */,
                             audioChannels: 1
                         }
                     ]
@@ -56,14 +60,14 @@ class StreamingDelegate {
                 options: {
                     prebufferLength: 4000,
                     mediaContainerConfiguration: {
-                        type: 0 /* FRAGMENTED_MP4 */,
+                        type: 0 /* MediaContainerType.FRAGMENTED_MP4 */,
                         fragmentLength: 4000,
                     },
                     video: {
-                        type: 0 /* H264 */,
+                        type: H264_VIDEO_CODEC_TYPE,
                         parameters: {
-                            profiles: [2 /* HIGH */],
-                            levels: [2 /* LEVEL4_0 */],
+                            profiles: [2 /* H264Profile.HIGH */],
+                            levels: [2 /* H264Level.LEVEL4_0 */],
                         },
                         resolutions: [
                             [320, 180, 30],
@@ -81,10 +85,10 @@ class StreamingDelegate {
                     },
                     audio: {
                         codecs: {
-                            type: 1 /* AAC_ELD */,
+                            type: 1 /* AudioRecordingCodecType.AAC_ELD */,
                             audioChannels: 1,
-                            samplerate: 5 /* KHZ_48 */,
-                            bitrateMode: 0 /* VARIABLE */,
+                            samplerate: 5 /* AudioRecordingSamplerate.KHZ_48 */,
+                            bitrateMode: 0 /* AudioBitrate.VARIABLE */,
                         },
                     },
                 }
@@ -169,8 +173,11 @@ class StreamingDelegate {
             audioSRTP: Buffer.concat([request.audio.srtp_key, request.audio.srtp_salt]),
             audioSSRC: audioSSRC
         };
+        // Homebridge 1 reads `address`; Homebridge 2 renamed it to
+        // `addressOverride`. Include both so one build works with either runtime.
         const response = {
             address: currentAddress,
+            addressOverride: currentAddress,
             video: {
                 port: videoReturnPort,
                 ssrc: videoSSRC,
@@ -275,14 +282,14 @@ class StreamingDelegate {
     }
     async handleStreamRequest(request, callback) {
         switch (request.type) {
-            case "start" /* START */:
+            case "start" /* StreamRequestTypes.START */:
                 this.startStream(request, callback);
                 break;
-            case "reconfigure" /* RECONFIGURE */:
+            case "reconfigure" /* StreamRequestTypes.RECONFIGURE */:
                 this.log.debug(`Received request to reconfigure: ${request.video.width} x ${request.video.height}, ${request.video.fps} fps, ${request.video.max_bit_rate} kbps (Ignored)`, this.camera.getDisplayName());
                 callback();
                 break;
-            case "stop" /* STOP */:
+            case "stop" /* StreamRequestTypes.STOP */:
                 await this.stopStream(request.sessionID);
                 callback();
                 break;
@@ -366,12 +373,12 @@ class StreamingDelegate {
          */
         const STOP_AFTER_MOTION_STOP = false;
         this.handlingRecordingStreamingRequest = true;
-        if (this.cameraRecordingConfiguration.videoCodec.type !== 0 /* H264 */)
+        if (this.cameraRecordingConfiguration.videoCodec.type !== H264_VIDEO_CODEC_TYPE)
             throw new Error('Unsupported recording codec type.');
-        const profile = this.cameraRecordingConfiguration.videoCodec.parameters.profile === 2 /* HIGH */ ? "high"
-            : this.cameraRecordingConfiguration.videoCodec.parameters.profile === 1 /* MAIN */ ? "main" : "baseline";
-        const level = this.cameraRecordingConfiguration.videoCodec.parameters.level === 2 /* LEVEL4_0 */ ? "4.0"
-            : this.cameraRecordingConfiguration.videoCodec.parameters.level === 1 /* LEVEL3_2 */ ? "3.2" : "3.1";
+        const profile = this.cameraRecordingConfiguration.videoCodec.parameters.profile === 2 /* H264Profile.HIGH */ ? "high"
+            : this.cameraRecordingConfiguration.videoCodec.parameters.profile === 1 /* H264Profile.MAIN */ ? "main" : "baseline";
+        const level = this.cameraRecordingConfiguration.videoCodec.parameters.level === 2 /* H264Level.LEVEL4_0 */ ? "4.0"
+            : this.cameraRecordingConfiguration.videoCodec.parameters.level === 1 /* H264Level.LEVEL3_2 */ ? "3.2" : "3.1";
         const videoArgs = [
             "-an",
             "-sn",
@@ -388,22 +395,22 @@ class StreamingDelegate {
         ];
         let samplerate;
         switch (this.cameraRecordingConfiguration.audioCodec.samplerate) {
-            case 0 /* KHZ_8 */:
+            case 0 /* AudioRecordingSamplerate.KHZ_8 */:
                 samplerate = "8";
                 break;
-            case 1 /* KHZ_16 */:
+            case 1 /* AudioRecordingSamplerate.KHZ_16 */:
                 samplerate = "16";
                 break;
-            case 2 /* KHZ_24 */:
+            case 2 /* AudioRecordingSamplerate.KHZ_24 */:
                 samplerate = "24";
                 break;
-            case 3 /* KHZ_32 */:
+            case 3 /* AudioRecordingSamplerate.KHZ_32 */:
                 samplerate = "32";
                 break;
-            case 4 /* KHZ_44_1 */:
+            case 4 /* AudioRecordingSamplerate.KHZ_44_1 */:
                 samplerate = "44.1";
                 break;
-            case 5 /* KHZ_48 */:
+            case 5 /* AudioRecordingSamplerate.KHZ_48 */:
                 samplerate = "48";
                 break;
             default:
@@ -412,7 +419,7 @@ class StreamingDelegate {
         const audioArgs = ((_b = (_a = this.controller) === null || _a === void 0 ? void 0 : _a.recordingManagement) === null || _b === void 0 ? void 0 : _b.recordingManagementService.getCharacteristic(this.platform.Characteristic.RecordingAudioActive))
             ? [
                 "-acodec", "libfdk_aac",
-                ...(this.cameraRecordingConfiguration.audioCodec.type === 0 /* AAC_LC */ ?
+                ...(this.cameraRecordingConfiguration.audioCodec.type === 0 /* AudioRecordingCodecType.AAC_LC */ ?
                     ["-profile:a", "aac_low"] :
                     ["-profile:a", "aac_eld"]),
                 "-ar", `${samplerate}k`,

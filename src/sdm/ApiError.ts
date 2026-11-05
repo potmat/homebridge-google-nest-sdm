@@ -36,6 +36,40 @@ export function describeApiError(error: any): string {
     return parts.length > 0 ? parts.join(': ') : 'unknown error';
 }
 
+const GRPC_STATUS_NAMES: Record<number, string> = {
+    0: 'OK',
+    1: 'CANCELLED',
+    2: 'UNKNOWN',
+    3: 'INVALID_ARGUMENT',
+    4: 'DEADLINE_EXCEEDED',
+    5: 'NOT_FOUND',
+    6: 'ALREADY_EXISTS',
+    7: 'PERMISSION_DENIED',
+    8: 'RESOURCE_EXHAUSTED',
+    9: 'FAILED_PRECONDITION',
+    10: 'ABORTED',
+    11: 'OUT_OF_RANGE',
+    12: 'UNIMPLEMENTED',
+    13: 'INTERNAL',
+    14: 'UNAVAILABLE',
+    15: 'DATA_LOSS',
+    16: 'UNAUTHENTICATED'
+};
+
+/**
+ * A short, credential-free description of a Pub/Sub gRPC error.
+ */
+export function describePubSubError(error: any): string {
+    const numericCode = typeof error?.code === 'number' ? error.code : undefined;
+    const code = numericCode === undefined
+        ? undefined
+        : `gRPC ${numericCode} ${GRPC_STATUS_NAMES[numericCode] ?? 'UNKNOWN'}`;
+    const message = error?.details ?? error?.message;
+    const parts = [code, message ? String(message).slice(0, 300) : undefined]
+        .filter((part): part is string => Boolean(part));
+    return parts.length > 0 ? parts.join(': ') : 'unknown error';
+}
+
 // The human-readable message Google returns in the response body, from either
 // the REST error envelope ({error:{message}}) or the errors[] array. Returns
 // undefined when neither is present so callers can fall back to error.message.

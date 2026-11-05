@@ -15,51 +15,51 @@ var Constants;
     Constants["Settings"] = "sdm.devices.traits.Settings";
     Constants["CameraImage"] = "sdm.devices.traits.CameraImage";
     Constants["CameraLiveStream"] = "sdm.devices.traits.CameraLiveStream";
-})(Constants = exports.Constants || (exports.Constants = {}));
+})(Constants || (exports.Constants = Constants = {}));
 var ConnectivityStatusType;
 (function (ConnectivityStatusType) {
     ConnectivityStatusType["ONLINE"] = "ONLINE";
     ConnectivityStatusType["OFFLINE"] = "OFFLINE";
-})(ConnectivityStatusType = exports.ConnectivityStatusType || (exports.ConnectivityStatusType = {}));
+})(ConnectivityStatusType || (exports.ConnectivityStatusType = ConnectivityStatusType = {}));
 var FanTimerModeType;
 (function (FanTimerModeType) {
     FanTimerModeType["ON"] = "ON";
     FanTimerModeType["OFF"] = "OFF";
-})(FanTimerModeType = exports.FanTimerModeType || (exports.FanTimerModeType = {}));
+})(FanTimerModeType || (exports.FanTimerModeType = FanTimerModeType = {}));
 var ThermostatModeType;
 (function (ThermostatModeType) {
     ThermostatModeType["HEAT"] = "HEAT";
     ThermostatModeType["COOL"] = "COOL";
     ThermostatModeType["HEATCOOL"] = "HEATCOOL";
     ThermostatModeType["OFF"] = "OFF";
-})(ThermostatModeType = exports.ThermostatModeType || (exports.ThermostatModeType = {}));
+})(ThermostatModeType || (exports.ThermostatModeType = ThermostatModeType = {}));
 var HvacStatusType;
 (function (HvacStatusType) {
     HvacStatusType["OFF"] = "OFF";
     HvacStatusType["HEATING"] = "HEATING";
     HvacStatusType["COOLING"] = "COOLING";
-})(HvacStatusType = exports.HvacStatusType || (exports.HvacStatusType = {}));
+})(HvacStatusType || (exports.HvacStatusType = HvacStatusType = {}));
 var EcoModeType;
 (function (EcoModeType) {
     EcoModeType["MANUAL_ECO"] = "MANUAL_ECO";
     EcoModeType["OFF"] = "OFF";
-})(EcoModeType = exports.EcoModeType || (exports.EcoModeType = {}));
+})(EcoModeType || (exports.EcoModeType = EcoModeType = {}));
 var TemperatureScale;
 (function (TemperatureScale) {
     TemperatureScale["CELSIUS"] = "CELSIUS";
     TemperatureScale["FAHRENHEIT"] = "FAHRENHEIT";
-})(TemperatureScale = exports.TemperatureScale || (exports.TemperatureScale = {}));
+})(TemperatureScale || (exports.TemperatureScale = TemperatureScale = {}));
 var VideoCodecType;
 (function (VideoCodecType) {
     VideoCodecType["H264"] = "H264";
-})(VideoCodecType = exports.VideoCodecType || (exports.VideoCodecType = {}));
+})(VideoCodecType || (exports.VideoCodecType = VideoCodecType = {}));
 var AudioCodecType;
 (function (AudioCodecType) {
     AudioCodecType["AAC"] = "AAC";
-})(AudioCodecType = exports.AudioCodecType || (exports.AudioCodecType = {}));
+})(AudioCodecType || (exports.AudioCodecType = AudioCodecType = {}));
 var ProtocolType;
 (function (ProtocolType) {
     ProtocolType["RTSP"] = "RTSP";
     ProtocolType["WEB_RTC"] = "WEB_RTC";
-})(ProtocolType = exports.ProtocolType || (exports.ProtocolType = {}));
+})(ProtocolType || (exports.ProtocolType = ProtocolType = {}));
 //# sourceMappingURL=Traits.js.map
