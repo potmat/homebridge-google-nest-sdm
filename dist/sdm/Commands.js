@@ -14,5 +14,5 @@ var Constants;
     Constants["CameraLiveStream_GenerateWebRtcStream"] = "sdm.devices.commands.CameraLiveStream.GenerateWebRtcStream";
     Constants["CameraLiveStream_StopWebRtcStream"] = "sdm.devices.commands.CameraLiveStream.StopWebRtcStream";
     Constants["CameraEventImage_GenerateImage"] = "sdm.devices.commands.CameraEventImage.GenerateImage";
-})(Constants = exports.Constants || (exports.Constants = {}));
+})(Constants || (exports.Constants = Constants = {}));
 //# sourceMappingURL=Commands.js.map

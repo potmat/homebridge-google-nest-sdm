@@ -63,6 +63,10 @@ export class Platform implements DynamicPlatformPlugin {
             this.discoverDevices();
         });
 
+        this.api.on('shutdown', () => {
+            void this.smartDeviceManagement?.close();
+        });
+
         this.Characteristic = Object.defineProperty(this.api.hap.Characteristic, 'EcoMode', {value: this.EcoMode});
     }
 
