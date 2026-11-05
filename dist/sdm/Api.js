@@ -46,6 +46,7 @@ const Doorbell_1 = require("./Doorbell");
 const Thermostat_1 = require("./Thermostat");
 const UnknownDevice_1 = require("./UnknownDevice");
 const Display_1 = require("./Display");
+const PubSubAuth_1 = require("./PubSubAuth");
 class SmartDeviceManagement {
     constructor(config, log) {
         this.subscribed = true;
@@ -62,16 +63,7 @@ class SmartDeviceManagement {
             this.pubSubClient = new pubsub.PubSub({
                 //use GCP project ID if it's present
                 projectId: config.gcpProjectId || config.projectId,
-                credentials: {
-                    // @ts-ignore
-                    type: 'authorized_user',
-                    // @ts-ignore
-                    client_id: config.clientId,
-                    // @ts-ignore
-                    client_secret: config.clientSecret,
-                    // @ts-ignore
-                    refresh_token: config.refreshToken
-                }
+                auth: (0, PubSubAuth_1.createPubSubAuth)(config)
             });
             this.subscription = this.pubSubClient.subscription(config.subscriptionId);
             this.subscription.on('message', message => {
@@ -85,7 +77,7 @@ class SmartDeviceManagement {
                 // rather than a caught one. The payload is external input we do not
                 // control, so no single malformed message may take down the bridge.
                 try {
-                    const event = JSON.parse(message.data);
+                    const event = JSON.parse(message.data.toString());
                     // Relation updates (a device added to, removed from, or moved
                     // between structures/rooms) carry a relationUpdate and NO
                     // resourceUpdate. Reading resourceUpdate.events on one of those
@@ -115,13 +107,31 @@ class SmartDeviceManagement {
                 }
             });
             this.subscription.on('error', error => {
-                this.log.error("Plugin initialization failed, there was a failure with event subscription. Did you read the readme: https://github.com/potmat/homebridge-google-nest-sdm#where-do-the-config-values-come-from", error);
+                this.log.error(`Plugin initialization failed, there was a failure with event subscription: ${(0, ApiError_1.describePubSubError)(error)}. Did you read the readme: https://github.com/potmat/homebridge-google-nest-sdm#where-do-the-config-values-come-from`);
                 this.subscribed = false;
             });
         }
         catch (error) {
-            this.log.error("Plugin initialization failed, there was a failure with event subscription. Did you read the readme: https://github.com/potmat/homebridge-google-nest-sdm#where-do-the-config-values-come-from", error);
+            this.log.error(`Plugin initialization failed, there was a failure with event subscription: ${(0, ApiError_1.describePubSubError)(error)}. Did you read the readme: https://github.com/potmat/homebridge-google-nest-sdm#where-do-the-config-values-come-from`);
             this.subscribed = false;
+        }
+    }
+    async close() {
+        const subscription = this.subscription;
+        const pubSubClient = this.pubSubClient;
+        this.subscription = undefined;
+        this.pubSubClient = undefined;
+        try {
+            await (subscription === null || subscription === void 0 ? void 0 : subscription.close());
+        }
+        catch (error) {
+            this.log.warn(`Could not close the event subscription cleanly: ${(0, ApiError_1.describePubSubError)(error)}`);
+        }
+        try {
+            await (pubSubClient === null || pubSubClient === void 0 ? void 0 : pubSubClient.close());
+        }
+        catch (error) {
+            this.log.warn(`Could not close the Pub/Sub client cleanly: ${(0, ApiError_1.describePubSubError)(error)}`);
         }
     }
     async list_devices() {

@@ -11,6 +11,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.isRateLimited = isRateLimited;
 exports.describeApiError = describeApiError;
+exports.describePubSubError = describePubSubError;
 /**
  * True when an error is Google's rate-limit response (HTTP 429 /
  * RESOURCE_EXHAUSTED). Works for both GaxiosError and axios error shapes.
@@ -40,6 +41,39 @@ function describeApiError(error) {
         parts.push(`HTTP ${status}`);
     if (message)
         parts.push(String(message).slice(0, 300));
+    return parts.length > 0 ? parts.join(': ') : 'unknown error';
+}
+const GRPC_STATUS_NAMES = {
+    0: 'OK',
+    1: 'CANCELLED',
+    2: 'UNKNOWN',
+    3: 'INVALID_ARGUMENT',
+    4: 'DEADLINE_EXCEEDED',
+    5: 'NOT_FOUND',
+    6: 'ALREADY_EXISTS',
+    7: 'PERMISSION_DENIED',
+    8: 'RESOURCE_EXHAUSTED',
+    9: 'FAILED_PRECONDITION',
+    10: 'ABORTED',
+    11: 'OUT_OF_RANGE',
+    12: 'UNIMPLEMENTED',
+    13: 'INTERNAL',
+    14: 'UNAVAILABLE',
+    15: 'DATA_LOSS',
+    16: 'UNAUTHENTICATED'
+};
+/**
+ * A short, credential-free description of a Pub/Sub gRPC error.
+ */
+function describePubSubError(error) {
+    var _a, _b;
+    const numericCode = typeof (error === null || error === void 0 ? void 0 : error.code) === 'number' ? error.code : undefined;
+    const code = numericCode === undefined
+        ? undefined
+        : `gRPC ${numericCode} ${(_a = GRPC_STATUS_NAMES[numericCode]) !== null && _a !== void 0 ? _a : 'UNKNOWN'}`;
+    const message = (_b = error === null || error === void 0 ? void 0 : error.details) !== null && _b !== void 0 ? _b : error === null || error === void 0 ? void 0 : error.message;
+    const parts = [code, message ? String(message).slice(0, 300) : undefined]
+        .filter((part) => Boolean(part));
     return parts.length > 0 ? parts.join(': ') : 'unknown error';
 }
 // The human-readable message Google returns in the response body, from either

@@ -42,6 +42,10 @@ class Platform {
             // run the method to discover / register your devices as accessories
             this.discoverDevices();
         });
+        this.api.on('shutdown', () => {
+            var _a;
+            void ((_a = this.smartDeviceManagement) === null || _a === void 0 ? void 0 : _a.close());
+        });
         this.Characteristic = Object.defineProperty(this.api.hap.Characteristic, 'EcoMode', { value: this.EcoMode });
     }
     /**
