@@ -9,7 +9,8 @@
 // log, which users routinely paste into GitHub issues. Never stringify one of
 // these errors; use describeApiError() to log a short, safe summary instead.
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.describeApiError = exports.isRateLimited = void 0;
+exports.isRateLimited = isRateLimited;
+exports.describeApiError = describeApiError;
 /**
  * True when an error is Google's rate-limit response (HTTP 429 /
  * RESOURCE_EXHAUSTED). Works for both GaxiosError and axios error shapes.
@@ -22,7 +23,6 @@ function isRateLimited(error) {
     const message = (_d = (_c = apiMessage(error)) !== null && _c !== void 0 ? _c : error === null || error === void 0 ? void 0 : error.message) !== null && _d !== void 0 ? _d : '';
     return /rate limit|RESOURCE_EXHAUSTED/i.test(message);
 }
-exports.isRateLimited = isRateLimited;
 /**
  * A short, credential-free description of a Google/axios error, safe to log.
  *
@@ -42,7 +42,6 @@ function describeApiError(error) {
         parts.push(String(message).slice(0, 300));
     return parts.length > 0 ? parts.join(': ') : 'unknown error';
 }
-exports.describeApiError = describeApiError;
 // The human-readable message Google returns in the response body, from either
 // the REST error envelope ({error:{message}}) or the errors[] array. Returns
 // undefined when neither is present so callers can fall back to error.message.

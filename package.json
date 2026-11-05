@@ -8,11 +8,11 @@
     "copy-files": "copyfiles -u 1 src/res/*.* dist/",
     "build": "npm run clean && tsc && npm run copy-files",
     "prepublishOnly": "npm run build",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "npm run build"
   },
   "engines": {
-    "homebridge": ">=1.4.0",
-    "node": ">=18"
+    "homebridge": "^1.6.0 || ^2.0.0",
+    "node": "^22.12.0 || ^24.0.0 || ^26.0.0"
   },
   "funding": {
     "type": "paypal",
@@ -44,10 +44,10 @@
   "devDependencies": {
     "@types/ip": "^1.1.0",
     "@types/lodash": "^4.14.173",
-    "@types/node": "^18.19.17",
+    "@types/node": "^22.20.5",
     "copyfiles": "^2.4.1",
-    "homebridge": "^1.4.0",
+    "homebridge": "^2.5.0",
     "rimraf": "^3.0.2",
-    "typescript": "^4.4.3"
+    "typescript": "5.8.3"
   }
 }
