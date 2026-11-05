@@ -126,10 +126,10 @@ class CameraBuffer {
             return;
         }
         const args = [
-            // "warning", not "error": the mp4 muxer's "Non-monotonous DTS ... changing to
+            // "warning", not "error": the mp4 muxer's "Non-monoton(ous|ic) DTS ... changing to
             // prev+1" clamp is a WARNING, and that clamp is the only direct evidence that
             // this reader's timeline has been poisoned by an upstream re-base. At "error" it
-            // is discarded, which is exactly how a 3h53m poisoning went unnoticed on
+            // is discarded, which is exactly how a 4h53m poisoning went unnoticed on
             // 2026-08-03 -- and it would also make the stderr backstop below dead code.
             "-hide_banner", "-loglevel", "warning",
             "-rtsp_transport", "tcp",
@@ -259,7 +259,7 @@ class CameraBuffer {
             // unavailable for ~5-10s, during which createStream() returns null and a
             // recording falls back to a direct dial -- which costs the pre-trigger history
             // for one event, against hours of silently poisoned clips.
-            if (/RTP: PT=\d+: bad cseq/.test(s)) {
+            if (/RTP: PT=[0-9a-f]+: bad cseq/.test(s)) {
                 this.log.warn(`[prebuffer:${this.name}] RTP discontinuity (${s.split("\n")[0]}); restarting reader to re-anchor the timeline`);
                 this.killChild();
                 return;
@@ -276,12 +276,13 @@ class CameraBuffer {
             // transcode-without-scale, so it is not an encoder problem -- the geometry change
             // reaches the muxer either way. None of the four cameras here has ever done it.
             //
-            // Best-effort by construction: with `-c copy` ffmpeg does not decode, so whether a
-            // geometry change surfaces on stderr at all depends on the build and on the parser
-            // noticing the new SPS. When it does surface we re-anchor; when it does not we are
-            // no worse off than before. Deliberately NOT thresholded like the DTS-clamp rule --
-            // one genuine geometry change is already fatal to the init segment, so there is no
-            // benign burst to ride out.
+            // This rule cannot fire in this reader as it is configured today. ffmpeg logs "Reinit
+            // context to" at VERBOSE level, from the H.264 decoder (6.0 through 8.0 source), and
+            // this reader runs `-c copy` at `-loglevel warning`, so it never opens a decoder and
+            // would discard the line anyway. A geometry change under `-c copy` therefore goes
+            // undetected here. The rule is kept for a reader that transcodes or logs at verbose.
+            // Deliberately NOT thresholded like the DTS-clamp rule -- one genuine geometry change
+            // is already fatal to the init segment, so there is no benign burst to ride out.
             const geometry = /Reinit context to (\d+x\d+)/.exec(s);
             if (geometry) {
                 const seen = geometry[1];
@@ -295,20 +296,33 @@ class CameraBuffer {
                 return;
             }
             // Backstop for a timestamp re-base that arrives WITHOUT a cseq jump, which the
-            // rule above would never see. ffmpeg 6 spells it "Non-monotonous"; 7+ says
-            // "Non-monotonic".
+            // rule above would never see. Match only the head of ffmpeg's warning: the tail has
+            // been reworded twice. 6.0 says "Non-monotonous DTS in output stream", 6.1 "Non-monotonic
+            // DTS in output stream", and 7.0 onward "Non-monotonic DTS;" (still the text in 8.0).
+            // This rule used to require "in output stream", so it never fired on ffmpeg 7+. The
+            // bundled ffmpeg-for-homebridge 2.1.1 is 6.0, which hid that, but 2.2.x already ships
+            // 8.0. The 7+ wording was seen in a Frigate ffmpeg-8.0 log on go2rtc#2404. No
+            // other ffmpeg runtime message contains "Non-monoton"; libavformat's own check
+            // says "non monotonically increasing dts" and does not match.
+            //
+            // Count every warning, not every stderr chunk. ffmpeg writes each one with separate
+            // av_log calls, and Node merges whatever is in the pipe into one 'data' event, so a busy
+            // event loop can hand us many warnings at once.
             //
             // Threshold, not hair-trigger. An ISOLATED clamp is survivable and common: one
             // camera here produces one every few minutes and every recording it fed still
             // closed reason=0. Restarting on each one cost ~5 ring resets in 13 minutes for
             // no benefit -- measured, after this backstop first shipped hair-triggered. What
             // actually poisons a ring is a SUSTAINED freeze: on 2026-08-03 the muxer clamped
-            // roughly fifty times a second for 3h53m, because every packet after the re-base
+            // roughly fifty times a second for 4h53m, because every packet after the re-base
             // was behind its predecessor. Requiring a burst separates the two: a real freeze
             // trips this within a second, an isolated hiccup never does.
-            if (/Non-monoton(ous|ic) DTS in output stream/.test(s)) {
+            const clampHits = s.match(/Non-monoton(ous|ic) DTS/g);
+            if (clampHits) {
                 const now = Date.now();
-                this.dtsClamps.push(now);
+                for (let i = 0; i < clampHits.length; i++) {
+                    this.dtsClamps.push(now);
+                }
                 while (this.dtsClamps.length && now - this.dtsClamps[0] > DTS_CLAMP_WINDOW_MS) {
                     this.dtsClamps.shift();
                 }
@@ -319,7 +333,7 @@ class CameraBuffer {
                     return;
                 }
                 // Below the burst threshold this only REPORTS. Never swallow the raw line:
-                // discarding it is exactly how the 3h53m poisoning stayed invisible, and the
+                // discarding it is exactly how the 4h53m poisoning stayed invisible, and the
                 // rate is the thing worth watching. Throttled so a chatty camera cannot
                 // flood the log.
                 if (now - this.lastClampLogAt > CLAMP_LOG_THROTTLE_MS) {
