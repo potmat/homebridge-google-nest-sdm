@@ -66,11 +66,11 @@ export abstract class Device {
         return value;
     }
 
-    async executeCommand<T, U>(name: string, params?: T): Promise<U | undefined> {
+    async executeCommand<T extends {[key: string]: any} | null, U>(name: string, params?: T): Promise<U | undefined> {
         this.log.debug(`Executing command ${name} with parameters ${JSON.stringify(params)}`, this.getDisplayName());
         try {
             const response = await this.smartdevicemanagement.enterprises.devices.executeCommand({
-                name: this.device?.name || undefined,
+                name: this.getName(),
                 requestBody: {
                     command: name,
                     params: params

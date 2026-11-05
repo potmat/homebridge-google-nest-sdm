@@ -69,13 +69,13 @@ class Platform {
             const uuid = this.api.hap.uuid.generate(device.getName());
             const category = (() => {
                 if (device instanceof Doorbell_1.Doorbell)
-                    return 18 /* VIDEO_DOORBELL */;
+                    return 18 /* this.api.hap.Categories.VIDEO_DOORBELL */;
                 else if (device instanceof Camera_1.Camera)
-                    return 17 /* CAMERA */;
+                    return 17 /* this.api.hap.Categories.CAMERA */;
                 else if (device instanceof Thermostat_1.Thermostat)
-                    return 9 /* THERMOSTAT */;
+                    return 9 /* this.api.hap.Categories.THERMOSTAT */;
                 else if (device instanceof UnknownDevice_1.UnknownDevice)
-                    return 1 /* OTHER */;
+                    return 1 /* this.api.hap.Categories.OTHER */;
             })();
             return {
                 device: device,
@@ -90,14 +90,14 @@ class Platform {
                 deviceInfos.push({
                     device: thermostatDevice,
                     uuid: uuid,
-                    category: 3 /* FAN */,
+                    category: 3 /* this.api.hap.Categories.FAN */,
                     existingAccessory: this.accessories.find(accessory => accessory.UUID === uuid)
                 });
             }
         });
         // loop over the discovered devices and register each one if it has not already been registered
         for (const deviceInfo of deviceInfos) {
-            if (deviceInfo.category === 1 /* OTHER */)
+            if (deviceInfo.category === 1 /* this.api.hap.Categories.OTHER */)
                 continue;
             if (deviceInfo.existingAccessory) {
                 this.log.info('Restoring existing accessory from cache:', deviceInfo.existingAccessory.displayName);
@@ -105,16 +105,16 @@ class Platform {
                 deviceInfo.existingAccessory.context.device = deviceInfo.device;
                 this.api.updatePlatformAccessories([deviceInfo.existingAccessory]);
                 switch (deviceInfo.category) {
-                    case 18 /* VIDEO_DOORBELL */:
+                    case 18 /* this.api.hap.Categories.VIDEO_DOORBELL */:
                         new DoorbellAccessory_1.DoorbellAccessory(this.api, this.log, this, deviceInfo.existingAccessory, deviceInfo.device);
                         break;
-                    case 17 /* CAMERA */:
+                    case 17 /* this.api.hap.Categories.CAMERA */:
                         new CameraAccessory_1.CameraAccessory(this.api, this.log, this, deviceInfo.existingAccessory, deviceInfo.device);
                         break;
-                    case 9 /* THERMOSTAT */:
+                    case 9 /* this.api.hap.Categories.THERMOSTAT */:
                         new ThermostatAccessory_1.ThermostatAccessory(this.api, this.log, this, deviceInfo.existingAccessory, deviceInfo.device);
                         break;
-                    case 3 /* FAN */:
+                    case 3 /* this.api.hap.Categories.FAN */:
                         new FanAccessory_1.FanAccessory(this.api, this.log, this, deviceInfo.existingAccessory, deviceInfo.device);
                         break;
                 }
@@ -123,23 +123,23 @@ class Platform {
             }
             else {
                 switch (deviceInfo.category) {
-                    case 18 /* VIDEO_DOORBELL */:
-                        const doorbellPlatformAccessory = this.getPlatformAccessory(deviceInfo.device, deviceInfo.device.getDisplayName(), deviceInfo.uuid, 18 /* VIDEO_DOORBELL */);
+                    case 18 /* this.api.hap.Categories.VIDEO_DOORBELL */:
+                        const doorbellPlatformAccessory = this.getPlatformAccessory(deviceInfo.device, deviceInfo.device.getDisplayName(), deviceInfo.uuid, 18 /* this.api.hap.Categories.VIDEO_DOORBELL */);
                         new DoorbellAccessory_1.DoorbellAccessory(this.api, this.log, this, doorbellPlatformAccessory, deviceInfo.device);
                         this.api.registerPlatformAccessories(Settings_1.PLUGIN_NAME, Settings_1.PLATFORM_NAME, [doorbellPlatformAccessory]);
                         break;
-                    case 17 /* CAMERA */:
-                        const cameraPlatformAccessory = this.getPlatformAccessory(deviceInfo.device, deviceInfo.device.getDisplayName(), deviceInfo.uuid, 17 /* CAMERA */);
+                    case 17 /* this.api.hap.Categories.CAMERA */:
+                        const cameraPlatformAccessory = this.getPlatformAccessory(deviceInfo.device, deviceInfo.device.getDisplayName(), deviceInfo.uuid, 17 /* this.api.hap.Categories.CAMERA */);
                         new CameraAccessory_1.CameraAccessory(this.api, this.log, this, cameraPlatformAccessory, deviceInfo.device);
                         this.api.registerPlatformAccessories(Settings_1.PLUGIN_NAME, Settings_1.PLATFORM_NAME, [cameraPlatformAccessory]);
                         break;
-                    case 9 /* THERMOSTAT */:
-                        let thermostatPlatformAccessory = this.getPlatformAccessory(deviceInfo.device, deviceInfo.device.getDisplayName(), deviceInfo.uuid, 9 /* THERMOSTAT */);
+                    case 9 /* this.api.hap.Categories.THERMOSTAT */:
+                        let thermostatPlatformAccessory = this.getPlatformAccessory(deviceInfo.device, deviceInfo.device.getDisplayName(), deviceInfo.uuid, 9 /* this.api.hap.Categories.THERMOSTAT */);
                         new ThermostatAccessory_1.ThermostatAccessory(this.api, this.log, this, thermostatPlatformAccessory, deviceInfo.device);
                         this.api.registerPlatformAccessories(Settings_1.PLUGIN_NAME, Settings_1.PLATFORM_NAME, [thermostatPlatformAccessory]);
                         break;
-                    case 3 /* FAN */:
-                        let fanPlatformAccessory = this.getPlatformAccessory(deviceInfo.device, deviceInfo.device.getDisplayName() + ' Fan', deviceInfo.uuid, 3 /* FAN */);
+                    case 3 /* this.api.hap.Categories.FAN */:
+                        let fanPlatformAccessory = this.getPlatformAccessory(deviceInfo.device, deviceInfo.device.getDisplayName() + ' Fan', deviceInfo.uuid, 3 /* this.api.hap.Categories.FAN */);
                         new FanAccessory_1.FanAccessory(this.api, this.log, this, fanPlatformAccessory, deviceInfo.device);
                         this.api.registerPlatformAccessories(Settings_1.PLUGIN_NAME, Settings_1.PLATFORM_NAME, [fanPlatformAccessory]);
                         break;
