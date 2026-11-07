@@ -8,6 +8,7 @@ const dgram_1 = require("dgram");
 const os_1 = __importDefault(require("os"));
 const systeminformation_1 = require("systeminformation");
 const FfMpegProcess_1 = require("./FfMpegProcess");
+const SnapshotCache_1 = require("./SnapshotCache");
 const NestStreamer_1 = require("./NestStreamer");
 const HksvStreamer_1 = __importDefault(require("./HksvStreamer"));
 const pick_port_1 = __importDefault(require("pick-port"));
@@ -22,6 +23,8 @@ class StreamingDelegate {
         this.hap = api.hap;
         this.config = platform.platformConfig;
         this.camera = camera;
+        if (this.config.streamSnapshots)
+            this.camera.configureSnapshot(this.config);
         this.accessory = accessory;
         api.on("shutdown" /* SHUTDOWN */, () => {
             for (const session in this.ongoingSessions) {
@@ -91,11 +94,12 @@ class StreamingDelegate {
             }
         };
     }
+    getCamera() { return this.camera; }
     handleSnapshotRequest(request, callback) {
         this.camera.getSnapshot()
             .then(result => {
             callback(undefined, result);
-        });
+        }).catch(error => callback(error));
     }
     static determineResolution(request) {
         let width = request.width;
@@ -188,19 +192,66 @@ class StreamingDelegate {
         callback(undefined, response);
     }
     async startStream(request, callback) {
+        var _a;
+        const originalCallback = callback;
+        let callbackDone = false;
+        const startupTimer = setTimeout(() => {
+            callback(new Error('Camera did not deliver live video before the startup deadline'));
+            this.stopStream(request.sessionID).catch(() => { });
+        }, Math.max(1000, (_a = this.config.streamStartupTimeout) !== null && _a !== void 0 ? _a : 20000));
+        callback = error => {
+            if (callbackDone)
+                return;
+            callbackDone = true;
+            clearTimeout(startupTimer);
+            originalCallback(error);
+        };
         const sessionInfo = this.pendingSessions[request.sessionID];
+        if (!sessionInfo) {
+            callback(new Error('Live session was not prepared'));
+            return;
+        }
         const resolution = StreamingDelegate.determineResolution(request.video);
         const bitrate = request.video.max_bit_rate * 4;
         const vEncoder = this.config.vEncoder || 'libx264 -preset ultrafast -tune zerolatency';
         this.log.debug(`Video stream requested: ${request.video.width} x ${request.video.height}, ${request.video.fps} fps, ${request.video.max_bit_rate} kbps`, this.camera.getDisplayName());
+        const cache = this.camera.snapshotCache;
+        cache === null || cache === void 0 ? void 0 : cache.liveRequests.add(request.sessionID);
+        if (cache)
+            await cache.stopCapture().catch(() => { });
+        if (callbackDone || this.pendingSessions[request.sessionID] !== sessionInfo) {
+            cache === null || cache === void 0 ? void 0 : cache.liveRequests.delete(request.sessionID);
+            callback(new Error('Live startup cancelled'));
+            return;
+        }
         const nestStreamer = await (0, NestStreamer_1.getStreamer)(this.log, this.camera, this.config);
+        if (callbackDone || this.pendingSessions[request.sessionID] !== sessionInfo) {
+            await nestStreamer.teardown();
+            cache === null || cache === void 0 ? void 0 : cache.liveRequests.delete(request.sessionID);
+            callback(new Error('Live startup cancelled'));
+            return;
+        }
         let ffmpegArgs;
         let nestStream;
+        const activeSession = { streamer: nestStreamer };
+        this.ongoingSessions[request.sessionID] = activeSession;
         try {
             nestStream = await nestStreamer.initialize(); // '-analyzeduration 15000000 -probesize 100000000 -i ' + streamInfo.streamUrls.rtspUrl;
+            if (callbackDone || this.ongoingSessions[request.sessionID] !== activeSession) {
+                await nestStreamer.teardown();
+                callback(new Error('Live startup cancelled'));
+                return;
+            }
             ffmpegArgs = nestStream.args;
         }
         catch (error) {
+            try {
+                await nestStreamer.teardown();
+            }
+            catch (_) { }
+            cache === null || cache === void 0 ? void 0 : cache.liveRequests.delete(request.sessionID);
+            delete this.ongoingSessions[request.sessionID];
+            delete this.pendingSessions[request.sessionID];
             this.logThenCallback(callback, error);
             return;
         }
@@ -243,10 +294,11 @@ class StreamingDelegate {
                 ' -srtp_out_params ' + sessionInfo.audioSRTP.toString('base64') +
                 ' srtp://' + sessionInfo.address + ':' + sessionInfo.audioPort +
                 '?rtcpport=' + sessionInfo.audioPort + '&pkt_size=188';
+        if (cache)
+            ffmpegArgs += ' -map 0:v:0 -an -sn -dn -vf ' + SnapshotCache_1.SNAPSHOT_FILTER + ' -vsync vfr -c:v mjpeg -q:v 5 -f image2pipe pipe:3';
         if (this.platform.debugMode) {
             ffmpegArgs += ' -loglevel level+verbose';
         }
-        const activeSession = { streamer: nestStreamer };
         try {
             activeSession.socket = (0, dgram_1.createSocket)(sessionInfo.ipv6 ? 'udp6' : 'udp4');
             activeSession.socket.on('error', (err) => {
@@ -266,6 +318,7 @@ class StreamingDelegate {
             activeSession.socket.bind(sessionInfo.videoReturnPort, sessionInfo.localAddress);
         }
         catch (error) {
+            await this.stopStream(request.sessionID);
             this.logThenCallback(callback, error);
             return;
         }
@@ -289,26 +342,29 @@ class StreamingDelegate {
         }
     }
     async stopStream(sessionId) {
-        var _a, _b, _c;
+        var _a, _b, _c, _d;
+        (_a = this.camera.snapshotCache) === null || _a === void 0 ? void 0 : _a.liveRequests.delete(sessionId);
+        delete this.pendingSessions[sessionId];
         const session = this.ongoingSessions[sessionId];
+        delete this.ongoingSessions[sessionId];
         if (session) {
             if (session.timeout) {
                 clearTimeout(session.timeout);
             }
             try {
-                (_a = session.socket) === null || _a === void 0 ? void 0 : _a.close();
+                (_b = session.socket) === null || _b === void 0 ? void 0 : _b.close();
             }
             catch (err) {
                 this.log.error('Error occurred closing socket: ' + err, this.camera.getDisplayName());
             }
             try {
-                (_b = session.mainProcess) === null || _b === void 0 ? void 0 : _b.stop();
+                await ((_c = session.mainProcess) === null || _c === void 0 ? void 0 : _c.stop());
             }
             catch (err) {
                 this.log.error('Error occurred terminating main FFmpeg process: ' + err, this.camera.getDisplayName());
             }
             try {
-                (_c = session.returnProcess) === null || _c === void 0 ? void 0 : _c.stop();
+                (_d = session.returnProcess) === null || _d === void 0 ? void 0 : _d.stop();
             }
             catch (err) {
                 this.log.error('Error occurred terminating two-way FFmpeg process: ' + err, this.camera.getDisplayName());

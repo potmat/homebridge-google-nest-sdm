@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.Device = void 0;
 const lodash_1 = __importDefault(require("lodash"));
 const ApiError_1 = require("./ApiError");
+const CommandGate_1 = require("../CommandGate");
 class Device {
     constructor(smartdevicemanagement, device, log) {
         this.smartdevicemanagement = smartdevicemanagement;
@@ -58,11 +59,15 @@ class Device {
         return value;
     }
     async executeCommand(name, params) {
-        var _a;
+        var _a, _b;
         this.log.debug(`Executing command ${name} with parameters ${JSON.stringify(params)}`, this.getDisplayName());
         try {
+            if (/CameraLiveStream/.test(name)) {
+                const background = /Generate.*Stream$/.test(name) && !!((_a = this.snapshotCache) === null || _a === void 0 ? void 0 : _a.captureSession) && !this.snapshotCache.liveRequests.size;
+                CommandGate_1.commandGate.admit(this.getName(), name, background);
+            }
             const response = await this.smartdevicemanagement.enterprises.devices.executeCommand({
-                name: ((_a = this.device) === null || _a === void 0 ? void 0 : _a.name) || undefined,
+                name: ((_b = this.device) === null || _b === void 0 ? void 0 : _b.name) || undefined,
                 requestBody: {
                     command: name,
                     params: params
@@ -73,6 +78,8 @@ class Device {
         }
         catch (error) {
             if ((0, ApiError_1.isRateLimited)(error)) {
+                if (!error.localQuota && /CameraLiveStream/.test(name))
+                    CommandGate_1.commandGate.rateLimited(this.getName());
                 this.log.error(`Google rate-limited the ${name} command (HTTP 429). Too many camera commands in a short period — wait about a minute before retrying.`, this.getDisplayName());
             }
             else {

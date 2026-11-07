@@ -149,3 +149,34 @@ HomeKit Secure Video will require even more CPU power.  The clips need to be tra
 **A**: You need to visit the ["ONE IMPORTANT DIFFERENCE"](https://github.com/potmat/homebridge-google-nest-sdm#where-do-the-config-values-come-from) URL again.  Here you will choose which Nest devices to authorize, you should see your new device here.  After you finish the process and get a new refresh token restart Homebridge, your device should now be visible.
 
 
+
+### Stream-backed camera previews
+
+Set `streamSnapshots` to `true` to opt in to real camera previews instead of the
+fallback logo. This uses the latest JPEG sampled (at most once per second) from
+an already-running live stream, without another Google stream request. When no
+local decoder is running, concurrent preview requests share a bounded capture.
+The capture closes after 120 seconds without preview activity, or after four
+minutes total; live playback preempts preview-only capture.
+
+The last good preview remains available if a refresh fails or Google rate-limits
+requests. Its capture time is not reset by a failed refresh. Images are kept only
+in memory, not written to disk; a restart clears them, and an initial preview can
+fail until the first frame arrives. A still preview may therefore be older than
+its request, and is not a substitute for live video.
+
+Camera stream inputs are retained for up to 60 seconds after the local consumer
+exits, allowing quick HomeKit reopenings to reuse the connection. Concurrent
+consumers receive independent inputs. An input is not reused past four minutes.
+A process-local rolling command budget reserves capacity for live playback and
+cleanup; Google 429 responses also trigger a one-minute cooldown. Other clients
+can consume the same Google quota, so this is not a guarantee against 429s.
+
+See [Google's Device Access limits](https://developers.google.com/nest/device-access/project/limits).
+
+`streamStartupTimeout` bounds Google negotiation plus live startup (milliseconds,
+default `20000`, minimum `1000`). FFmpeg also has a 15-second encoded-frame
+readiness deadline after it starts. Optional `cameraProbeOverrides` maps exact
+camera display names to `analyzeDuration` (microseconds) and `probeSize` (bytes),
+using the global settings for omitted fields. Defaults are unchanged: lowering
+probe limits can break cameras whose parameter sets/keyframes arrive slowly.

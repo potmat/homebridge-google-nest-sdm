@@ -1,0 +1,11 @@
+const assert=require('assert/strict');
+const {CommandGate}=require('../dist/CommandGate');
+let now=100000;const gate=new CommandGate(()=>now);
+for(let i=0;i<6;i++)gate.admit('enterprises/test/devices/'+i,'GenerateWebRtcStream',true);
+assert.throws(()=>gate.admit('enterprises/test/devices/new','GenerateWebRtcStream',true),/budget/);
+for(let i=0;i<4;i++)gate.admit('enterprises/test/devices/'+i,'StopWebRtcStream');
+assert.throws(()=>gate.admit('enterprises/test/devices/new','StopWebRtcStream'),/budget/);
+now+=60001;gate.admit('enterprises/test/devices/new','GenerateWebRtcStream',true);
+gate.rateLimited('enterprises/test/devices/new');assert.throws(()=>gate.admit('enterprises/test/devices/other','GenerateWebRtcStream'),/budget/);
+now+=60001;for(let i=0;i<5;i++)gate.admit('enterprises/second/devices/x','GenerateWebRtcStream');assert.throws(()=>gate.admit('enterprises/second/devices/x','GenerateWebRtcStream'),/budget/);
+console.log('PASS project rolling quota, snapshot reserve, live/cleanup reserve, per-device named quota, 429 cooldown');

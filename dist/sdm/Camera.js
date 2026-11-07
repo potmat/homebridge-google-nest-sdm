@@ -23,6 +23,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Camera = void 0;
+const SnapshotCache_1 = require("../SnapshotCache");
 const Device_1 = require("./Device");
 const Events = __importStar(require("./Events"));
 const Events_1 = require("./Events");
@@ -38,10 +39,19 @@ class Camera extends Device_1.Device {
         super(...arguments);
         this.image = null;
     }
+    get snapshotLogger() { return this.log; }
+    configureSnapshot(config) {
+        if (!this.snapshotCache)
+            Object.defineProperty(this, 'snapshotCache', { value: new SnapshotCache_1.SnapshotCache(this, config), configurable: true });
+    }
+    consumeSnapshotData(data, id) { var _a; (_a = this.snapshotCache) === null || _a === void 0 ? void 0 : _a.consume(data, id); }
+    endSnapshotData(id) { var _a; (_a = this.snapshotCache) === null || _a === void 0 ? void 0 : _a.end(id); }
     getDisplayName() {
         return this.displayName ? this.displayName + ' Camera' : 'Unknown';
     }
     async getSnapshot() {
+        if (this.snapshotCache)
+            return this.snapshotCache.get();
         if (this.image)
             return this.image;
         //Nest cams do not have any method to get a current snapshot,

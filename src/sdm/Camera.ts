@@ -1,3 +1,5 @@
+import {Config} from '../Config';
+import {SnapshotCache} from '../SnapshotCache';
 import {Device} from './Device';
 import * as Responses from './Responses';
 import {GenerateRtspStream, GenerateWebRtcStream} from './Responses';
@@ -14,6 +16,13 @@ import {describeApiError} from "./ApiError";
 
 export class Camera extends Device {
 
+    snapshotCache?: SnapshotCache;
+    get snapshotLogger() { return this.log; }
+    configureSnapshot(config: Config): void {
+        if (!this.snapshotCache) Object.defineProperty(this, 'snapshotCache', { value: new SnapshotCache(this, config), configurable: true });
+    }
+    consumeSnapshotData(data: Buffer, id: string) { this.snapshotCache?.consume(data, id); }
+    endSnapshotData(id: string) { this.snapshotCache?.end(id); }
     protected static readonly MAX_EVENT_AGE_SECONDS = 30;
 
     private image: Buffer | null = null;
@@ -25,6 +34,7 @@ export class Camera extends Device {
     onMotion: (() => void) | undefined;
 
     async getSnapshot(): Promise<Buffer | undefined> {
+        if (this.snapshotCache) return this.snapshotCache.get();
         if (this.image) return this.image;
 
         //Nest cams do not have any method to get a current snapshot,

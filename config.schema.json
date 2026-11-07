@@ -69,7 +69,39 @@
         "type": "integer",
         "required": false,
         "default": 100000000,
-        "description": "Maximum number of bytes FFmpeg will read while probing the stream to detect its parameters. FFmpeg stops as soon as it has detected the stream, so this is an upper bound, not a fixed amount. Defaults to 100000000 (100 MB), the plugin's long-standing value. WARNING: same caveat as Analyze Duration — setting it too low can cause a camera to fail to start with 'dimensions not set' if its H.264 parameter sets haven't arrived yet. Raise it (or keep the default) if a camera fails to start."
+        "description": "Maximum number of bytes FFmpeg will read while probing the stream to detect its parameters. FFmpeg stops as soon as it has detected the stream, so this is an upper bound, not a fixed amount. Defaults to 100000000 (100 MB), the plugin's long-standing value. WARNING: same caveat as Analyze Duration \u2014 setting it too low can cause a camera to fail to start with 'dimensions not set' if its H.264 parameter sets haven't arrived yet. Raise it (or keep the default) if a camera fails to start."
+      },
+      "streamSnapshots": {
+        "title": "Snapshots from camera streams",
+        "type": "boolean",
+        "default": false,
+        "description": "Opt in to real preview images. Reuses the newest sampled frame while live video is open; otherwise starts a shared, bounded capture. Retains the last good frame on rate limits. Snapshots are memory-only and may be stale during failures."
+      },
+      "streamStartupTimeout": {
+        "title": "Live stream startup deadline (milliseconds)",
+        "type": "integer",
+        "minimum": 1000,
+        "default": 20000,
+        "description": "Bounds Google negotiation and initial encoded-video startup together."
+      },
+      "cameraProbeOverrides": {
+        "title": "Per-camera WebRTC probe settings",
+        "type": "object",
+        "additionalProperties": {
+          "type": "object",
+          "properties": {
+            "analyzeDuration": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "probeSize": {
+              "type": "integer",
+              "minimum": 32
+            }
+          },
+          "additionalProperties": false
+        },
+        "description": "Optional exact camera display-name keys with analyzeDuration (microseconds) and probeSize (bytes). Omitted values use the global settings. Lower values can break cameras with slow keyframes; tune only after testing."
       }
     }
   }

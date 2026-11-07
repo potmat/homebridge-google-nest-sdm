@@ -4,7 +4,10 @@ import {Logger} from "homebridge";
 import _ from "lodash";
 import {describeApiError, isRateLimited} from "./ApiError";
 
+import {commandGate} from '../CommandGate';
+import type {SnapshotCache} from '../SnapshotCache';
 export abstract class Device {
+    snapshotCache?: SnapshotCache;
     protected smartdevicemanagement: google.smartdevicemanagement_v1.Smartdevicemanagement;
     protected device: google.smartdevicemanagement_v1.Schema$GoogleHomeEnterpriseSdmV1Device;
     protected lastRefresh: number;
@@ -69,6 +72,10 @@ export abstract class Device {
     async executeCommand<T, U>(name: string, params?: T): Promise<U | undefined> {
         this.log.debug(`Executing command ${name} with parameters ${JSON.stringify(params)}`, this.getDisplayName());
         try {
+            if (/CameraLiveStream/.test(name)) {
+                const background = /Generate.*Stream$/.test(name) && !!this.snapshotCache?.captureSession && !this.snapshotCache.liveRequests.size;
+                commandGate.admit(this.getName(), name, background);
+            }
             const response = await this.smartdevicemanagement.enterprises.devices.executeCommand({
                 name: this.device?.name || undefined,
                 requestBody: {
@@ -80,6 +87,7 @@ export abstract class Device {
             return <U>response.data.results;
         } catch (error: any) {
             if (isRateLimited(error)) {
+                if (!error.localQuota && /CameraLiveStream/.test(name)) commandGate.rateLimited(this.getName());
                 this.log.error(`Google rate-limited the ${name} command (HTTP 429). Too many camera commands in a short period — wait about a minute before retrying.`, this.getDisplayName());
             } else {
                 this.log.error(`Could not execute device command: ${describeApiError(error)}`, this.getDisplayName());

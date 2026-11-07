@@ -24,8 +24,9 @@ import os from 'os';
 import {networkInterfaceDefault} from 'systeminformation';
 import {Config} from './Config'
 import {FfmpegProcess} from './FfMpegProcess';
+import { SNAPSHOT_FILTER } from './SnapshotCache';
 import {Camera} from "./sdm/Camera";
-import {getStreamer, NestStream, NestStreamer} from "./NestStreamer";
+import {getStreamer, NestStream, Streamer} from "./NestStreamer";
 import {Platform} from "./Platform";
 import HksvStreamer from "./HksvStreamer";
 import pickPort, { pickPortOptions } from 'pick-port';
@@ -53,7 +54,7 @@ type ActiveSession = {
   returnProcess?: FfmpegProcess;
   timeout?: NodeJS.Timeout;
   socket?: Socket;
-  streamer: NestStreamer;
+  streamer: Streamer;
 };
 
 type ResolutionInfo = {
@@ -64,7 +65,7 @@ type ResolutionInfo = {
 
 type RecordingSessionInfo = {
   streamId: number,
-  nestStreamer: NestStreamer,
+  nestStreamer: Streamer,
   hksvStreamer: HksvStreamer
 }
 
@@ -93,6 +94,7 @@ export abstract class StreamingDelegate<T extends CameraController> implements C
     this.hap = api.hap;
     this.config = platform.platformConfig as unknown as Config
     this.camera = camera;
+    if (this.config.streamSnapshots) this.camera.configureSnapshot(this.config);
     this.accessory = accessory;
 
     api.on(APIEvent.SHUTDOWN, () => {
@@ -165,13 +167,15 @@ export abstract class StreamingDelegate<T extends CameraController> implements C
     };
   }
 
+  getCamera(): Camera { return this.camera; }
+
   abstract getController(): T;
 
   handleSnapshotRequest(request: SnapshotRequest, callback: SnapshotRequestCallback): void {
     this.camera.getSnapshot()
         .then(result => {
           callback(undefined, result);
-        })
+        }).catch(error => callback(error));
   }
 
   private static determineResolution(request: VideoInfo): ResolutionInfo {
@@ -285,22 +289,60 @@ export abstract class StreamingDelegate<T extends CameraController> implements C
 
   private async startStream(request: StartStreamRequest, callback: StreamRequestCallback): Promise<void> {
 
+    const originalCallback = callback;
+    let callbackDone = false;
+    const startupTimer = setTimeout(() => {
+      callback(new Error('Camera did not deliver live video before the startup deadline'));
+      this.stopStream(request.sessionID).catch(() => {});
+    }, Math.max(1000, this.config.streamStartupTimeout ?? 20000));
+    callback = error => {
+      if (callbackDone) return;
+      callbackDone = true;
+      clearTimeout(startupTimer);
+      originalCallback(error);
+    };
     const sessionInfo = this.pendingSessions[request.sessionID];
+    if (!sessionInfo) { callback(new Error('Live session was not prepared')); return; }
     const resolution = StreamingDelegate.determineResolution(request.video);
     const bitrate = request.video.max_bit_rate * 4;
     const vEncoder = this.config.vEncoder || 'libx264 -preset ultrafast -tune zerolatency'
 
     this.log.debug(`Video stream requested: ${request.video.width} x ${request.video.height}, ${request.video.fps} fps, ${request.video.max_bit_rate} kbps`, this.camera.getDisplayName());
 
+    const cache = this.camera.snapshotCache;
+    cache?.liveRequests.add(request.sessionID);
+    if (cache) await cache.stopCapture().catch(() => {});
+    if (callbackDone || this.pendingSessions[request.sessionID] !== sessionInfo) {
+      cache?.liveRequests.delete(request.sessionID);
+      callback(new Error('Live startup cancelled'));
+      return;
+    }
     const nestStreamer = await getStreamer(this.log, this.camera, this.config);
+    if (callbackDone || this.pendingSessions[request.sessionID] !== sessionInfo) {
+      await nestStreamer.teardown();
+      cache?.liveRequests.delete(request.sessionID);
+      callback(new Error('Live startup cancelled'));
+      return;
+    }
 
     let ffmpegArgs: string;
     let nestStream: NestStream;
+    const activeSession: ActiveSession = { streamer: nestStreamer };
+    this.ongoingSessions[request.sessionID] = activeSession;
 
     try {
       nestStream = await nestStreamer.initialize(); // '-analyzeduration 15000000 -probesize 100000000 -i ' + streamInfo.streamUrls.rtspUrl;
+      if (callbackDone || this.ongoingSessions[request.sessionID] !== activeSession) {
+        await nestStreamer.teardown();
+        callback(new Error('Live startup cancelled'));
+        return;
+      }
       ffmpegArgs = nestStream.args;
     } catch (error: any) {
+      try { await nestStreamer.teardown(); } catch (_) {}
+      cache?.liveRequests.delete(request.sessionID);
+      delete this.ongoingSessions[request.sessionID];
+      delete this.pendingSessions[request.sessionID];
       this.logThenCallback(callback, error);
       return;
     }
@@ -350,11 +392,11 @@ export abstract class StreamingDelegate<T extends CameraController> implements C
           '?rtcpport=' + sessionInfo.audioPort + '&pkt_size=188';
 
 
+    if (cache) ffmpegArgs += ' -map 0:v:0 -an -sn -dn -vf ' + SNAPSHOT_FILTER + ' -vsync vfr -c:v mjpeg -q:v 5 -f image2pipe pipe:3';
+
     if (this.platform.debugMode) {
       ffmpegArgs += ' -loglevel level+verbose';
     }
-
-    const activeSession: ActiveSession = { streamer: nestStreamer };
 
     try {
       activeSession.socket = createSocket(sessionInfo.ipv6 ? 'udp6' : 'udp4');
@@ -374,6 +416,7 @@ export abstract class StreamingDelegate<T extends CameraController> implements C
       });
       activeSession.socket.bind(sessionInfo.videoReturnPort, sessionInfo.localAddress);
     } catch (error: any) {
+      await this.stopStream(request.sessionID);
       this.logThenCallback(callback, error);
       return;
     }
@@ -401,7 +444,10 @@ export abstract class StreamingDelegate<T extends CameraController> implements C
   }
 
   public async stopStream(sessionId: string): Promise<void> {
+    this.camera.snapshotCache?.liveRequests.delete(sessionId);
+    delete this.pendingSessions[sessionId];
     const session = this.ongoingSessions[sessionId];
+    delete this.ongoingSessions[sessionId];
     if (session) {
       if (session.timeout) {
         clearTimeout(session.timeout);
@@ -412,7 +458,7 @@ export abstract class StreamingDelegate<T extends CameraController> implements C
         this.log.error('Error occurred closing socket: ' + err, this.camera.getDisplayName());
       }
       try {
-        session.mainProcess?.stop();
+        await session.mainProcess?.stop();
       } catch (err) {
         this.log.error('Error occurred terminating main FFmpeg process: ' + err, this.camera.getDisplayName());
       }

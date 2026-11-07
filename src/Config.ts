@@ -9,5 +9,8 @@ export type Config = {
     showFan?: boolean,
     fanDuration?: number,
     analyzeDuration?: number,
+    streamSnapshots?: boolean,
+    streamStartupTimeout?: number,
+    cameraProbeOverrides?: Record<string, {analyzeDuration?: number; probeSize?: number}>,
     probeSize?: number
 }

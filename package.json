@@ -8,7 +8,7 @@
     "copy-files": "copyfiles -u 1 src/res/*.* dist/",
     "build": "npm run clean && tsc && npm run copy-files",
     "prepublishOnly": "npm run build",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "npm run build && node test/command-gate.cjs && node test/stream-idle.cjs && node test/snapshot-cache.cjs && node test/camera-recovery.cjs && node test/latest-frame.cjs && node test/ffmpeg-lifecycle.cjs && node test/live-startup.cjs"
   },
   "engines": {
     "homebridge": ">=1.4.0",
