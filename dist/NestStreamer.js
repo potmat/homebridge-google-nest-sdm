@@ -30,6 +30,7 @@ const werift_1 = require("werift");
 const Traits = __importStar(require("./sdm/Traits"));
 const pick_port_1 = __importDefault(require("pick-port"));
 const H264_1 = require("./H264");
+const StreamLeasePool_1 = require("./StreamLeasePool");
 class NestStreamer {
     constructor(log, camera, config) {
         this.log = log;
@@ -58,6 +59,7 @@ exports.RtspNestStreamer = RtspNestStreamer;
 class WebRtcNestStreamer extends NestStreamer {
     constructor() {
         super(...arguments);
+        this.closed = false;
         this.startTime = 0;
         this.displayName = '';
         this.firstRembSent = false;
@@ -137,7 +139,7 @@ class WebRtcNestStreamer extends NestStreamer {
         }
     }
     async initialize() {
-        var _a, _b, _c;
+        var _a, _b, _c, _d, _e, _f;
         // Diagnostics: log a timeline of WebRTC startup milestones relative to this
         // point, so we can see where the time-to-first-frame actually goes
         // (connection setup vs. first RTP vs. first keyframe). Debug level only.
@@ -193,7 +195,8 @@ class WebRtcNestStreamer extends NestStreamer {
         audioTransceiver.onTrack.subscribe((track) => {
             audioTransceiver.sender.replaceTrack(track);
             track.onReceiveRtp.subscribe((rtp) => {
-                this.udp.send(rtp.serialize(), audioPort, "127.0.0.1");
+                var _a;
+                (_a = this.udp) === null || _a === void 0 ? void 0 : _a.send(rtp.serialize(), audioPort, "127.0.0.1");
             });
         });
         let sawFirstVideoRtp = false;
@@ -219,6 +222,7 @@ class WebRtcNestStreamer extends NestStreamer {
             videoTransceiver.sender.replaceTrack(track);
             this.sendRemb();
             track.onReceiveRtp.subscribe((rtp) => {
+                var _a;
                 if (!sawFirstVideoRtp) {
                     sawFirstVideoRtp = true;
                     this.mark('first video RTP packet');
@@ -244,7 +248,7 @@ class WebRtcNestStreamer extends NestStreamer {
                 lastVideoTimestamp = rtp.header.timestamp;
                 const out = rtp.serialize();
                 this.captureVideo(out);
-                this.udp.send(out, videoPort, "127.0.0.1");
+                (_a = this.udp) === null || _a === void 0 ? void 0 : _a.send(out, videoPort, "127.0.0.1");
             });
             track.onReceiveRtp.once(() => {
                 this.requestKeyframe();
@@ -261,6 +265,10 @@ class WebRtcNestStreamer extends NestStreamer {
         }
         this.mark('received answer from Nest');
         this.token = streamInfo.mediaSessionId;
+        if (this.closed) {
+            await this.teardown();
+            throw new Error('Camera startup cancelled');
+        }
         await this.pc.setRemoteDescription({
             type: 'answer',
             sdp: streamInfo.answerSdp
@@ -277,8 +285,9 @@ class WebRtcNestStreamer extends NestStreamer {
         // returns as soon as it has codec parameters, while the full analyzeduration
         // window remains available for a late keyframe. Video is stream-copied, so fps
         // metadata is never used downstream.
+        const probe = ((_b = this.config.cameraProbeOverrides) === null || _b === void 0 ? void 0 : _b[this.displayName]) || {};
         return {
-            args: `-protocol_whitelist pipe,crypto,udp,rtp,fd -analyzeduration ${(_b = this.config.analyzeDuration) !== null && _b !== void 0 ? _b : 15000000} -probesize ${(_c = this.config.probeSize) !== null && _c !== void 0 ? _c : 100000000} -fpsprobesize 0 -i -`,
+            args: `-protocol_whitelist pipe,crypto,udp,rtp,fd -analyzeduration ${(_d = (_c = probe.analyzeDuration) !== null && _c !== void 0 ? _c : this.config.analyzeDuration) !== null && _d !== void 0 ? _d : 15000000} -probesize ${(_f = (_e = probe.probeSize) !== null && _e !== void 0 ? _e : this.config.probeSize) !== null && _f !== void 0 ? _f : 100000000} -fpsprobesize 0 -i -`,
             stdin: `v=0
 o=- 0 0 IN IP4 127.0.0.1
 s=-
@@ -300,7 +309,6 @@ a=sendrecv`
         };
     }
     async teardown() {
-        var _a, _b;
         if (this.keyframeRequestInterval) {
             clearInterval(this.keyframeRequestInterval);
             this.keyframeRequestInterval = undefined;
@@ -309,35 +317,46 @@ a=sendrecv`
             this.captureStream.end();
             this.captureStream = undefined;
         }
+        this.closed = true;
+        const token = this.token;
+        this.token = undefined;
+        const pc = this.pc;
+        this.pc = undefined;
+        const udp = this.udp;
+        this.udp = undefined;
         try {
-            await this.camera.stopStream(this.token);
+            if (pc)
+                await pc.close();
         }
-        catch (error) {
-            this.log.error('Error stopping camera stream.', error);
-        }
+        catch (_) { }
         try {
-            await ((_a = this.pc) === null || _a === void 0 ? void 0 : _a.close());
+            if (udp)
+                udp.close();
         }
-        catch (error) {
-            this.log.error('Error closing peer connection.', error);
-        }
-        try {
-            await ((_b = this.udp) === null || _b === void 0 ? void 0 : _b.close());
-        }
-        catch (error) {
-            this.log.error('Error closing UDP connection to FFMpeg.', error);
+        catch (_) { }
+        if (token) {
+            try {
+                await this.camera.stopStream(token);
+            }
+            catch (_) {
+                this.log.warn('Could not stop remote camera session', this.displayName);
+            }
         }
     }
 }
 exports.WebRtcNestStreamer = WebRtcNestStreamer;
 WebRtcNestStreamer.REMB_BITRATE = 4000000;
-async function getStreamer(log, camera, config) {
+async function createStreamer(log, camera, config) {
     if ((await camera.getVideoProtocol()) === Traits.ProtocolType.WEB_RTC) {
         return new WebRtcNestStreamer(log, camera, config);
     }
     else {
         return new RtspNestStreamer(log, camera, config);
     }
+}
+const upstreamPool = new StreamLeasePool_1.StreamLeasePool();
+async function getStreamer(log, camera, config) {
+    return upstreamPool.lease(camera, () => createStreamer(log, camera, config));
 }
 exports.getStreamer = getStreamer;
 //# sourceMappingURL=NestStreamer.js.map
