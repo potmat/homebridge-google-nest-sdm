@@ -9,6 +9,9 @@ import {Config} from "./Config";
 
 export class FanAccessory extends Accessory<Thermostat> {
 
+    /** How long the fan runs when turned on and `fanDuration` isn't set (15 minutes). */
+    public static readonly DEFAULT_DURATION_SECONDS = 900;
+
     private readonly service: Service;
     private config: Config;
 
@@ -55,7 +58,9 @@ export class FanAccessory extends Accessory<Thermostat> {
         if (this.config.fanDuration && (this.config.fanDuration < 1 || this.config.fanDuration > 43200))
             throw new Error(`Cannot set "${this.config.fanDuration}" as fan duration.`);
 
-        await this.device.setFan((value as boolean) ? Traits.FanTimerModeType.ON : FanTimerModeType.OFF, this.config.fanDuration)
+        await this.device.setFan(
+            (value as boolean) ? Traits.FanTimerModeType.ON : FanTimerModeType.OFF,
+            this.config.fanDuration ?? FanAccessory.DEFAULT_DURATION_SECONDS);
     }
 
     /**

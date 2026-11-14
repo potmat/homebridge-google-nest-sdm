@@ -52,12 +52,13 @@ class FanAccessory extends Accessory_1.Accessory {
      * Handle requests to set the "On" characteristic
      */
     async handleOnSet(value) {
+        var _a;
         this.log.debug('Triggered SET Fan', this.accessory.displayName);
         if (!lodash_1.default.isBoolean(value))
             throw new Error(`Cannot set "${value}" as fan state.`);
         if (this.config.fanDuration && (this.config.fanDuration < 1 || this.config.fanDuration > 43200))
             throw new Error(`Cannot set "${this.config.fanDuration}" as fan duration.`);
-        await this.device.setFan(value ? Traits.FanTimerModeType.ON : Traits_1.FanTimerModeType.OFF, this.config.fanDuration);
+        await this.device.setFan(value ? Traits.FanTimerModeType.ON : Traits_1.FanTimerModeType.OFF, (_a = this.config.fanDuration) !== null && _a !== void 0 ? _a : FanAccessory.DEFAULT_DURATION_SECONDS);
     }
     /**
      * Handle requests to get the current value of the "On" characteristic
@@ -74,4 +75,6 @@ class FanAccessory extends Accessory_1.Accessory {
     }
 }
 exports.FanAccessory = FanAccessory;
+/** How long the fan runs when turned on and `fanDuration` isn't set (15 minutes). */
+FanAccessory.DEFAULT_DURATION_SECONDS = 900;
 //# sourceMappingURL=FanAccessory.js.map
