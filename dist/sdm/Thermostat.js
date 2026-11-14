@@ -238,11 +238,14 @@ class Thermostat extends Device_1.Device {
             mode: mode
         });
     }
+    /**
+     * Turns the fan timer on or off. `duration` (in seconds) is only sent when turning it on.
+     */
     async setFan(timerMode, duration) {
-        await this.executeCommand(Commands.Constants.ThermostatFan_SetTimer, {
-            timerMode: timerMode,
-            duration: duration + 's'
-        });
+        const params = { timerMode: timerMode };
+        if (timerMode === Traits_1.FanTimerModeType.ON && duration !== undefined)
+            params.duration = duration + 's';
+        await this.executeCommand(Commands.Constants.ThermostatFan_SetTimer, params);
     }
 }
 exports.Thermostat = Thermostat;
