@@ -11,7 +11,7 @@ import {
 import { PLATFORM_NAME, PLUGIN_NAME } from './Settings';
 import { CameraAccessory } from './CameraAccessory';
 import {SmartDeviceManagement} from './sdm/Api';
-import {Config} from "./Config";
+import {Config, FanPlacement} from "./Config";
 import {ThermostatAccessory} from "./ThermostatAccessory";
 import {Camera} from "./sdm/Camera";
 import {Thermostat} from "./sdm/Thermostat";
@@ -115,14 +115,20 @@ export class Platform implements DynamicPlatformPlugin {
             });
 
         devices.filter(device => device instanceof Thermostat).forEach(thermostatDevice => {
-            if (this.config.showFan) {
-                const uuid = this.api.hap.uuid.generate(thermostatDevice.getName() + ' Fan');
+            const uuid = this.api.hap.uuid.generate(thermostatDevice.getName() + ' Fan');
+            const existingAccessory = this.accessories.find(accessory => accessory.UUID === uuid);
+
+            if (this.config.showFan && this.fanPlacement === 'accessory') {
                 deviceInfos.push({
                     device: thermostatDevice,
                     uuid: uuid,
                     category: this.api.hap.Categories.FAN,
-                    existingAccessory: this.accessories.find(accessory => accessory.UUID === uuid)
+                    existingAccessory: existingAccessory
                 })
+            } else if (existingAccessory) {
+                // The fan is hidden or now lives on the thermostat's accessory.
+                this.log.info('Removing separate fan accessory:', existingAccessory.displayName);
+                this.api.unregisterPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [existingAccessory]);
             }
         });
 
@@ -148,6 +154,7 @@ export class Platform implements DynamicPlatformPlugin {
                         break;
                     case this.api.hap.Categories.THERMOSTAT:
                         new ThermostatAccessory(this.api, this.log, this, deviceInfo.existingAccessory, deviceInfo.device as Thermostat);
+                        this.syncThermostatFan(deviceInfo.existingAccessory, deviceInfo.device as Thermostat);
                         break;
                     case this.api.hap.Categories.FAN:
                         new FanAccessory(this.api, this.log, this, deviceInfo.existingAccessory, deviceInfo.device as Thermostat);
@@ -171,6 +178,7 @@ export class Platform implements DynamicPlatformPlugin {
                     case this.api.hap.Categories.THERMOSTAT:
                         let thermostatPlatformAccessory = this.getPlatformAccessory(deviceInfo.device, deviceInfo.device.getDisplayName(), deviceInfo.uuid, this.api.hap.Categories.THERMOSTAT);
                         new ThermostatAccessory(this.api, this.log, this, thermostatPlatformAccessory, deviceInfo.device as Thermostat);
+                        this.syncThermostatFan(thermostatPlatformAccessory, deviceInfo.device as Thermostat);
                         this.api.registerPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [thermostatPlatformAccessory]);
                         break;
                     case this.api.hap.Categories.FAN:
@@ -181,6 +189,31 @@ export class Platform implements DynamicPlatformPlugin {
                 }
             }
         }
+    }
+
+    /** `fanPlacement` from the config, falling back to a separate accessory. */
+    private get fanPlacement(): FanPlacement {
+        return this.config.fanPlacement === 'thermostat' ? 'thermostat' : 'accessory';
+    }
+
+    /**
+     * Keeps a thermostat accessory's Fan service in line with the config: present when showFan
+     * is on and fanPlacement is "thermostat", removed otherwise (e.g. after switching back to a
+     * separate accessory, or turning showFan off).
+     */
+    private syncThermostatFan(accessory: PlatformAccessory, device: Thermostat) {
+        const keepFan = this.config.showFan && this.fanPlacement === 'thermostat';
+
+        for (const service of [...accessory.services]) {
+            const isOwnFan = service.subtype === FanAccessory.THERMOSTAT_SERVICE_SUBTYPE;
+            if (service.UUID === this.api.hap.Service.Fan.UUID && !(keepFan && isOwnFan)) {
+                this.log.info('Removing fan service from thermostat accessory:', accessory.displayName);
+                accessory.removeService(service);
+            }
+        }
+
+        if (keepFan)
+            new FanAccessory(this.api, this.log, this, accessory, device, 'thermostat');
     }
 
     private getPlatformAccessory(device: Device, name: string, uuid: string, category: Categories) {

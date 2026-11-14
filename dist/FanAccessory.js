@@ -27,17 +27,24 @@ const Traits = __importStar(require("./sdm/Traits"));
 const Traits_1 = require("./sdm/Traits");
 const Accessory_1 = require("./Accessory");
 const lodash_1 = __importDefault(require("lodash"));
+/**
+ * Exposes a thermostat's fan as a HomeKit Fan service, either on its own accessory or on the
+ * thermostat's accessory, depending on the `fanPlacement` config option.
+ */
 class FanAccessory extends Accessory_1.Accessory {
-    constructor(api, log, platform, accessory, device) {
+    constructor(api, log, platform, accessory, device, placement = 'accessory') {
+        var _a, _b;
         super(api, log, platform, accessory, device);
         this.config = platform.platformConfig;
-        this.accessory.on("identify" /* IDENTIFY */, () => {
-            log.info("%s fan identified!", accessory.displayName);
-        });
-        // create a new Thermostat service
-        this.service = accessory.getService(this.api.hap.Service.Fan);
-        if (!this.service) {
-            this.service = accessory.addService(this.api.hap.Service.Fan);
+        if (placement === 'thermostat') {
+            // Shares the thermostat's accessory, which already handles identify.
+            this.service = (_a = accessory.getServiceById(this.api.hap.Service.Fan, FanAccessory.THERMOSTAT_SERVICE_SUBTYPE)) !== null && _a !== void 0 ? _a : accessory.addService(this.api.hap.Service.Fan, 'Fan', FanAccessory.THERMOSTAT_SERVICE_SUBTYPE);
+        }
+        else {
+            this.accessory.on("identify" /* IDENTIFY */, () => {
+                log.info("%s fan identified!", accessory.displayName);
+            });
+            this.service = (_b = accessory.getService(this.api.hap.Service.Fan)) !== null && _b !== void 0 ? _b : accessory.addService(this.api.hap.Service.Fan);
         }
         this.service.getCharacteristic(this.platform.Characteristic.On)
             .onGet(this.handleOnGet.bind(this))
@@ -74,4 +81,6 @@ class FanAccessory extends Accessory_1.Accessory {
     }
 }
 exports.FanAccessory = FanAccessory;
+/** Subtype of the Fan service when it shares the thermostat's accessory. */
+FanAccessory.THERMOSTAT_SERVICE_SUBTYPE = 'fan';
 //# sourceMappingURL=FanAccessory.js.map

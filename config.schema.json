@@ -46,6 +46,20 @@
         "type": "boolean",
         "required": false
       },
+      "fanPlacement": {
+        "title": "Fan switch placement",
+        "type": "string",
+        "required": false,
+        "default": "accessory",
+        "oneOf": [
+          { "title": "Separate accessory", "enum": ["accessory"] },
+          { "title": "Inside the thermostat accessory", "enum": ["thermostat"] }
+        ],
+        "description": "Where the fan switch appears in HomeKit. \"Separate accessory\" adds its own \"<thermostat name> Fan\" tile. \"Inside the thermostat accessory\" puts the switch in the thermostat's controls in the Home app. Changing this removes the fan from its old place, so any scenes or automations that use it need it added again.",
+        "condition": {
+          "functionBody": "return model.showFan"
+        }
+      },
       "fanDuration": {
         "title": "Fan duration (in seconds) when turning on the fan.",
         "type": "integer",

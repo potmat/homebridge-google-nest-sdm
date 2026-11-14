@@ -85,14 +85,20 @@ class Platform {
             };
         });
         devices.filter(device => device instanceof Thermostat_1.Thermostat).forEach(thermostatDevice => {
-            if (this.config.showFan) {
-                const uuid = this.api.hap.uuid.generate(thermostatDevice.getName() + ' Fan');
+            const uuid = this.api.hap.uuid.generate(thermostatDevice.getName() + ' Fan');
+            const existingAccessory = this.accessories.find(accessory => accessory.UUID === uuid);
+            if (this.config.showFan && this.fanPlacement === 'accessory') {
                 deviceInfos.push({
                     device: thermostatDevice,
                     uuid: uuid,
                     category: 3 /* FAN */,
-                    existingAccessory: this.accessories.find(accessory => accessory.UUID === uuid)
+                    existingAccessory: existingAccessory
                 });
+            }
+            else if (existingAccessory) {
+                // The fan is hidden or now lives on the thermostat's accessory.
+                this.log.info('Removing separate fan accessory:', existingAccessory.displayName);
+                this.api.unregisterPlatformAccessories(Settings_1.PLUGIN_NAME, Settings_1.PLATFORM_NAME, [existingAccessory]);
             }
         });
         // loop over the discovered devices and register each one if it has not already been registered
@@ -113,6 +119,7 @@ class Platform {
                         break;
                     case 9 /* THERMOSTAT */:
                         new ThermostatAccessory_1.ThermostatAccessory(this.api, this.log, this, deviceInfo.existingAccessory, deviceInfo.device);
+                        this.syncThermostatFan(deviceInfo.existingAccessory, deviceInfo.device);
                         break;
                     case 3 /* FAN */:
                         new FanAccessory_1.FanAccessory(this.api, this.log, this, deviceInfo.existingAccessory, deviceInfo.device);
@@ -136,6 +143,7 @@ class Platform {
                     case 9 /* THERMOSTAT */:
                         let thermostatPlatformAccessory = this.getPlatformAccessory(deviceInfo.device, deviceInfo.device.getDisplayName(), deviceInfo.uuid, 9 /* THERMOSTAT */);
                         new ThermostatAccessory_1.ThermostatAccessory(this.api, this.log, this, thermostatPlatformAccessory, deviceInfo.device);
+                        this.syncThermostatFan(thermostatPlatformAccessory, deviceInfo.device);
                         this.api.registerPlatformAccessories(Settings_1.PLUGIN_NAME, Settings_1.PLATFORM_NAME, [thermostatPlatformAccessory]);
                         break;
                     case 3 /* FAN */:
@@ -146,6 +154,27 @@ class Platform {
                 }
             }
         }
+    }
+    /** `fanPlacement` from the config, falling back to a separate accessory. */
+    get fanPlacement() {
+        return this.config.fanPlacement === 'thermostat' ? 'thermostat' : 'accessory';
+    }
+    /**
+     * Keeps a thermostat accessory's Fan service in line with the config: present when showFan
+     * is on and fanPlacement is "thermostat", removed otherwise (e.g. after switching back to a
+     * separate accessory, or turning showFan off).
+     */
+    syncThermostatFan(accessory, device) {
+        const keepFan = this.config.showFan && this.fanPlacement === 'thermostat';
+        for (const service of [...accessory.services]) {
+            const isOwnFan = service.subtype === FanAccessory_1.FanAccessory.THERMOSTAT_SERVICE_SUBTYPE;
+            if (service.UUID === this.api.hap.Service.Fan.UUID && !(keepFan && isOwnFan)) {
+                this.log.info('Removing fan service from thermostat accessory:', accessory.displayName);
+                accessory.removeService(service);
+            }
+        }
+        if (keepFan)
+            new FanAccessory_1.FanAccessory(this.api, this.log, this, accessory, device, 'thermostat');
     }
     getPlatformAccessory(device, name, uuid, category) {
         this.log.info('Adding new accessory:', name);
