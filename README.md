@@ -31,6 +31,7 @@ Don't forget the ``--unsafe-perm`` part!
         "gcpProjectId": "<optional>",
         "vEncoder": "<optional>"
         "showFan": "<optional>"
+        "fanPlacement": "<optional>"
         "fanDuration": "<optional>"
     }
 
@@ -53,6 +54,12 @@ Follow the getting started guide here: https://developers.google.com/nest/device
 **vEncoder** is optional.  It is the encoder the plugin will use for camera streams. If vEncoder is not specified it will default to "libx264 -preset ultrafast -tune zerolatency". You can use "copy" to not transcode streams at all, this will require almost no CPU, and seems to work fine on most devices, however it's not guaranteed to work in all scenarios. On a Raspberry Pi 4 you can try something like "h264_v4l2m2m".  On other platforms you are free to use the encoder of your choice.  If you don't know what this means you can probably ignore it.
 
 **showFan** is optional.  If true, a fan accessory will be added.
+
+**fanPlacement** is optional. You only need to use this if **showFan** is set to true. It controls where the fan switch appears in HomeKit:
+* `"accessory"` (the default): a separate "&lt;thermostat name&gt; Fan" accessory.
+* `"thermostat"`: a Fan service on the thermostat's own accessory, so the Home app shows the switch inside the thermostat's controls.
+
+Changing it removes the fan from its old place, so any scenes or automations that use the fan need it added again.
 
 **fanDuration** is optional. You only need to use this if **showFan** is set to true. It controls the fan duration (in seconds) when turning on the fan.  Must be between 1 and 43200.  Defaults to 900 if not set.
 

@@ -5,9 +5,16 @@ import {Platform} from './Platform';
 import {Thermostat} from "./sdm/Thermostat";
 import {Accessory} from "./Accessory";
 import _ from "lodash";
-import {Config} from "./Config";
+import {Config, FanPlacement} from "./Config";
 
+/**
+ * Exposes a thermostat's fan as a HomeKit Fan service, either on its own accessory or on the
+ * thermostat's accessory, depending on the `fanPlacement` config option.
+ */
 export class FanAccessory extends Accessory<Thermostat> {
+
+    /** Subtype of the Fan service when it shares the thermostat's accessory. */
+    public static readonly THERMOSTAT_SERVICE_SUBTYPE = 'fan';
 
     private readonly service: Service;
     private config: Config;
@@ -17,19 +24,23 @@ export class FanAccessory extends Accessory<Thermostat> {
         log: Logger,
         platform: Platform,
         accessory: PlatformAccessory,
-        device: Thermostat) {
+        device: Thermostat,
+        placement: FanPlacement = 'accessory') {
         super(api, log, platform, accessory, device);
 
         this.config = platform.platformConfig as unknown as Config
 
-        this.accessory.on(PlatformAccessoryEvent.IDENTIFY, () => {
-            log.info("%s fan identified!", accessory.displayName);
-        });
+        if (placement === 'thermostat') {
+            // Shares the thermostat's accessory, which already handles identify.
+            this.service = accessory.getServiceById(this.api.hap.Service.Fan, FanAccessory.THERMOSTAT_SERVICE_SUBTYPE)
+                ?? accessory.addService(this.api.hap.Service.Fan, 'Fan', FanAccessory.THERMOSTAT_SERVICE_SUBTYPE);
+        } else {
+            this.accessory.on(PlatformAccessoryEvent.IDENTIFY, () => {
+                log.info("%s fan identified!", accessory.displayName);
+            });
 
-        // create a new Thermostat service
-        this.service = <Service>accessory.getService(this.api.hap.Service.Fan);
-        if (!this.service) {
-            this.service = accessory.addService(this.api.hap.Service.Fan);
+            this.service = accessory.getService(this.api.hap.Service.Fan)
+                ?? accessory.addService(this.api.hap.Service.Fan);
         }
 
         this.service.getCharacteristic(this.platform.Characteristic.On)
