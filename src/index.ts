@@ -1,4 +1,5 @@
 
+import './NodeCompat';
 import { API } from 'homebridge';
 
 import { PLATFORM_NAME } from './Settings';

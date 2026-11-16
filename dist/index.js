@@ -1,4 +1,5 @@
 "use strict";
+require("./NodeCompat");
 const Settings_1 = require("./Settings");
 const Platform_1 = require("./Platform");
 module.exports = (api) => {
