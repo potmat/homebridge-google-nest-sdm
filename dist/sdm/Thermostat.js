@@ -32,13 +32,28 @@ class Thermostat extends Device_1.Device {
     getDisplayName() {
         return this.displayName ? this.displayName + ' Thermostat' : 'Unknown';
     }
+    isEcoActive(eco) {
+        return (eco === null || eco === void 0 ? void 0 : eco.mode) !== undefined && eco.mode !== Traits.EcoModeType.OFF;
+    }
+    async ensureEcoOff() {
+        const eco = await this.getEco();
+        if (!this.isEcoActive(eco)) {
+            return;
+        }
+        if (!this.ecoDisablePromise) {
+            this.ecoDisablePromise = this.setEco(Traits.EcoModeType.OFF).finally(() => {
+                this.ecoDisablePromise = undefined;
+            });
+        }
+        await this.ecoDisablePromise;
+    }
     event(event) {
         super.event(event);
         lodash_1.default.forEach(event.resourceUpdate.traits, (value, key) => {
             switch (key) {
                 case Traits.Constants.ThermostatTemperatureSetpoint:
                     const setpoint = event.resourceUpdate.traits[Traits.Constants.ThermostatTemperatureSetpoint];
-                    if (!setpoint.coolCelsius && !setpoint.heatCelsius)
+                    if (setpoint.coolCelsius === undefined && setpoint.heatCelsius === undefined)
                         return;
                     this.getMode()
                         .then(mode => {
@@ -52,9 +67,10 @@ class Thermostat extends Device_1.Device {
                             case Traits_1.ThermostatModeType.HEAT:
                             case Traits_1.ThermostatModeType.COOL:
                                 this.getTargetTemperature().then(targetTemperature => {
-                                    if (this.onTargetTemperatureChanged && targetTemperature)
+                                    if (this.onTargetTemperatureChanged && targetTemperature !== undefined)
                                         this.onTargetTemperatureChanged(targetTemperature);
                                 });
+                                break;
                         }
                     });
                     break;
@@ -69,6 +85,7 @@ class Thermostat extends Device_1.Device {
                         const traitValue = value;
                         this.onFanChanged(traitValue);
                     }
+                    break;
                 case Traits.Constants.ThermostatHvac:
                     if (this.onHvacChanged) {
                         const traitValue = value;
@@ -122,38 +139,45 @@ class Thermostat extends Device_1.Device {
     }
     async getTargetTemperature() {
         const eco = await this.getEco();
-        if ((eco === null || eco === void 0 ? void 0 : eco.mode) !== Traits.EcoModeType.OFF) {
-            throw new Error('Cannot get target temperature when the thermostat is in eco mode.');
+        const mode = await this.getMode();
+        if (this.isEcoActive(eco)) {
+            switch (mode === null || mode === void 0 ? void 0 : mode.mode) {
+                case Traits.ThermostatModeType.HEAT:
+                    return eco === null || eco === void 0 ? void 0 : eco.heatCelsius;
+                case Traits.ThermostatModeType.COOL:
+                    return eco === null || eco === void 0 ? void 0 : eco.coolCelsius;
+                case Traits.ThermostatModeType.HEATCOOL:
+                case Traits.ThermostatModeType.OFF:
+                    return undefined;
+            }
         }
         const trait = await this.getTrait(Traits.Constants.ThermostatTemperatureSetpoint);
-        const mode = await this.getMode();
         switch (mode === null || mode === void 0 ? void 0 : mode.mode) {
             case Traits.ThermostatModeType.OFF:
-                throw new Error('Cannot get a target temperature when the thermostat is off.');
+            case Traits.ThermostatModeType.HEATCOOL:
+                return undefined;
             case Traits.ThermostatModeType.HEAT:
                 return trait === null || trait === void 0 ? void 0 : trait.heatCelsius;
             case Traits.ThermostatModeType.COOL:
                 return trait === null || trait === void 0 ? void 0 : trait.coolCelsius;
-            case Traits.ThermostatModeType.HEATCOOL:
-                throw new Error('Cannot get a target temperature when the thermostat is in auto mode.');
         }
     }
     async setTargetTemperature(temperature) {
-        const eco = await this.getEco();
-        if ((eco === null || eco === void 0 ? void 0 : eco.mode) !== Traits.EcoModeType.OFF) {
-            throw new Error('Cannot set a target temperature when the thermostat is in eco mode.');
-        }
+        await this.ensureEcoOff();
         const mode = await this.getMode();
+        const setpoint = await this.getTrait(Traits.Constants.ThermostatTemperatureSetpoint);
         switch (mode === null || mode === void 0 ? void 0 : mode.mode) {
             case Traits.ThermostatModeType.HEAT:
-                await this.executeCommand(Commands.Constants.ThermostatTemperatureSetpoint_SetHeat, {
-                    heatCelsius: temperature
-                });
+                await this.executeCommand(Commands.Constants.ThermostatTemperatureSetpoint_SetHeat, { heatCelsius: temperature }, true);
+                if (setpoint) {
+                    setpoint.heatCelsius = temperature;
+                }
                 break;
             case Traits.ThermostatModeType.COOL:
-                await this.executeCommand(Commands.Constants.ThermostatTemperatureSetpoint_SetCool, {
-                    coolCelsius: temperature
-                });
+                await this.executeCommand(Commands.Constants.ThermostatTemperatureSetpoint_SetCool, { coolCelsius: temperature }, true);
+                if (setpoint) {
+                    setpoint.coolCelsius = temperature;
+                }
                 break;
             case Traits.ThermostatModeType.HEATCOOL:
                 throw new Error('Cannot set a target temperature when the thermostat is in auto mode.');
@@ -162,41 +186,52 @@ class Thermostat extends Device_1.Device {
         }
     }
     async setTargetTemperatureRange(cool, heat) {
-        const eco = await this.getEco();
-        if ((eco === null || eco === void 0 ? void 0 : eco.mode) !== Traits.EcoModeType.OFF) {
-            throw new Error('Cannot set a target temperature when the thermostat is in eco mode.');
-        }
-        if (!cool && !heat) {
+        var _a, _b;
+        if (cool === undefined && heat === undefined) {
             throw new Error('At least one of heat/cool must be specified when setting a target temperature range.');
         }
+        const previousRange = await this.getTargetTemperatureRange();
+        await this.ensureEcoOff();
         const mode = await this.getMode();
+        const setpoint = await this.getTrait(Traits.Constants.ThermostatTemperatureSetpoint);
         switch (mode === null || mode === void 0 ? void 0 : mode.mode) {
-            case Traits.ThermostatModeType.HEATCOOL:
+            case Traits.ThermostatModeType.HEATCOOL: {
                 const currentRange = await this.getTargetTemperatureRange();
-                await this.executeCommand(Commands.Constants.ThermostatTemperatureSetpoint_SetRange, {
-                    heatCelsius: heat || (currentRange === null || currentRange === void 0 ? void 0 : currentRange.heat),
-                    coolCelsius: cool || (currentRange === null || currentRange === void 0 ? void 0 : currentRange.cool)
-                });
+                const heatCelsius = (_a = heat !== null && heat !== void 0 ? heat : currentRange === null || currentRange === void 0 ? void 0 : currentRange.heat) !== null && _a !== void 0 ? _a : previousRange === null || previousRange === void 0 ? void 0 : previousRange.heat;
+                const coolCelsius = (_b = cool !== null && cool !== void 0 ? cool : currentRange === null || currentRange === void 0 ? void 0 : currentRange.cool) !== null && _b !== void 0 ? _b : previousRange === null || previousRange === void 0 ? void 0 : previousRange.cool;
+                if (heatCelsius === undefined || coolCelsius === undefined) {
+                    throw new Error('Cannot determine both heat and cool temperatures for range update.');
+                }
+                await this.executeCommand(Commands.Constants.ThermostatTemperatureSetpoint_SetRange, { heatCelsius, coolCelsius }, true);
+                if (setpoint) {
+                    setpoint.heatCelsius = heatCelsius;
+                    setpoint.coolCelsius = coolCelsius;
+                }
                 break;
+            }
             case Traits.ThermostatModeType.HEAT:
-                if (!heat)
+                if (heat === undefined)
                     throw new Error('Cannot set a target temperature range (heat only) when the thermostat is not in heat mode.');
-                await this.executeCommand(Commands.Constants.ThermostatTemperatureSetpoint_SetRange, {
-                    heatCelsius: heat
-                });
+                await this.executeCommand(Commands.Constants.ThermostatTemperatureSetpoint_SetHeat, { heatCelsius: heat }, true);
+                if (setpoint) {
+                    setpoint.heatCelsius = heat;
+                }
+                break;
             case Traits.ThermostatModeType.COOL:
-                if (!cool)
+                if (cool === undefined)
                     throw new Error('Cannot set a target temperature range (cool only) when the thermostat is not in cool mode.');
-                await this.executeCommand(Commands.Constants.ThermostatTemperatureSetpoint_SetRange, {
-                    coolCelsius: cool
-                });
+                await this.executeCommand(Commands.Constants.ThermostatTemperatureSetpoint_SetCool, { coolCelsius: cool }, true);
+                if (setpoint) {
+                    setpoint.coolCelsius = cool;
+                }
+                break;
             case Traits.ThermostatModeType.OFF:
                 throw new Error('Cannot set a target temperature when the thermostat is off.');
         }
     }
     async getTargetTemperatureRange() {
         const eco = await this.getEco();
-        if ((eco === null || eco === void 0 ? void 0 : eco.mode) !== Traits.EcoModeType.OFF) {
+        if (this.isEcoActive(eco)) {
             return {
                 heat: eco === null || eco === void 0 ? void 0 : eco.heatCelsius,
                 cool: eco === null || eco === void 0 ? void 0 : eco.coolCelsius
@@ -205,7 +240,7 @@ class Thermostat extends Device_1.Device {
         const mode = await this.getMode();
         switch (mode === null || mode === void 0 ? void 0 : mode.mode) {
             case Traits.ThermostatModeType.OFF:
-                throw new Error('Cannot get a target temperature range when the thermostat is in off.');
+                return null;
             case Traits.ThermostatModeType.HEAT:
             case Traits.ThermostatModeType.COOL:
             case Traits.ThermostatModeType.HEATCOOL:
@@ -221,9 +256,13 @@ class Thermostat extends Device_1.Device {
         if (!(currentMode === null || currentMode === void 0 ? void 0 : currentMode.availableModes.includes(mode))) {
             throw new Error(`Thermostat does not support ${mode} mode.`);
         }
-        await this.executeCommand(Commands.Constants.ThermostatMode_SetMode, {
-            mode: mode
-        });
+        if (mode !== Traits.ThermostatModeType.OFF) {
+            await this.ensureEcoOff();
+        }
+        if (currentMode.mode !== mode) {
+            await this.executeCommand(Commands.Constants.ThermostatMode_SetMode, { mode }, true);
+            currentMode.mode = mode;
+        }
     }
     async getTemperatureUnits() {
         const settings = await this.getTrait(Traits.Constants.Settings);
@@ -234,9 +273,12 @@ class Thermostat extends Device_1.Device {
         return humidity === null || humidity === void 0 ? void 0 : humidity.ambientHumidityPercent;
     }
     async setEco(mode) {
-        await this.executeCommand(Commands.Constants.ThermostatEco_SetMode, {
-            mode: mode
-        });
+        var _a, _b;
+        await this.executeCommand(Commands.Constants.ThermostatEco_SetMode, { mode }, true);
+        const eco = (_b = (_a = this.device) === null || _a === void 0 ? void 0 : _a.traits) === null || _b === void 0 ? void 0 : _b[Traits.Constants.ThermostatEco];
+        if (eco) {
+            eco.mode = mode;
+        }
     }
     async setFan(timerMode, duration) {
         await this.executeCommand(Commands.Constants.ThermostatFan_SetTimer, {

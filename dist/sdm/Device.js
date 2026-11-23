@@ -19,7 +19,7 @@ class Device {
         if (event.resourceUpdate && event.resourceUpdate.traits) {
             const traitEvent = event;
             lodash_1.default.forEach(traitEvent.resourceUpdate.traits, (value, key) => {
-                if (this.device.traits && this.device.traits[key])
+                if (this.device.traits)
                     this.device.traits[key] = value;
             });
         }
@@ -57,7 +57,7 @@ class Device {
         //this.log.debug(`Request for trait ${name} had value ${JSON.stringify(value)}`, this.getDisplayName());
         return value;
     }
-    async executeCommand(name, params) {
+    async executeCommand(name, params, throwOnError = false) {
         var _a;
         this.log.debug(`Executing command ${name} with parameters ${JSON.stringify(params)}`, this.getDisplayName());
         try {
@@ -77,6 +77,9 @@ class Device {
             }
             else {
                 this.log.error(`Could not execute device command: ${(0, ApiError_1.describeApiError)(error)}`, this.getDisplayName());
+            }
+            if (throwOnError) {
+                throw error;
             }
         }
         return undefined;
