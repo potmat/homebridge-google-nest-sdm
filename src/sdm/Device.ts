@@ -25,7 +25,7 @@ export abstract class Device {
         if ((event as any).resourceUpdate && (event as any).resourceUpdate.traits) {
             const traitEvent = event as Events.ResourceTraitEvent;
             _.forEach(traitEvent.resourceUpdate.traits, (value, key) => {
-                if (this.device.traits && this.device.traits[key])
+                if (this.device.traits)
                     this.device.traits[key] = value;
             })
         }
@@ -66,7 +66,7 @@ export abstract class Device {
         return value;
     }
 
-    async executeCommand<T, U>(name: string, params?: T): Promise<U | undefined> {
+    async executeCommand<T, U>(name: string, params?: T, throwOnError = false): Promise<U | undefined> {
         this.log.debug(`Executing command ${name} with parameters ${JSON.stringify(params)}`, this.getDisplayName());
         try {
             const response = await this.smartdevicemanagement.enterprises.devices.executeCommand({
@@ -83,6 +83,9 @@ export abstract class Device {
                 this.log.error(`Google rate-limited the ${name} command (HTTP 429). Too many camera commands in a short period — wait about a minute before retrying.`, this.getDisplayName());
             } else {
                 this.log.error(`Could not execute device command: ${describeApiError(error)}`, this.getDisplayName());
+            }
+            if (throwOnError) {
+                throw error;
             }
         }
 

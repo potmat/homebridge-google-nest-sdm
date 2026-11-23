@@ -25,7 +25,7 @@ export abstract class Accessory<T> {
 
     protected async convertToNullable<T>(input: Promise<T | undefined | null>): Promise<Nullable<T>> {
         const result = await input;
-        if (!result) return null;
+        if (result === undefined || result === null) return null;
         return result;
     }
 }

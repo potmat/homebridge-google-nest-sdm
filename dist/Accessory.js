@@ -13,7 +13,7 @@ class Accessory {
     }
     async convertToNullable(input) {
         const result = await input;
-        if (!result)
+        if (result === undefined || result === null)
             return null;
         return result;
     }
