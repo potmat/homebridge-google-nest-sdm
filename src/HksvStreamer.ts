@@ -114,12 +114,22 @@ export default class HksvStreamer {
         this.childProcess?.kill();
         this.childProcess = undefined;
         this.destroyed = true;
+        // Close the listening server if a client never connected (otherwise the socket leaks for the
+        // life of the process), and resolve connectPromise so a generator still awaiting a connection
+        // that will now never come unblocks (it then throws the "Unexpected state!" guard below).
+        try { this.server.close(() => { /* ignore "not running" */ }); } catch (e) { /* not listening */ }
+        this.connectResolve?.();
     }
 
     handleDisconnect() {
         this.log.debug('Socket destroyed.')
         this.socket?.destroy();
         this.socket = undefined;
+        // If ffmpeg exits or errors before ever connecting (e.g. a bad input), connectPromise would
+        // otherwise never settle and generator() would await it forever, hanging the recording and
+        // leaking the server. Close it and resolve so the generator fails fast and visibly instead.
+        try { this.server.close(() => { /* ignore "not running" */ }); } catch (e) { /* not listening */ }
+        this.connectResolve?.();
     }
 
     handleConnection(socket: Socket): void {

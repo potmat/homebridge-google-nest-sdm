@@ -104,3 +104,6 @@ typings/
 
 # TernJS port file
 .tern-port
+
+# NPM Token
+.npmrc
