@@ -1,6 +1,7 @@
 import {Camera} from "./sdm/Camera";
 import {GenerateRtspStream, GenerateWebRtcStream} from "./sdm/Responses";
 import {createSocket, Socket} from "dgram";
+import {Readable} from "stream";
 import * as fs from "fs";
 import * as path from "path";
 import {
@@ -19,7 +20,13 @@ import {containsKeyframe, buildFirFeedback} from "./H264";
 
 export interface NestStream {
     args: string,
-    stdin?: string
+    stdin?: string,
+    /**
+     * Media piped to ffmpeg's stdin rather than dialled. Used by the HKSV prebuffer,
+     * which hands over [buffered history][live] as fragmented MP4 on `-i pipe:0`.
+     * Mutually exclusive with `stdin`, which carries an SDP for the WebRTC path.
+     */
+    stdinStream?: Readable
 }
 
 export abstract class NestStreamer {
